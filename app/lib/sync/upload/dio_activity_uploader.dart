@@ -13,8 +13,10 @@ import 'package:dio/dio.dart';
 
 import 'package:strava_estudo_app/sync/upload/activity_uploader.dart';
 
-/// Envia o FIT via multipart POST para `$baseUrl/uploads` e extrai o uploadId
-/// do corpo da resposta. Simples e defensivo: qualquer desvio vira
+/// Envia o FIT como corpo binario (application/octet-stream) em POST para
+/// `$baseUrl/uploads`, com o guid da atividade no header `x-activity-guid`, e
+/// extrai o uploadId do corpo da resposta. Esse e o contrato do nosso backend
+/// (`backend/lib/src/api.dart`). Simples e defensivo: qualquer desvio vira
 /// UploadException.
 class DioActivityUploader implements ActivityUploader {
   final Dio _dio;
@@ -27,17 +29,19 @@ class DioActivityUploader implements ActivityUploader {
   @override
   Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
     try {
-      final FormData form = FormData.fromMap(<String, dynamic>{
-        'activityGuid': activityGuid,
-        'file': MultipartFile.fromBytes(
-          fitBytes,
-          filename: '$activityGuid.fit',
-        ),
-      });
-
       final Response<dynamic> response = await _dio.post<dynamic>(
         '$_baseUrl/uploads',
-        data: form,
+        data: Stream<List<int>>.value(fitBytes),
+        options: Options(
+          headers: <String, dynamic>{
+            Headers.contentTypeHeader: 'application/octet-stream',
+            Headers.contentLengthHeader: fitBytes.length,
+            'x-activity-guid': activityGuid,
+          },
+          // O backend responde 201 no sucesso; qualquer outro status cai no
+          // tratamento abaixo em vez de virar DioException generica.
+          validateStatus: (int? s) => s != null,
+        ),
       );
 
       final int? status = response.statusCode;

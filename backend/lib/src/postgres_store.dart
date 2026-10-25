@@ -4,6 +4,7 @@ library;
 import 'package:postgres/postgres.dart';
 
 import 'activity_store.dart';
+import 'fit_decoder.dart';
 
 class PostgresActivityStore implements ActivityStore {
   final Connection _conn;
@@ -34,19 +35,37 @@ class PostgresActivityStore implements ActivityStore {
   @override
   Future<UploadRecord> saveUpload(List<int> fitBytes,
       {String? activityGuid, required int nowMs, required String id}) async {
+    // Tenta extrair a rota do FIT. Falha na decodificacao nao pode derrubar o
+    // upload: o arquivo bruto ja fica guardado em `fit` e pode ser reprocessado
+    // depois. Nesse caso route e point_count ficam NULL.
+    final RotaDecodificada rota = decodificarRota(fitBytes);
+
+    final Map<String, Object?> parameters = <String, Object?>{
+      'id': id,
+      'status': 'received',
+      'received_at': nowMs,
+      'size': fitBytes.length,
+      'guid': activityGuid,
+      'fit': fitBytes,
+    };
+
+    final String routeExpr;
+    if (rota.wkt != null) {
+      routeExpr = 'ST_SetSRID(ST_GeomFromText(@wkt), 4326)';
+      parameters['wkt'] = rota.wkt;
+      parameters['points'] = rota.pointCount;
+    } else {
+      routeExpr = 'NULL';
+      parameters['points'] = rota.pointCount > 0 ? rota.pointCount : null;
+    }
+
     await _conn.execute(
       Sql.named(
-        'INSERT INTO uploads (id, status, received_at, size_bytes, activity_guid, fit) '
-        'VALUES (@id, @status, @received_at, @size, @guid, @fit)',
+        'INSERT INTO uploads '
+        '(id, status, received_at, size_bytes, activity_guid, fit, route, point_count) '
+        'VALUES (@id, @status, @received_at, @size, @guid, @fit, $routeExpr, @points)',
       ),
-      parameters: {
-        'id': id,
-        'status': 'received',
-        'received_at': nowMs,
-        'size': fitBytes.length,
-        'guid': activityGuid,
-        'fit': fitBytes,
-      },
+      parameters: parameters,
     );
     return UploadRecord(
       id: id,

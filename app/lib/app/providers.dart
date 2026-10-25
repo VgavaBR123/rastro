@@ -47,9 +47,17 @@ final settingsProvider =
   return SettingsController(ref.watch(recordingDatabaseProvider))..load();
 });
 
-/// Endpoint de upload (placeholder configuravel; NUNCA o Strava). Trocar pela
-/// URL do nosso backend quando existir.
-const String kSyncBaseUrl = 'https://example.invalid';
+/// Endpoint de upload do NOSSO backend (`backend/`); NUNCA o Strava.
+///
+/// Configuravel em tempo de build:
+///   flutter run --dart-define=SYNC_BASE_URL=http://10.0.2.2:8081
+/// (10.0.2.2 e como o emulador Android alcanca o localhost da maquina; no
+/// simulador iOS use http://localhost:8081). Sem a flag, aponta para um host
+/// invalido de proposito, para nao vazar upload para lugar nenhum.
+const String kSyncBaseUrl = String.fromEnvironment(
+  'SYNC_BASE_URL',
+  defaultValue: 'https://example.invalid',
+);
 
 final activityUploaderProvider = Provider<ActivityUploader>((ref) {
   return DioActivityUploader(Dio(), kSyncBaseUrl);
