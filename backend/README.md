@@ -10,12 +10,45 @@ extrai a rota para uma geometria PostGIS. Nada aqui fala com o Strava.
 | `GET /health` | `{"status":"ok"}` |
 | `POST /uploads` | corpo = arquivo FIT em `application/octet-stream`, header opcional `x-activity-guid`. Responde 201 com `{id, uploadId, status, receivedAt, sizeBytes, activityGuid}`. Corpo vazio = 400. |
 | `GET /uploads/<id>` | metadados de um upload (404 se nao existe) |
+| `GET /uploads/<id>/route` | rota como Feature GeoJSON. 200 com a rota, **204 sem corpo** se o upload existe mas nao tem rota, 404 se o id nao existe |
 | `GET /activities` | ultimos uploads |
+
+`GET /uploads/<id>` e `GET /activities` devolvem, alem de `id`, `uploadId`, `status`,
+`receivedAt`, `sizeBytes` e `activityGuid`, dois campos de metrica que estao **sempre
+presentes** (podem vir `null`, para o cliente nao precisar distinguir "campo ausente" de
+"sem rota"):
+
+- `pointCount`: pontos com posicao valida lidos do FIT; `null` quando a decodificacao falhou.
+- `lengthMeters`: comprimento da rota em metros; `null` quando nao ha rota.
+
+`GET /uploads/<id>/route` responde:
+
+```json
+{
+  "type": "Feature",
+  "geometry": {"type": "LineString", "coordinates": [[-46.656, -23.561], ["..."]]},
+  "properties": {"pointCount": 60, "lengthMeters": 1115.07}
+}
+```
+
+Coordenadas na ordem GeoJSON `[longitude, latitude]`, SRID 4326.
+
+Por que **204** e nao 404 quando nao ha rota: o upload existe e continua acessivel em
+`GET /uploads/<id>`. Responder 404 faria o cliente concluir que o upload sumiu ou que o id
+esta errado. 204 diz exatamente o que aconteceu — o recurso existe e nao tem representacao
+(ainda): o FIT era ilegivel ou tinha menos de 2 pontos, e pode ser reprocessado depois.
+Assim o 404 fica reservado para "id desconhecido".
 
 O servidor decodifica o FIT (`lib/src/fit_decoder.dart`) e grava `route`
 (`geometry(LineString,4326)`) e `point_count`. Se a decodificacao falhar ou houver menos de
 2 pontos validos, o upload continua valendo e `route` fica NULL — o arquivo bruto esta em
 `fit` e pode ser reprocessado depois.
+
+No Postgres a rota sai de `ST_AsGeoJSON(route)` e o comprimento de
+`ST_Length(route::geography)`. O `InMemoryActivityStore` (testes e `USE_INMEMORY=1`) monta a
+mesma resposta decodificando o FIT guardado com `decodeFitRecords` e medindo com haversine
+(`comprimentoMetros`); PostGIS mede sobre o elipsoide WGS84, entao os dois valores diferem
+em cerca de 0,2%.
 
 ## Rodando local
 

@@ -45,6 +45,53 @@ void main() {
     expect(find.byType(ListTile), findsOneWidget);
   });
 
+  testWidgets('Confirmar no dialogo exclui a atividade da lista', (tester) async {
+    final db = await seededDb();
+    addTearDown(db.close);
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [recordingDatabaseProvider.overrideWithValue(db)],
+      child: const MaterialApp(home: HistoryScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('menu-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-a')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Excluir atividade?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-delete')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ListTile), findsNothing);
+    expect(find.text('Nenhuma atividade ainda'), findsOneWidget);
+    expect(find.text('Atividade excluida'), findsOneWidget);
+    expect(await RecordingRepository(db).recent(), isEmpty);
+  });
+
+  testWidgets('Cancelar no dialogo mantem a atividade', (tester) async {
+    final db = await seededDb();
+    addTearDown(db.close);
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [recordingDatabaseProvider.overrideWithValue(db)],
+      child: const MaterialApp(home: HistoryScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('menu-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('delete-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('cancel-delete')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ListTile), findsOneWidget);
+    expect(find.text('Atividade excluida'), findsNothing);
+    expect((await RecordingRepository(db).recent()).length, 1);
+  });
+
   testWidgets('Detalhe mostra metricas da atividade', (tester) async {
     final db = await seededDb();
     addTearDown(db.close);

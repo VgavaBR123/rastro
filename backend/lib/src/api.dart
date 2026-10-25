@@ -53,6 +53,19 @@ Handler createApi(
     return _json(rec.toJson());
   });
 
+  // Rota como Feature GeoJSON. Tres situacoes distintas:
+  //  - upload inexistente            -> 404
+  //  - upload existe mas sem rota     -> 204 (o recurso existe, so nao tem
+  //    representacao; 404 aqui faria o cliente achar que o upload sumiu)
+  //  - upload com rota                -> 200 com a Feature
+  router.get('/uploads/<id>/route', (Request req, String id) async {
+    final rec = await store.getUpload(id);
+    if (rec == null) return _json({'error': 'nao encontrado'}, status: 404);
+    final rota = await store.getRoute(id);
+    if (rota == null) return Response(204);
+    return _json(rota.toFeatureJson());
+  });
+
   router.get('/activities', (Request req) async {
     final list = await store.listUploads();
     return _json({'activities': [for (final r in list) r.toJson()]});

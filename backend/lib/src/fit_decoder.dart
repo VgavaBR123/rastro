@@ -12,6 +12,7 @@
 // [FitDecodeException] em vez de RangeError.
 library;
 
+import 'dart:math';
 import 'dart:typed_data';
 
 /// Offset entre o epoch Unix (1970-01-01) e o epoch FIT (1989-12-31 00:00:00
@@ -430,6 +431,36 @@ void _require(bool condition, String message) {
   if (!condition) {
     throw FitDecodeException(message);
   }
+}
+
+/// Raio medio da Terra em metros (esfera), usado no calculo de distancia.
+const double _raioTerraMetros = 6371008.8;
+
+/// Comprimento da linha formada por [pontos], em metros.
+///
+/// Soma de distancias haversine entre pontos consecutivos. E o equivalente
+/// "em memoria" do `ST_Length(route::geography)` do PostGIS; o PostGIS mede
+/// sobre o elipsoide WGS84, entao os dois valores diferem em cerca de 0,2%.
+/// Menos de 2 pontos: devolve 0.
+double comprimentoMetros(List<FitTrackPoint> pontos) {
+  if (pontos.length < 2) return 0;
+  double total = 0;
+  for (int i = 1; i < pontos.length; i++) {
+    total += _distanciaHaversine(pontos[i - 1], pontos[i]);
+  }
+  return total;
+}
+
+double _distanciaHaversine(FitTrackPoint a, FitTrackPoint b) {
+  final double grausParaRad = pi / 180.0;
+  final double lat1 = a.latitude * grausParaRad;
+  final double lat2 = b.latitude * grausParaRad;
+  final double dLat = lat2 - lat1;
+  final double dLon = (b.longitude - a.longitude) * grausParaRad;
+  final double sinLat = sin(dLat / 2);
+  final double sinLon = sin(dLon / 2);
+  final double h = sinLat * sinLat + cos(lat1) * cos(lat2) * sinLon * sinLon;
+  return 2 * _raioTerraMetros * asin(sqrt(h < 1.0 ? h : 1.0));
 }
 
 /// Resultado da tentativa de extrair a rota de um arquivo FIT.

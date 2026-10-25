@@ -43,6 +43,19 @@ void main() {
     expect(list.every((e) => e.isFinished), true);
   });
 
+  test('deleteActivity() remove cabecalho e waypoints da atividade', () async {
+    await seed('a', ActivityType.run, 1000);
+    await seed('b', ActivityType.ride, 5000);
+    expect((await repo.waypoints('a')).length, 2);
+
+    await repo.deleteActivity('a');
+
+    expect(await repo.waypoints('a'), isEmpty);
+    expect((await repo.recent()).map((e) => e.guid), ['b']);
+    // A outra atividade segue intacta, com os pontos dela.
+    expect((await repo.waypoints('b')).length, 2);
+  });
+
   test('routePoints() devolve so pontos aceitos', () async {
     await seed('a', ActivityType.run, 1000);
     final route = await repo.routePoints('a');

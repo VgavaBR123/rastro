@@ -92,6 +92,12 @@ class RecordingRepository {
   Future<List<Activity>> recent({int limit = 50}) =>
       db.recentActivities(limit: limit);
 
+  /// Remove uma atividade do historico (cabecalho + pontos).
+  Future<void> deleteActivity(String guid) async {
+    _seq.remove(guid);
+    await db.deleteActivity(guid);
+  }
+
   /// Trajeto (so pontos aceitos) de uma atividade, para desenhar no detalhe.
   Future<List<GeoPoint>> routePoints(String guid) async {
     final rows = await db.waypointsForActivity(guid);

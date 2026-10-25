@@ -77,6 +77,14 @@ class RecordingDatabase extends _$RecordingDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.createTable(settingsRows);
         },
+        // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
+        // isso por conta propria. Sem este pragma, o `onDelete: cascade`
+        // declarado em `waypoints` e apenas decorativo e apagar uma atividade
+        // deixaria os pontos orfaos. O pragma vale por conexao, e `beforeOpen`
+        // roda em toda abertura (depois das migrations), que e o lugar certo.
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+        },
       );
 
   // --- Configuracoes ---
@@ -151,6 +159,15 @@ class RecordingDatabase extends _$RecordingDatabase {
         timerTimeMs: timerTimeMs == null ? const Value.absent() : Value(timerTimeMs),
       ),
     );
+  }
+
+  /// Apaga uma atividade do historico. Os `waypoints` saem junto pela FK em
+  /// cascata (habilitada em `beforeOpen`); a transacao garante que cabecalho e
+  /// pontos saiam de uma vez.
+  Future<void> deleteActivity(String guid) {
+    return transaction(() async {
+      await (delete(activities)..where((t) => t.guid.equals(guid))).go();
+    });
   }
 
   // --- Fluxo de waypoints ---

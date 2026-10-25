@@ -12,6 +12,9 @@ import '../sync/upload/dio_activity_uploader.dart';
 import '../sync/upload/sync_service.dart';
 import '../persistence/recording_repository.dart';
 import '../recording/domain/geo.dart';
+import '../recording/domain/splits.dart';
+import '../recording/domain/splits_from_waypoints.dart';
+import '../recording/domain/waypoint.dart' as dom;
 import '../recording/presentation/recording_controller.dart';
 import '../recording/presentation/recording_ui_state.dart';
 import '../recording/source/geolocator_location_source.dart';
@@ -103,4 +106,23 @@ final recentActivitiesProvider = FutureProvider.autoDispose<List<Activity>>((ref
 final activityRouteProvider =
     FutureProvider.autoDispose.family<List<GeoPoint>, String>((ref, guid) {
   return ref.watch(recordingRepositoryProvider).routePoints(guid);
+});
+
+/// Splits (km ou milha, conforme a configuracao de unidade) de uma atividade
+/// ja gravada. Replay dos pontos aceitos sobre a SplitList do dominio.
+final activitySplitsProvider =
+    FutureProvider.autoDispose.family<List<ActiveSplit>, String>((ref, guid) async {
+  final rows = await ref.watch(recordingRepositoryProvider).waypoints(guid);
+  final metric = ref.watch(settingsProvider).useMetric;
+  return splitsFromPoints(
+    [
+      for (final w in rows)
+        if (w.classification == dom.WaypointClassification.accept.index)
+          SplitSourcePoint(
+            cumulativeDistanceMeters: w.cumulativeDistanceMeters,
+            timerTimeMs: w.timerTimeMs,
+          ),
+    ],
+    metric: metric,
+  );
 });
