@@ -72,10 +72,36 @@ void main() {
           manuallyPaused: false, elapsedTimeMs: 0, timerTimeMs: 0);
       p.process(sample(0, 0.0001, t: 1000),
           manuallyPaused: false, elapsedTimeMs: 1000, timerTimeMs: 1000);
-      // salto enorme no passo seguinte (centenas de metros em 1 s)
-      final w = p.process(sample(0, 0.01, t: 2000),
+      // Salto de ~11 m/s para ~45 m/s em 1 s: aceleracao ~34 m/s^2, bem acima
+      // do corte, mas abaixo do portao de teleporte (50 m/s), para que seja
+      // este filtro a reprovar e nao o anterior.
+      final w = p.process(sample(0, 0.0005, t: 2000),
           manuallyPaused: false, elapsedTimeMs: 2000, timerTimeMs: 2000);
       expect(w.classification, WaypointClassification.ignoreAccelerationFilter);
+    });
+
+    test('rejeita teleporte ja no SEGUNDO ponto (sem p2 para aceleracao)', () {
+      // Regressao: visto no emulador (localizacao padrao na California ->
+      // primeiro fix real em BH). O filtro de aceleracao precisa de dois pontos
+      // anteriores, entao o salto do 1o para o 2o ponto passava direto e somava
+      // milhares de quilometros na distancia.
+      final p = PointPipeline();
+      p.process(sample(37.4220, -122.0841, t: 0),
+          manuallyPaused: false, elapsedTimeMs: 0, timerTimeMs: 0);
+      final w = p.process(sample(-19.9245, -43.9352, t: 1000),
+          manuallyPaused: false, elapsedTimeMs: 1000, timerTimeMs: 1000);
+      expect(w.classification, WaypointClassification.ignoreImplausibleSpeed);
+      expect(p.cumulativeDistanceMeters, 0.0);
+    });
+
+    test('velocidade plausivel de pedal passa pelo portao', () {
+      final p = PointPipeline();
+      p.process(sample(0, 0, t: 0),
+          manuallyPaused: false, elapsedTimeMs: 0, timerTimeMs: 0);
+      // ~33 m em 1 s (119 km/h): rapido, mas abaixo do corte de teleporte.
+      final w = p.process(sample(0, 0.0003, t: 1000),
+          manuallyPaused: false, elapsedTimeMs: 1000, timerTimeMs: 1000);
+      expect(w.classification, WaypointClassification.accept);
     });
 
     test('ignora pontos durante pausa manual', () {

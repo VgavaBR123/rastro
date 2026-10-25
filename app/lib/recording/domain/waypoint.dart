@@ -12,6 +12,11 @@ enum WaypointClassification {
   ignoreSampleUpdateFilter, // deslocamento abaixo do minimo
   ignoreAccelerationFilter, // salto implausivel de velocidade
   ignoreBadAccuracy, // precisao fora do portao de sanidade / corte de qualidade
+  // Teleporte: velocidade implausivel ja contra o ponto anterior. Existe porque
+  // o filtro de aceleracao precisa de DOIS pontos anteriores e nao cobre o
+  // segundo ponto da gravacao. Valor no fim do enum de proposito: a
+  // classificacao e persistida por indice (ver persistence/database.dart).
+  ignoreImplausibleSpeed,
 }
 
 /// Ponto rico apos o pipeline. `isFiltered` marca pontos que nao entram em

@@ -29,8 +29,18 @@ final recordingRepositoryProvider = Provider<RecordingRepository>((ref) {
   return RecordingRepository(ref.watch(recordingDatabaseProvider));
 });
 
+/// No emulador, as posicoes de `adb emu geo fix` entram no provedor `gps` cru e
+/// o FusedLocationProvider nao as repassa. Ligue este flag para testar a
+/// gravacao no emulador:
+///   flutter run --dart-define=FORCE_LOCATION_MANAGER=true
+/// Em aparelho real deixe desligado (padrao), para usar o fused.
+const bool kForceLocationManager =
+    bool.fromEnvironment('FORCE_LOCATION_MANAGER');
+
 final locationSourceProvider = Provider<LocationSource>((ref) {
-  return GeolocatorLocationSource();
+  return GeolocatorLocationSource(
+    forceLocationManager: kForceLocationManager,
+  );
 });
 
 final recordingControllerProvider =

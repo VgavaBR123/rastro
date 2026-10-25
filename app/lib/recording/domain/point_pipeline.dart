@@ -10,7 +10,8 @@
 ///   2. pausa manual (ignora pontos que chegam pausado);
 ///   3. timestamp duplicado (delta de tempo zero);
 ///   4. deslocamento minimo (ponto que nao acrescenta trajeto);
-///   5. filtro de aceleracao (salto implausivel entre tres pontos).
+///   5. portao de teleporte (velocidade implausivel contra o ponto anterior);
+///   6. filtro de aceleracao (salto implausivel entre tres pontos).
 /// So pontos ACCEPT somam distancia e entram em splits/polyline.
 library;
 
@@ -26,6 +27,13 @@ const double kMinDisplacementMeters = 3.0;
 
 /// Limiar de aceleracao implausivel em m/s^2 (etapa 03: ~11, perto de 1 g).
 const double kMaxAccelerationMps2 = 11.0;
+
+/// Velocidade acima da qual um ponto e considerado teleporte e nao um
+/// deslocamento real (m/s). 50 m/s = 180 km/h: muito acima de corrida, pedal ou
+/// caminhada, mas longe o bastante para nao brigar com ruido de GPS em descida
+/// rapida. Serve de portao para o SEGUNDO ponto da gravacao, que o filtro de
+/// aceleracao nao alcanca (ele precisa de dois pontos anteriores).
+const double kMaxPlausibleSpeedMps = 50.0;
 
 class _AcceptedPoint {
   final GeoPoint position;
@@ -98,7 +106,13 @@ class PointPipeline {
       if (disp < kMinDisplacementMeters) {
         return WaypointClassification.ignoreSampleUpdateFilter;
       }
-      // 5. filtro de aceleracao (precisa de p1 e p2)
+      // 5. portao de teleporte: vale desde o segundo ponto, onde o filtro de
+      // aceleracao ainda nao tem historico suficiente.
+      final dt = (s.monotonicMs - last.monotonicMs) / 1000.0;
+      if (dt > 0 && disp / dt > kMaxPlausibleSpeedMps) {
+        return WaypointClassification.ignoreImplausibleSpeed;
+      }
+      // 6. filtro de aceleracao (precisa de p1 e p2)
       if (_p2 != null && !_accelerationOk(s, last, _p2!)) {
         return WaypointClassification.ignoreAccelerationFilter;
       }

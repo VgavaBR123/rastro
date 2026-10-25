@@ -66,6 +66,17 @@ LocationSample mapPosition(Position p, int monotonicMs) {
 
 /// Fonte de localizacao concreta baseada no plugin `geolocator`.
 class GeolocatorLocationSource implements LocationSource {
+  /// Forca o uso do `LocationManager` do Android no lugar do
+  /// FusedLocationProvider do Play Services.
+  ///
+  /// Em aparelho real queremos o fused (melhor fusao de sensores e economia de
+  /// bateria), por isso o padrao e false. No EMULADOR o fused nao recebe as
+  /// posicoes injetadas por `adb emu geo fix` (elas entram no provedor `gps`
+  /// cru), entao para testar a gravacao no emulador este flag precisa ser true.
+  final bool forceLocationManager;
+
+  GeolocatorLocationSource({this.forceLocationManager = false});
+
   StreamSubscription<Position>? _subscription;
 
   @override
@@ -127,6 +138,7 @@ class GeolocatorLocationSource implements LocationSource {
           accuracy: LocationAccuracy.high,
           distanceFilter: 0,
           intervalDuration: const Duration(seconds: 1),
+          forceLocationManager: forceLocationManager,
           foregroundNotificationConfig: const ForegroundNotificationConfig(
             notificationTitle: 'Gravando atividade',
             notificationText: 'Registrando sua rota',
