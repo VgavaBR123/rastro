@@ -89,3 +89,42 @@ Sem emojis. Texto limpo.
 
 So comeca quando o Gava pedir. Stack a definir (Flutter ou React Native + backend PostgreSQL/PostGIS em Docker).
 O codigo em `app/` e escrito do zero a partir de `relatorios/`, sem consultar `analise/`.
+
+## Emulador Android
+
+- AVDs disponiveis: `Medium_Phone` e `Pixel_7` (hoje so ha system image **android-37** instalada;
+  usar API 35/36 exige baixar imagem nova, o que precisa do ok do Gava).
+- **Causa classica de "Activity class does not exist" / `START_CLASS_NOT_FOUND (-92)`:** o usuario
+  esta em `RUNNING_LOCKED` (antes do primeiro desbloqueio). Nesse estado o Android esconde os
+  componentes de apps que nao sao direct boot aware, e nem `am start` nem `flutter run` funcionam.
+  Conferir sempre primeiro:
+
+  ```sh
+  adb shell dumpsys user | grep "State:"     # precisa dizer RUNNING_UNLOCKED
+  adb logcat -d | grep "unlocking CE storage"  # "because user is secured" = AVD tem PIN
+  ```
+
+  Se o AVD tiver credencial, so o Gava desbloqueando na janela resolve (`screencap` sai preto
+  porque a tela de credencial e superficie segura). Sem credencial, `locksettings set-disabled true`
+  + reboot evita a repeticao.
+- Preparo padrao depois do boot:
+
+  ```sh
+  adb shell input keyevent 82; adb shell wm dismiss-keyguard
+  adb shell locksettings set-disabled true
+  adb shell svc power stayon true
+  for s in window_animation_scale transition_animation_scale animator_duration_scale; do
+    adb shell settings put global $s 0
+  done
+  ```
+
+- Rede: usar `adb reverse tcp:8081 tcp:8081` e `--dart-define=SYNC_BASE_URL=http://localhost:8081`
+  (vale para Android e iOS; evita o 10.0.2.2).
+- Fluxos de ponta a ponta: `integration_test/` com `flutter test integration_test/<arquivo> -d <device>`,
+  nao toques por coordenada. `screencap`, `logcat -s flutter` e `uiautomator dump` so para diagnostico.
+- GPS sintetico: `adb emu geo fix <lon> <lat> <alt>` (ver `app/tool/gen_sample_fit.dart` para o FIT
+  equivalente usado no smoke do backend).
+- **Portas do projeto:** API 8081 e Postgres 5433. As 8080/5432 sao do projeto `buscador_remedio`
+  do Gava, que vive de pe.
+- Ao terminar, encerrar o backend e conferir: `netstat -ano | grep ":8081"`. Matar o shell do
+  `dart run` NAO mata o processo `dartvm` filho; use `Stop-Process -Id <pid>`.
