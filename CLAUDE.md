@@ -122,8 +122,14 @@ O codigo em `app/` e escrito do zero a partir de `relatorios/`, sem consultar `a
   (vale para Android e iOS; evita o 10.0.2.2).
 - Fluxos de ponta a ponta: `integration_test/` com `flutter test integration_test/<arquivo> -d <device>`,
   nao toques por coordenada. `screencap`, `logcat -s flutter` e `uiautomator dump` so para diagnostico.
-- GPS sintetico: `adb emu geo fix <lon> <lat> <alt>` (ver `app/tool/gen_sample_fit.dart` para o FIT
-  equivalente usado no smoke do backend).
+- GPS sintetico: `adb emu geo fix <lon> <lat> <alt>`. Exige
+  `--dart-define=FORCE_LOCATION_MANAGER=true` no build: o geolocator usa o FusedLocationProvider do
+  Play Services por padrao, e no emulador ele NAO repassa esses fixes (eles entram no provedor `gps`
+  cru). Confirme com `adb shell dumpsys location | grep -A4 "gps provider"`: tem que aparecer um
+  `ProviderRequest[... WorkSource{... stravaestudo}]` e `last location=Location[gps ...]`.
+  Em AVD novo, ligar a localizacao antes: `adb shell cmd location set-location-enabled true`.
+  Atencao: os fixes injetados vem com `vel=0.0`, entao a auto-pausa dispara; desligue a auto-pausa
+  nas Configuracoes ao medir distancia a mao.
 - **Portas do projeto:** API 8081 e Postgres 5433. As 8080/5432 sao do projeto `buscador_remedio`
   do Gava, que vive de pe.
 - Ao terminar, encerrar o backend e conferir: `netstat -ano | grep ":8081"`. Matar o shell do
