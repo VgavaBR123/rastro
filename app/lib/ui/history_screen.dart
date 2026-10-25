@@ -1,0 +1,110 @@
+// Historico de atividades finalizadas.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../app/providers.dart';
+import '../core/format/activity_labels.dart';
+import '../core/format/measures.dart';
+import '../persistence/database.dart';
+import '../recording/domain/recording_models.dart';
+import 'activity_detail_screen.dart';
+
+class HistoryScreen extends ConsumerWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(recentActivitiesProvider);
+    final sync = ref.watch(syncControllerProvider);
+    final pending = ref.watch(pendingCountProvider).value ?? 0;
+
+    // Mostra o resultado da sincronizacao e atualiza as listas.
+    ref.listen(syncControllerProvider, (prev, next) {
+      final msg = next.message;
+      if (msg != null && msg != prev?.message) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(msg)));
+        ref.invalidate(recentActivitiesProvider);
+        ref.invalidate(pendingCountProvider);
+      }
+    });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Historico'),
+        actions: [
+          IconButton(
+            key: const Key('sync'),
+            tooltip: pending > 0 ? 'Sincronizar ($pending)' : 'Sincronizar',
+            icon: sync.running
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Badge(
+                    isLabelVisible: pending > 0,
+                    label: Text('$pending'),
+                    child: const Icon(Icons.cloud_upload),
+                  ),
+            onPressed: sync.running
+                ? null
+                : () => ref.read(syncControllerProvider.notifier).syncNow(),
+          ),
+        ],
+      ),
+      body: async.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Erro: $e')),
+        data: (list) {
+          if (list.isEmpty) {
+            return const Center(child: Text('Nenhuma atividade ainda'));
+          }
+          return ListView.separated(
+            itemCount: list.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (_, i) => _ActivityTile(list[i]),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ActivityTile extends StatelessWidget {
+  final Activity activity;
+  const _ActivityTile(this.activity);
+
+  IconData get _icon {
+    switch (activity.activityType) {
+      case ActivityType.run:
+        return Icons.directions_run;
+      case ActivityType.ride:
+        return Icons.directions_bike;
+      case ActivityType.walk:
+        return Icons.directions_walk;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(_icon),
+      title: Text(
+        '${activityTypeLabel(activity.activityType)} - ${formatDateTimeMs(activity.startTimestampMs)}',
+      ),
+      subtitle: Text(
+        '${formatDistance(activity.distanceMeters)} - ${formatDuration(activity.timerTimeMs)}',
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => ActivityDetailScreen(activity: activity),
+        ));
+      },
+    );
+  }
+}

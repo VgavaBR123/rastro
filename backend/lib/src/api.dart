@@ -1,0 +1,69 @@
+// Monta o roteador HTTP da API. Handlers recebem um ActivityStore, entao dao
+// para testar sem banco. Contrato com o app: POST /uploads recebe o arquivo FIT
+// como corpo (application/octet-stream) e devolve { "uploadId": ... }.
+library;
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:shelf/shelf.dart';
+import 'package:shelf_router/shelf_router.dart';
+
+import 'activity_store.dart';
+
+Response _json(Object data, {int status = 200}) => Response(
+      status,
+      body: jsonEncode(data),
+      headers: {'content-type': 'application/json'},
+    );
+
+Future<List<int>> _readBytes(Request req) async {
+  final out = <int>[];
+  await for (final chunk in req.read()) {
+    out.addAll(chunk);
+  }
+  return out;
+}
+
+Handler createApi(
+  ActivityStore store, {
+  String Function()? genId,
+  int Function()? nowMs,
+}) {
+  final newId = genId ?? _defaultId;
+  final now = nowMs ?? () => DateTime.now().millisecondsSinceEpoch;
+  final router = Router();
+
+  router.get('/health', (Request req) => _json({'status': 'ok'}));
+
+  router.post('/uploads', (Request req) async {
+    final bytes = await _readBytes(req);
+    if (bytes.isEmpty) {
+      return _json({'error': 'arquivo vazio'}, status: 400);
+    }
+    final guid = req.headers['x-activity-guid'];
+    final rec = await store.saveUpload(bytes,
+        activityGuid: guid, nowMs: now(), id: newId());
+    return _json(rec.toJson(), status: 201);
+  });
+
+  router.get('/uploads/<id>', (Request req, String id) async {
+    final rec = await store.getUpload(id);
+    if (rec == null) return _json({'error': 'nao encontrado'}, status: 404);
+    return _json(rec.toJson());
+  });
+
+  router.get('/activities', (Request req) async {
+    final list = await store.listUploads();
+    return _json({'activities': [for (final r in list) r.toJson()]});
+  });
+
+  return router.call;
+}
+
+int _seq = 0;
+String _defaultId() {
+  _seq++;
+  final ts = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+  return 'up_${ts}_$_seq';
+}

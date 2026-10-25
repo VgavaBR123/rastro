@@ -1,0 +1,12 @@
+# Binarios e saida de analise: nunca versionar nem redistribuir
+apk/
+analise/
+tools/rea/
+
+# Node / ferramentas
+node_modules/
+*.log
+
+# Windows
+Thumbs.db
+desktop.ini
