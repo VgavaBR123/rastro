@@ -14,6 +14,22 @@ String activityTypeLabel(ActivityType t) {
   }
 }
 
+/// Estado de sincronizacao como o usuario le.
+String syncStateLabel(SyncState s) {
+  switch (s) {
+    case SyncState.recording:
+      return 'Gravando';
+    case SyncState.pending:
+      return 'Aguardando envio';
+    case SyncState.uploading:
+      return 'Enviando';
+    case SyncState.synced:
+      return 'Sincronizada';
+    case SyncState.failed:
+      return 'Falhou (sera tentada de novo)';
+  }
+}
+
 /// Data curta "dd/mm/aaaa hh:mm" a partir de epoch ms (sem dependencia de intl).
 String formatDateTimeMs(int epochMs) {
   final d = DateTime.fromMillisecondsSinceEpoch(epochMs);

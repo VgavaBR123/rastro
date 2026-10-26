@@ -163,6 +163,11 @@ class RecordingRepository {
   /// Pontos persistidos de uma atividade, para o replay de reconstrucao.
   Future<List<Waypoint>> waypoints(String guid) => db.waypointsForActivity(guid);
 
+  /// Cabecalho de uma atividade, ou null se nao existe.
+  Future<Activity?> activity(String guid) =>
+      (db.select(db.activities)..where((t) => t.guid.equals(guid)))
+          .getSingleOrNull();
+
   /// Atividades finalizadas, mais recentes primeiro (historico).
   Future<List<Activity>> recent({int limit = 50}) =>
       db.recentActivities(limit: limit);

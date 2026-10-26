@@ -45,7 +45,7 @@ class ActivityDetailScreen extends ConsumerWidget {
           _row('Distancia', formatDistance(activity.distanceMeters, metric: metric)),
           _row('Tempo', formatDuration(activity.timerTimeMs)),
           _row('Pace', formatPace(pace, metric: metric)),
-          _row('Sincronizacao', activity.syncState.name),
+          _row('Sincronizacao', syncStateLabel(activity.syncState)),
           const Divider(height: 32),
           Text(metric ? 'Splits por km' : 'Splits por milha',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

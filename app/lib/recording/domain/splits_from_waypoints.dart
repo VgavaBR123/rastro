@@ -35,10 +35,16 @@ class SplitSourcePoint {
 /// Quando [includePartial] e true (padrao), o trecho final que nao chegou a
 /// fechar a marca entra no fim da lista com `complete == false`; a UI o
 /// identifica como parcial.
+///
+/// [finalTimerMs] e o cronometro da atividade ao encerrar. O cronometro anda a
+/// cada leitura do GPS, inclusive as descartadas (parado sem auto-pausa), entao
+/// pode passar do ultimo ponto aceito; o trecho parcial vai ate ele para que a
+/// soma dos splits bata com o tempo total mostrado no detalhe.
 List<ActiveSplit> splitsFromPoints(
   Iterable<SplitSourcePoint> points, {
   required bool metric,
   bool includePartial = true,
+  int? finalTimerMs,
 }) {
   final list = SplitList(metric ? kMetersPerKilometer : kMetersPerMile);
 
@@ -53,7 +59,12 @@ List<ActiveSplit> splitsFromPoints(
   final result = <ActiveSplit>[...list.completed];
   if (includePartial) {
     final partial = list.currentSplit;
-    if (partial != null) result.add(partial);
+    if (partial != null) {
+      if (finalTimerMs != null && finalTimerMs > partial.endTimerMs) {
+        partial.endTimerMs = finalTimerMs;
+      }
+      result.add(partial);
+    }
   }
   return result;
 }

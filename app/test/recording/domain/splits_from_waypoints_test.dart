@@ -108,4 +108,40 @@ void main() {
     expect(s, hasLength(1));
     expect(splitPaceSecondsPerMeter(s.first), isNull);
   });
+
+  group('fim da atividade (finalTimerMs)', () {
+    test('trecho parcial vai ate o cronometro final da atividade', () {
+      // Ultimo ponto aceito aos 41 s, mas o cronometro seguiu ate 53 s
+      // (parado sem auto-pausa ate tocar em Encerrar).
+      final s = splitsFromPoints(pontos([
+        [0, 0],
+        [668, 41000],
+      ]), metric: true, finalTimerMs: 53000);
+
+      expect(s.single.complete, isFalse);
+      expect(s.single.endTimerMs, 53000);
+      expect(s.single.durationMs, 53000);
+      expect(s.single.distanceMeters, 668);
+    });
+
+    test('soma das duracoes bate com o tempo total', () {
+      final s = splitsFromPoints(pontos([
+        [0, 0],
+        [1000, 300000],
+        [1500, 450000],
+      ]), metric: true, finalTimerMs: 480000);
+
+      expect(s, hasLength(2));
+      expect(s.first.durationMs, 300000, reason: 'split fechado nao muda');
+      expect(s.fold<int>(0, (t, x) => t + x.durationMs), 480000);
+    });
+
+    test('final menor que o ultimo ponto nao encurta o trecho', () {
+      final s = splitsFromPoints(pontos([
+        [0, 0],
+        [400, 120000],
+      ]), metric: true, finalTimerMs: 100000);
+      expect(s.single.endTimerMs, 120000);
+    });
+  });
 }

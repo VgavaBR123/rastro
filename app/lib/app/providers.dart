@@ -154,7 +154,9 @@ final activityRouteProvider =
 /// ja gravada. Replay dos pontos aceitos sobre a SplitList do dominio.
 final activitySplitsProvider =
     FutureProvider.autoDispose.family<List<ActiveSplit>, String>((ref, guid) async {
-  final rows = await ref.watch(recordingRepositoryProvider).waypoints(guid);
+  final repo = ref.watch(recordingRepositoryProvider);
+  final rows = await repo.waypoints(guid);
+  final header = await repo.activity(guid);
   final metric = ref.watch(settingsProvider).useMetric;
   return splitsFromPoints(
     [
@@ -166,5 +168,6 @@ final activitySplitsProvider =
           ),
     ],
     metric: metric,
+    finalTimerMs: header?.timerTimeMs,
   );
 });
