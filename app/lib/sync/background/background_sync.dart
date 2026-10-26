@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'package:strava_estudo_app/app/providers.dart' show kSyncBaseUrl;
+import 'package:strava_estudo_app/auth/auth_models.dart';
 import 'package:strava_estudo_app/auth/session_store.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/sync/upload/activity_uploader.dart';
@@ -35,12 +36,17 @@ bool isSyncBackendConfigured(String baseUrl) =>
 /// true se tudo foi enviado (ou se nao havia nada), false se alguma atividade
 /// falhou ou se houve erro inesperado — nesse caso o agendador re-tenta com
 /// backoff. Nunca lanca.
-Future<bool> runBackgroundSync(RecordingDatabase db, SyncService service) async {
+Future<bool> runBackgroundSync(
+  RecordingDatabase db,
+  SyncService service, {
+  required String userId,
+}) async {
   try {
-    await service.requeueStalled();
-    final int pending = (await db.pendingActivities()).length;
+    await service.prepareRound(userId);
+    final int pending =
+        (await db.pendingActivities(ownerUserId: userId)).length;
     if (pending == 0) return true;
-    final int synced = await service.processPending();
+    final int synced = await service.processPending(ownerUserId: userId);
     return synced == pending;
   } on Object catch (e) {
     debugPrint('[background-sync] erro inesperado: $e');
@@ -57,7 +63,7 @@ Future<bool> runBackgroundSync(RecordingDatabase db, SyncService service) async 
 /// agenda uma rodada).
 Future<bool> performBackgroundSync({
   String baseUrl = kSyncBaseUrl,
-  Future<String?> Function()? readToken,
+  Future<AuthSession?> Function()? readSession,
   RecordingDatabase Function()? openDatabase,
   ActivityUploader Function(String baseUrl, String token)? createUploader,
 }) async {
@@ -65,13 +71,16 @@ Future<bool> performBackgroundSync({
 
   RecordingDatabase? db;
   try {
-    final String? token = await (readToken ?? _readStoredToken)();
-    if (token == null) return true;
+    final AuthSession? session =
+        await (readSession ?? () => SecureSessionStore().read())();
+    if (session == null) return true;
+    final String token = session.token;
     db = (openDatabase ?? RecordingDatabase.new)();
     final ActivityUploader uploader = createUploader != null
         ? createUploader(baseUrl, token)
         : DioActivityUploader(Dio(), baseUrl, token: () async => token);
-    return await runBackgroundSync(db, SyncService(db, uploader));
+    return await runBackgroundSync(db, SyncService(db, uploader),
+        userId: session.user.id);
   } on Object catch (e) {
     debugPrint('[background-sync] falha ao preparar o sync: $e');
     return false;
@@ -83,9 +92,6 @@ Future<bool> performBackgroundSync({
     }
   }
 }
-
-Future<String?> _readStoredToken() async =>
-    (await SecureSessionStore().read())?.token;
 
 /// Ponto de entrada chamado pelo sistema no isolate de fundo. Precisa ser
 /// top-level e marcado como entry point para nao ser removido pelo tree

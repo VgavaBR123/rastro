@@ -56,6 +56,7 @@ final recordingControllerProvider =
   return RecordingController(
     source: ref.watch(locationSourceProvider),
     repo: ref.watch(recordingRepositoryProvider),
+    currentUserId: () => ref.read(authControllerProvider).user?.id,
   );
 });
 
@@ -129,14 +130,19 @@ final syncControllerProvider =
   return SyncController(
     ref.watch(syncServiceProvider),
     ref.watch(recordingDatabaseProvider),
-    isSignedIn: () async => await ref.read(sessionStoreProvider).read() != null,
+    currentUserId: () async =>
+        (await ref.read(sessionStoreProvider).read())?.user.id,
   );
 });
 
 /// Quantidade de atividades pendentes de upload (para badge/indicador).
+/// Conta so as que sobem nesta conta: as dela e as gravadas sem conta.
 final pendingCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((s) => s.user?.id));
   final list = await ref.watch(recordingDatabaseProvider).pendingActivities();
-  return list.length;
+  return list
+      .where((a) => a.ownerUserId == null || a.ownerUserId == userId)
+      .length;
 });
 
 /// Historico: atividades finalizadas, mais recentes primeiro.

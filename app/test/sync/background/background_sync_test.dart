@@ -3,6 +3,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:strava_estudo_app/auth/auth_models.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/sync/background/background_sync.dart';
@@ -37,6 +38,11 @@ class SelectiveUploader implements ActivityUploader {
   }
 }
 
+AuthSession fakeSession(String token) => AuthSession(
+      token: token,
+      user: const AppUser(id: 'u1', email: 'a@b.c', displayName: 'A', createdAtMs: 0),
+    );
+
 Future<SyncState> stateOf(RecordingDatabase db, String guid) async =>
     (await (db.select(db.activities)..where((t) => t.guid.equals(guid)))
             .getSingle())
@@ -58,7 +64,7 @@ void main() {
 
     test('fila vazia: true sem chamar o uploader', () async {
       final FakeUploader up = FakeUploader();
-      expect(await runBackgroundSync(db, SyncService(db, up)), isTrue);
+      expect(await runBackgroundSync(db, SyncService(db, up), userId: 'u1'), isTrue);
       expect(up.uploadedGuids, isEmpty);
     });
 
@@ -67,7 +73,7 @@ void main() {
       await seedPendingActivity(db, 'a2');
       final FakeUploader up = FakeUploader();
 
-      expect(await runBackgroundSync(db, SyncService(db, up)), isTrue);
+      expect(await runBackgroundSync(db, SyncService(db, up), userId: 'u1'), isTrue);
       expect(up.uploadedGuids, unorderedEquals(<String>['a1', 'a2']));
       expect(await stateOf(db, 'a1'), SyncState.synced);
       expect(await stateOf(db, 'a2'), SyncState.synced);
@@ -79,7 +85,7 @@ void main() {
       await seedPendingActivity(db, 'ruim');
       final SelectiveUploader up = SelectiveUploader(<String>{'ruim'});
 
-      expect(await runBackgroundSync(db, SyncService(db, up)), isFalse);
+      expect(await runBackgroundSync(db, SyncService(db, up), userId: 'u1'), isFalse);
       expect(await stateOf(db, 'ok'), SyncState.synced);
       expect(await stateOf(db, 'ruim'), SyncState.failed);
     });
@@ -89,7 +95,7 @@ void main() {
       await db.setSyncState('a1', SyncState.failed);
       final FakeUploader up = FakeUploader();
 
-      expect(await runBackgroundSync(db, SyncService(db, up)), isTrue);
+      expect(await runBackgroundSync(db, SyncService(db, up), userId: 'u1'), isTrue);
       expect(up.uploadedGuids, <String>['a1']);
       expect(await stateOf(db, 'a1'), SyncState.synced);
     });
@@ -99,7 +105,7 @@ void main() {
       await db.setSyncState('a1', SyncState.uploading);
       final FakeUploader up = FakeUploader();
 
-      expect(await runBackgroundSync(db, SyncService(db, up)), isTrue);
+      expect(await runBackgroundSync(db, SyncService(db, up), userId: 'u1'), isTrue);
       expect(up.uploadedGuids, <String>['a1']);
       expect(await stateOf(db, 'a1'), SyncState.synced);
     });
@@ -109,7 +115,7 @@ void main() {
       await db.setSyncState('a1', SyncState.synced);
       final FakeUploader up = FakeUploader();
 
-      expect(await runBackgroundSync(db, SyncService(db, up)), isTrue);
+      expect(await runBackgroundSync(db, SyncService(db, up), userId: 'u1'), isTrue);
       expect(up.uploadedGuids, isEmpty);
     });
   });
@@ -136,7 +142,7 @@ void main() {
 
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
-        readToken: () async => 'tok',
+        readSession: () async => fakeSession('tok'),
         openDatabase: () => db,
         createUploader: (url, _) {
           usedUrl = url;
@@ -156,7 +162,7 @@ void main() {
 
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
-        readToken: () async => 'tok',
+        readSession: () async => fakeSession('tok'),
         openDatabase: () => db,
         createUploader: (_, _) => FakeUploader(shouldFail: true),
       );
@@ -170,7 +176,7 @@ void main() {
 
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
-        readToken: () async => 'tok',
+        readSession: () async => fakeSession('tok'),
         openDatabase: () => db,
         createUploader: (_, _) => throw StateError('sem rede'),
       );
@@ -182,7 +188,7 @@ void main() {
     test('excecao ao abrir o banco nao escapa', () async {
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
-        readToken: () async => 'tok',
+        readSession: () async => fakeSession('tok'),
         openDatabase: () => throw StateError('disco cheio'),
       );
       expect(ok, isFalse);

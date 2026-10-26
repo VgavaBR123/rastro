@@ -32,6 +32,30 @@ Seguranca:
   so o sha256 (hex) do token; validade de 180 dias.
 - Senha e token nunca vao para o log (`logRequests` registra so metodo, caminho e status).
 
+Limite de tentativas (`lib/src/auth/rate_limiter.dart`, janela deslizante):
+
+| Rota | Limite |
+| --- | --- |
+| `POST /auth/login` | 5 falhas por email (normalizado: trim + lowercase) em 15 min. Email inexistente conta igual a senha errada. Login bem-sucedido zera o contador daquele email. |
+| `POST /auth/login` | 20 falhas por IP em 15 min (qualquer email; o sucesso nao zera este). |
+| `POST /auth/register` | 10 tentativas por IP por hora, com sucesso ou nao (400 e 409 contam). |
+
+Bloqueado, a rota responde **429** `{"error": "muitas tentativas"}` com o header
+**`Retry-After`** = segundos inteiros (arredondados para cima, >= 1) ate a tentativa mais
+antiga sair da janela. No login o 429 sai antes de olhar a senha: nem a senha correta
+passa e nao roda PBKDF2. Tentativa bloqueada nao conta. As demais rotas nao tem limite.
+
+O IP vem da conexao TCP (`shelf.io.connection_info`); `X-Forwarded-For` e ignorado por
+padrao porque o cliente pode inventa-lo. Atras de um proxy reverso confiavel, passe
+`clientIp: extratorDeIp(confiarEmForwardedFor: true)` ao `createApi` (usa o ultimo
+endereco da lista, o que o proxy acrescentou). Os limites sao injetaveis por
+`rateLimits: AuthRateLimits(...)`.
+
+O estado fica **em memoria do processo**: serve para uma instancia unica. Reiniciar o
+servidor zera os contadores, e com varias instancias cada uma teria o seu (o limite efetivo
+se multiplica); nesse cenario precisaria de armazenamento compartilhado (tabela no Postgres
+ou Redis). Chaves antigas sao podadas na escrita, no maximo uma varredura por janela.
+
 ### Atividades
 
 Todas exigem Bearer e so enxergam os uploads do proprio usuario: upload de outro usuario
@@ -167,7 +191,10 @@ Para comecar do zero: `docker compose down -v && docker compose up -d`.
 
 ## Riscos conhecidos
 
-- Sem rate limit nem bloqueio por tentativas em `/auth/login` e `/auth/register`.
+- Limite de tentativas so em memoria (zera ao reiniciar; nao compartilhado entre
+  instancias). Atras de NAT/proxy sem `confiarEmForwardedFor`, todos os clientes
+  dividem o mesmo limite por IP. Bloqueio por email permite a um atacante travar o login
+  de uma conta conhecida por ate 15 min (trade-off aceito contra forca bruta).
 - Sem verificacao de email nem troca/recuperacao de senha.
 - Sessoes expiradas so sao apagadas quando alguem tenta usa-las (sem limpeza periodica).
 - Sem TLS no servidor: em producao precisa de um proxy HTTPS na frente, senao o token

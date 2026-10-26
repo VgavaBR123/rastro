@@ -126,7 +126,7 @@ void main() {
     expect(fit.length, greaterThan(14));
   });
 
-  test('requeueStalled devolve failed e uploading para pending, e so eles',
+  test('prepareRound devolve failed e uploading para pending, e so eles',
       () async {
     for (final g in ['p', 'u', 'f', 's']) {
       await seedPendingActivity(db, g);
@@ -142,9 +142,8 @@ void main() {
           syncState: SyncState.uploading,
         ));
 
-    final n = await SyncService(db, FakeUploader()).requeueStalled();
+    await SyncService(db, FakeUploader()).prepareRound('u1');
 
-    expect(n, 2);
     final byGuid = {
       for (final a in await db.select(db.activities).get()) a.guid: a.syncState,
     };

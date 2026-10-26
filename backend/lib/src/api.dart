@@ -7,12 +7,14 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpConnectionInfo;
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import 'activity_store.dart';
 import 'auth/password.dart';
+import 'auth/rate_limiter.dart';
 import 'auth/tokens.dart';
 import 'user_store.dart';
 
@@ -58,6 +60,70 @@ String _normalizarEmail(String email) => email.trim().toLowerCase();
 
 const int _senhaMinima = 8;
 
+/// Limites de tentativa das rotas de conta. Os padroes sao o contrato com o
+/// app; os testes injetam outros valores quando precisam.
+class AuthRateLimits {
+  const AuthRateLimits({
+    this.loginFailuresPerEmail = 5,
+    this.loginFailuresPerIp = 20,
+    this.loginWindow = const Duration(minutes: 15),
+    this.registrationsPerIp = 10,
+    this.registerWindow = const Duration(hours: 1),
+  });
+
+  /// Falhas de login por email (normalizado) dentro de [loginWindow].
+  final int loginFailuresPerEmail;
+
+  /// Falhas de login por IP (qualquer email) dentro de [loginWindow]; barra
+  /// quem testa muitos emails a partir do mesmo endereco.
+  final int loginFailuresPerIp;
+  final Duration loginWindow;
+
+  /// Cadastros por IP (com sucesso ou nao) dentro de [registerWindow].
+  final int registrationsPerIp;
+  final Duration registerWindow;
+}
+
+/// Chave usada quando nao da para saber o IP (ex.: testes sem shelf_io).
+const String ipDesconhecido = 'unknown';
+
+/// IP do cliente pela conexao TCP (shelf_io). Por padrao NAO olha
+/// X-Forwarded-For, que qualquer cliente pode inventar. Atras de um proxy
+/// reverso confiavel, passe [confiarEmForwardedFor]: usa o ultimo endereco da
+/// lista, que e o que o proxy imediato acrescentou.
+String Function(Request) extratorDeIp({bool confiarEmForwardedFor = false}) =>
+    (Request req) {
+      if (confiarEmForwardedFor) {
+        final String? xff = req.headers['x-forwarded-for'];
+        if (xff != null) {
+          final List<String> partes = [
+            for (final p in xff.split(','))
+              if (p.trim().isNotEmpty) p.trim()
+          ];
+          if (partes.isNotEmpty) return partes.last;
+        }
+      }
+      final Object? info = req.context['shelf.io.connection_info'];
+      if (info is HttpConnectionInfo) return info.remoteAddress.address;
+      return ipDesconhecido;
+    };
+
+Response _muitasTentativas(Duration espera) => Response(
+      429,
+      body: jsonEncode({'error': 'muitas tentativas'}),
+      headers: {
+        'content-type': 'application/json',
+        'retry-after': '${retryAfterSeconds(espera)}',
+      },
+    );
+
+/// A maior das esperas (null = nenhuma bloqueia).
+Duration? _maiorEspera(Duration? a, Duration? b) {
+  if (a == null) return b;
+  if (b == null) return a;
+  return a > b ? a : b;
+}
+
 Handler createApi(
   ActivityStore store,
   UserStore users, {
@@ -65,11 +131,29 @@ Handler createApi(
   String Function()? genUserId,
   int Function()? nowMs,
   int passwordIterations = defaultPbkdf2Iterations,
+  AuthRateLimits rateLimits = const AuthRateLimits(),
+  String Function(Request)? clientIp,
 }) {
   final newId = genId ?? () => _defaultId('up');
   final newUserId = genUserId ?? () => _defaultId('usr');
   final now = nowMs ?? () => DateTime.now().millisecondsSinceEpoch;
+  final ipDe = clientIp ?? extratorDeIp();
   final router = Router();
+
+  // Limites em memoria (instancia unica do servidor; ver rate_limiter.dart).
+  // Um limitador por regra, entao chaves de email e de IP nao se misturam.
+  final falhasPorEmail = RateLimiter(
+      maxAttempts: rateLimits.loginFailuresPerEmail,
+      window: rateLimits.loginWindow,
+      nowMs: now);
+  final falhasPorIp = RateLimiter(
+      maxAttempts: rateLimits.loginFailuresPerIp,
+      window: rateLimits.loginWindow,
+      nowMs: now);
+  final cadastrosPorIp = RateLimiter(
+      maxAttempts: rateLimits.registrationsPerIp,
+      window: rateLimits.registerWindow,
+      nowMs: now);
 
   // Hash descartavel para o login de email inexistente gastar o mesmo tempo
   // que o de senha errada (nao revela, pelo tempo, quais emails existem).
@@ -113,6 +197,13 @@ Handler createApi(
   router.get('/health', (Request req) => _json({'status': 'ok'}));
 
   router.post('/auth/register', (Request req) async {
+    // Conta toda tentativa de cadastro do IP, com sucesso ou nao; bloqueada
+    // nao conta (senao quem insiste nunca sai do bloqueio).
+    final String ip = ipDe(req);
+    final Duration? espera = cadastrosPorIp.check(ip);
+    if (espera != null) return _muitasTentativas(espera);
+    cadastrosPorIp.recordFailure(ip);
+
     final body = await _readJson(req);
     if (body == null) return _erro(400, 'corpo JSON invalido');
     final String email = _normalizarEmail(_texto(body, 'email') ?? '');
@@ -144,16 +235,31 @@ Handler createApi(
     if (body == null) return _erro(400, 'corpo JSON invalido');
     final String email = _normalizarEmail(_texto(body, 'email') ?? '');
     final String senha = _texto(body, 'password') ?? '';
+    final String ip = ipDe(req);
+
+    // Bloqueado pelo email ou pelo IP: responde 429 antes de olhar a senha
+    // (nem a correta passa) e sem gastar PBKDF2.
+    final Duration? espera =
+        _maiorEspera(falhasPorEmail.check(email), falhasPorIp.check(ip));
+    if (espera != null) return _muitasTentativas(espera);
+
+    Response falhou() {
+      falhasPorEmail.recordFailure(email);
+      falhasPorIp.recordFailure(ip);
+      return _erro(401, 'email ou senha incorretos');
+    }
+
     final UserRecord? u = await users.findByEmail(email);
     if (u == null) {
+      // Email inexistente conta como falha igual a senha errada.
       hashFantasma ??=
           hashPassword('senha-fantasma', iterations: passwordIterations);
       verifyPassword(senha, hashFantasma!);
-      return _erro(401, 'email ou senha incorretos');
+      return falhou();
     }
-    if (!verifyPassword(senha, u.passwordHash)) {
-      return _erro(401, 'email ou senha incorretos');
-    }
+    if (!verifyPassword(senha, u.passwordHash)) return falhou();
+    // Sucesso zera so o contador do email; o do IP segue valendo.
+    falhasPorEmail.reset(email);
     return abrirSessao(u, status: 200);
   });
 

@@ -47,7 +47,8 @@ void main() {
   tearDown(() async => db.close());
 
   test('sem pendentes: mensagem "Nada para sincronizar"', () async {
-    final c = SyncController(SyncService(db, FakeUploader()), db);
+    final c = SyncController(SyncService(db, FakeUploader()), db,
+        currentUserId: () async => 'u1');
     await c.syncNow();
     expect(c.state.running, false);
     expect(c.state.message, 'Nada para sincronizar');
@@ -55,7 +56,8 @@ void main() {
 
   test('sucesso: mensagem de sincronizadas e estado synced', () async {
     await seedPending(repo, 'a');
-    final c = SyncController(SyncService(db, FakeUploader()), db);
+    final c = SyncController(SyncService(db, FakeUploader()), db,
+        currentUserId: () async => 'u1');
     await c.syncNow();
     expect(c.state.message, contains('1 sincronizada'));
     final h = await (db.select(db.activities)..where((t) => t.guid.equals('a'))).getSingle();
@@ -64,7 +66,8 @@ void main() {
 
   test('falha: conta como falhou e marca failed', () async {
     await seedPending(repo, 'a');
-    final c = SyncController(SyncService(db, FakeUploader(fail: true)), db);
+    final c = SyncController(SyncService(db, FakeUploader(fail: true)), db,
+        currentUserId: () async => 'u1');
     await c.syncNow();
     expect(c.state.message, contains('falhou'));
     final h = await (db.select(db.activities)..where((t) => t.guid.equals('a'))).getSingle();
@@ -76,7 +79,8 @@ void main() {
     await seedPending(repo, 'u');
     await db.setSyncState('f', SyncState.failed);
     await db.setSyncState('u', SyncState.uploading);
-    final c = SyncController(SyncService(db, FakeUploader()), db);
+    final c = SyncController(SyncService(db, FakeUploader()), db,
+        currentUserId: () async => 'u1');
     await c.syncNow();
     expect(c.state.message, contains('2 sincronizada'));
     final rows = await db.select(db.activities).get();

@@ -75,11 +75,16 @@ class AuthApi {
     if (status >= 200 && status < 300) {
       return body is Map<String, dynamic> ? body : const {};
     }
-    throw AuthException(_messageFor(status, body), statusCode: status);
+    throw AuthException(
+      _messageFor(status, body, r.headers.value('retry-after')),
+      statusCode: status,
+    );
   }
 
-  static String _messageFor(int status, Object? body) {
+  static String _messageFor(int status, Object? body, String? retryAfter) {
     switch (status) {
+      case 429:
+        return 'Muitas tentativas. ${waitHint(retryAfter)}';
       case 401:
         return 'E-mail ou senha incorretos';
       case 409:
@@ -90,5 +95,14 @@ class AuthApi {
       default:
         return 'Erro no servidor ($status)';
     }
+  }
+
+  /// Texto de espera a partir do header Retry-After (segundos).
+  static String waitHint(String? retryAfterSeconds) {
+    final secs = int.tryParse(retryAfterSeconds?.trim() ?? '');
+    if (secs == null || secs <= 0) return 'Tente de novo mais tarde.';
+    if (secs < 60) return 'Tente de novo em $secs s.';
+    final mins = (secs / 60).ceil();
+    return 'Tente de novo em $mins min.';
   }
 }

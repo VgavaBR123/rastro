@@ -75,6 +75,7 @@ class RecordingRepository {
     bool isIndoor = false,
     bool autoPauseEnabled = true,
     int? startBatteryLevel,
+    String? ownerUserId,
   }) async {
     _seq[guid] = 0;
     await db.upsertActivity(ActivitiesCompanion.insert(
@@ -85,6 +86,7 @@ class RecordingRepository {
       isIndoor: Value(isIndoor),
       autoPauseEnabled: Value(autoPauseEnabled),
       startBatteryLevel: Value(startBatteryLevel),
+      ownerUserId: Value(ownerUserId),
     ));
   }
 

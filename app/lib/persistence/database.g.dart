@@ -160,6 +160,17 @@ class $ActivitiesTable extends Activities
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _ownerUserIdMeta = const VerificationMeta(
+    'ownerUserId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerUserId = GeneratedColumn<String>(
+    'owner_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     guid,
@@ -175,6 +186,7 @@ class $ActivitiesTable extends Activities
     startBatteryLevel,
     endBatteryLevel,
     autoPauseEnabled,
+    ownerUserId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -279,6 +291,15 @@ class $ActivitiesTable extends Activities
         ),
       );
     }
+    if (data.containsKey('owner_user_id')) {
+      context.handle(
+        _ownerUserIdMeta,
+        ownerUserId.isAcceptableOrUnknown(
+          data['owner_user_id']!,
+          _ownerUserIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -344,6 +365,10 @@ class $ActivitiesTable extends Activities
         DriftSqlType.bool,
         data['${effectivePrefix}auto_pause_enabled'],
       )!,
+      ownerUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_user_id'],
+      ),
     );
   }
 
@@ -372,6 +397,11 @@ class Activity extends DataClass implements Insertable<Activity> {
   final int? startBatteryLevel;
   final int? endBatteryLevel;
   final bool autoPauseEnabled;
+
+  /// Conta dona da atividade (id do usuario no backend). Null = gravada sem
+  /// conta; e reivindicada pela primeira conta que sincronizar. Impede que as
+  /// pendentes de uma conta subam na conta de outra no mesmo aparelho.
+  final String? ownerUserId;
   const Activity({
     required this.guid,
     required this.activityType,
@@ -386,6 +416,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     this.startBatteryLevel,
     this.endBatteryLevel,
     required this.autoPauseEnabled,
+    this.ownerUserId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -419,6 +450,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       map['end_battery_level'] = Variable<int>(endBatteryLevel);
     }
     map['auto_pause_enabled'] = Variable<bool>(autoPauseEnabled);
+    if (!nullToAbsent || ownerUserId != null) {
+      map['owner_user_id'] = Variable<String>(ownerUserId);
+    }
     return map;
   }
 
@@ -445,6 +479,9 @@ class Activity extends DataClass implements Insertable<Activity> {
           ? const Value.absent()
           : Value(endBatteryLevel),
       autoPauseEnabled: Value(autoPauseEnabled),
+      ownerUserId: ownerUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerUserId),
     );
   }
 
@@ -471,6 +508,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       startBatteryLevel: serializer.fromJson<int?>(json['startBatteryLevel']),
       endBatteryLevel: serializer.fromJson<int?>(json['endBatteryLevel']),
       autoPauseEnabled: serializer.fromJson<bool>(json['autoPauseEnabled']),
+      ownerUserId: serializer.fromJson<String?>(json['ownerUserId']),
     );
   }
   @override
@@ -494,6 +532,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       'startBatteryLevel': serializer.toJson<int?>(startBatteryLevel),
       'endBatteryLevel': serializer.toJson<int?>(endBatteryLevel),
       'autoPauseEnabled': serializer.toJson<bool>(autoPauseEnabled),
+      'ownerUserId': serializer.toJson<String?>(ownerUserId),
     };
   }
 
@@ -511,6 +550,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     Value<int?> startBatteryLevel = const Value.absent(),
     Value<int?> endBatteryLevel = const Value.absent(),
     bool? autoPauseEnabled,
+    Value<String?> ownerUserId = const Value.absent(),
   }) => Activity(
     guid: guid ?? this.guid,
     activityType: activityType ?? this.activityType,
@@ -531,6 +571,7 @@ class Activity extends DataClass implements Insertable<Activity> {
         ? endBatteryLevel.value
         : this.endBatteryLevel,
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
+    ownerUserId: ownerUserId.present ? ownerUserId.value : this.ownerUserId,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
     return Activity(
@@ -565,6 +606,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       autoPauseEnabled: data.autoPauseEnabled.present
           ? data.autoPauseEnabled.value
           : this.autoPauseEnabled,
+      ownerUserId: data.ownerUserId.present
+          ? data.ownerUserId.value
+          : this.ownerUserId,
     );
   }
 
@@ -583,7 +627,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('syncState: $syncState, ')
           ..write('startBatteryLevel: $startBatteryLevel, ')
           ..write('endBatteryLevel: $endBatteryLevel, ')
-          ..write('autoPauseEnabled: $autoPauseEnabled')
+          ..write('autoPauseEnabled: $autoPauseEnabled, ')
+          ..write('ownerUserId: $ownerUserId')
           ..write(')'))
         .toString();
   }
@@ -603,6 +648,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     startBatteryLevel,
     endBatteryLevel,
     autoPauseEnabled,
+    ownerUserId,
   );
   @override
   bool operator ==(Object other) =>
@@ -620,7 +666,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.syncState == this.syncState &&
           other.startBatteryLevel == this.startBatteryLevel &&
           other.endBatteryLevel == this.endBatteryLevel &&
-          other.autoPauseEnabled == this.autoPauseEnabled);
+          other.autoPauseEnabled == this.autoPauseEnabled &&
+          other.ownerUserId == this.ownerUserId);
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
@@ -637,6 +684,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<int?> startBatteryLevel;
   final Value<int?> endBatteryLevel;
   final Value<bool> autoPauseEnabled;
+  final Value<String?> ownerUserId;
   final Value<int> rowid;
   const ActivitiesCompanion({
     this.guid = const Value.absent(),
@@ -652,6 +700,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.startBatteryLevel = const Value.absent(),
     this.endBatteryLevel = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
+    this.ownerUserId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ActivitiesCompanion.insert({
@@ -668,6 +717,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.startBatteryLevel = const Value.absent(),
     this.endBatteryLevel = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
+    this.ownerUserId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : guid = Value(guid),
        activityType = Value(activityType),
@@ -687,6 +737,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<int>? startBatteryLevel,
     Expression<int>? endBatteryLevel,
     Expression<bool>? autoPauseEnabled,
+    Expression<String>? ownerUserId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -703,6 +754,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (startBatteryLevel != null) 'start_battery_level': startBatteryLevel,
       if (endBatteryLevel != null) 'end_battery_level': endBatteryLevel,
       if (autoPauseEnabled != null) 'auto_pause_enabled': autoPauseEnabled,
+      if (ownerUserId != null) 'owner_user_id': ownerUserId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -721,6 +773,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<int?>? startBatteryLevel,
     Value<int?>? endBatteryLevel,
     Value<bool>? autoPauseEnabled,
+    Value<String?>? ownerUserId,
     Value<int>? rowid,
   }) {
     return ActivitiesCompanion(
@@ -737,6 +790,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       startBatteryLevel: startBatteryLevel ?? this.startBatteryLevel,
       endBatteryLevel: endBatteryLevel ?? this.endBatteryLevel,
       autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
+      ownerUserId: ownerUserId ?? this.ownerUserId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -787,6 +841,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (autoPauseEnabled.present) {
       map['auto_pause_enabled'] = Variable<bool>(autoPauseEnabled.value);
     }
+    if (ownerUserId.present) {
+      map['owner_user_id'] = Variable<String>(ownerUserId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -809,6 +866,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('startBatteryLevel: $startBatteryLevel, ')
           ..write('endBatteryLevel: $endBatteryLevel, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
+          ..write('ownerUserId: $ownerUserId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1948,6 +2006,7 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<int?> startBatteryLevel,
   Value<int?> endBatteryLevel,
   Value<bool> autoPauseEnabled,
+  Value<String?> ownerUserId,
   Value<int> rowid,
 });
 typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
@@ -1964,6 +2023,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<int?> startBatteryLevel,
   Value<int?> endBatteryLevel,
   Value<bool> autoPauseEnabled,
+  Value<String?> ownerUserId,
   Value<int> rowid,
 });
 
@@ -2062,6 +2122,11 @@ class $$ActivitiesTableFilterComposer
 
   ColumnFilters<bool> get autoPauseEnabled => $composableBuilder(
     column: $table.autoPauseEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2164,6 +2229,11 @@ class $$ActivitiesTableOrderingComposer
     column: $table.autoPauseEnabled,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -2230,6 +2300,11 @@ class $$ActivitiesTableAnnotationComposer
 
   GeneratedColumn<bool> get autoPauseEnabled => $composableBuilder(
     column: $table.autoPauseEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
     builder: (column) => column,
   );
 
@@ -2300,6 +2375,7 @@ class $$ActivitiesTableTableManager
                 Value<int?> startBatteryLevel = const Value.absent(),
                 Value<int?> endBatteryLevel = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
+                Value<String?> ownerUserId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion(
                 guid: guid,
@@ -2315,6 +2391,7 @@ class $$ActivitiesTableTableManager
                 startBatteryLevel: startBatteryLevel,
                 endBatteryLevel: endBatteryLevel,
                 autoPauseEnabled: autoPauseEnabled,
+                ownerUserId: ownerUserId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2332,6 +2409,7 @@ class $$ActivitiesTableTableManager
                 Value<int?> startBatteryLevel = const Value.absent(),
                 Value<int?> endBatteryLevel = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
+                Value<String?> ownerUserId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion.insert(
                 guid: guid,
@@ -2347,6 +2425,7 @@ class $$ActivitiesTableTableManager
                 startBatteryLevel: startBatteryLevel,
                 endBatteryLevel: endBatteryLevel,
                 autoPauseEnabled: autoPauseEnabled,
+                ownerUserId: ownerUserId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

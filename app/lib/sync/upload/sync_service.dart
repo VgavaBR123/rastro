@@ -21,15 +21,24 @@ class SyncService {
       : _db = db,
         _uploader = uploader;
 
-  /// Devolve para a fila o que falhou ou ficou preso em `uploading`. Quem
-  /// dispara uma rodada (manual ou de fundo) chama isto antes de processar.
-  Future<int> requeueStalled() => _db.requeueStalledUploads();
+  /// Prepara uma rodada da conta [userId]: devolve para a fila o que falhou
+  /// ou ficou preso em `uploading` e reivindica as atividades gravadas sem
+  /// conta. Quem dispara uma rodada (manual ou de fundo) chama isto antes de
+  /// [processPending].
+  Future<void> prepareRound(String userId) async {
+    await _db.requeueStalledUploads();
+    await _db.claimUnownedActivities(userId);
+  }
 
   /// Percorre todas as atividades pendentes e tenta enviar cada uma. Devolve
   /// quantas foram sincronizadas com sucesso. Falhas sao marcadas como failed
   /// e nao interrompem o lote.
-  Future<int> processPending() async {
-    final List<Activity> pending = await _db.pendingActivities();
+  ///
+  /// Com [ownerUserId], so as atividades daquela conta: as de outra conta que
+  /// usou o aparelho ficam paradas ate ela entrar de novo.
+  Future<int> processPending({String? ownerUserId}) async {
+    final List<Activity> pending =
+        await _db.pendingActivities(ownerUserId: ownerUserId);
     int synced = 0;
     for (final Activity activity in pending) {
       try {

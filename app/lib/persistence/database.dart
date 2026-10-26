@@ -32,6 +32,11 @@ class Activities extends Table {
   IntColumn get endBatteryLevel => integer().nullable()();
   BoolColumn get autoPauseEnabled => boolean().withDefault(const Constant(true))();
 
+  /// Conta dona da atividade (id do usuario no backend). Null = gravada sem
+  /// conta; e reivindicada pela primeira conta que sincronizar. Impede que as
+  /// pendentes de uma conta subam na conta de outra no mesmo aparelho.
+  TextColumn get ownerUserId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {guid};
 }
@@ -69,13 +74,14 @@ class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.createTable(settingsRows);
+          if (from < 3) await m.addColumn(activities, activities.ownerUserId);
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
         // isso por conta propria. Sem este pragma, o `onDelete: cascade`
@@ -122,11 +128,24 @@ class RecordingDatabase extends _$RecordingDatabase {
   Future<List<Activity>> unfinishedActivities() =>
       (select(activities)..where((t) => t.isFinished.equals(false))).get();
 
-  /// Atividades prontas para upload (fila da sincronizacao, etapa 06).
-  Future<List<Activity>> pendingActivities() => (select(activities)
-        ..where((t) =>
-            t.isFinished.equals(true) & t.syncState.equalsValue(SyncState.pending)))
-      .get();
+  /// Atividades prontas para upload (fila da sincronizacao, etapa 06). Com
+  /// [ownerUserId], so as daquela conta.
+  Future<List<Activity>> pendingActivities({String? ownerUserId}) =>
+      (select(activities)
+            ..where((t) {
+              final ready = t.isFinished.equals(true) &
+                  t.syncState.equalsValue(SyncState.pending);
+              return ownerUserId == null
+                  ? ready
+                  : ready & t.ownerUserId.equals(ownerUserId);
+            }))
+          .get();
+
+  /// Atividades finalizadas sem dono passam a ser de [userId] (gravadas antes
+  /// de entrar na conta). Devolve quantas.
+  Future<int> claimUnownedActivities(String userId) => (update(activities)
+        ..where((t) => t.isFinished.equals(true) & t.ownerUserId.isNull()))
+      .write(ActivitiesCompanion(ownerUserId: Value(userId)));
 
   /// Devolve para a fila as atividades que nao chegaram ao servidor: `failed`
   /// (falha anterior) e `uploading` (app morto no meio do envio, que nunca

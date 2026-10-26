@@ -25,6 +25,7 @@ class RouteAdapter implements HttpClientAdapter {
   final List<RequestOptions> requests = [];
   final List<String> bodies = [];
   bool offline = false;
+  Map<String, List<String>> extraHeaders = const {};
 
   RouteAdapter(this.routes);
 
@@ -48,6 +49,7 @@ class RouteAdapter implements HttpClientAdapter {
       status,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
+        ...extraHeaders,
       },
     );
   }
@@ -121,6 +123,18 @@ void main() {
       await apiWith(a).logout('tok-1');
       expect(a.requests.map((r) => r.headers['Authorization']),
           everyElement('Bearer tok-1'));
+    });
+
+    test('429 avisa quanto tempo esperar (Retry-After)', () async {
+      final a = RouteAdapter({'POST /auth/login': (429, {'error': 'muitas tentativas'})})
+        ..extraHeaders = {'retry-after': ['896']};
+      await expectLater(
+        apiWith(a).login(email: 'a@b.c', password: 'x'),
+        throwsA(isA<AuthException>().having(
+            (e) => e.message, 'msg', 'Muitas tentativas. Tente de novo em 15 min.')),
+      );
+      expect(AuthApi.waitHint('30'), 'Tente de novo em 30 s.');
+      expect(AuthApi.waitHint(null), 'Tente de novo mais tarde.');
     });
 
     test('sem rede vira AuthException sem status', () async {
@@ -242,7 +256,7 @@ void main() {
       addTearDown(db.close);
       await seedPendingActivity(db, 'a1');
       final up = FakeUploader();
-      final c = SyncController(SyncService(db, up), db, isSignedIn: () async => false);
+      final c = SyncController(SyncService(db, up), db, currentUserId: () async => null);
       await c.syncNow();
       expect(c.state.message, kSignInToSyncMessage);
       expect(up.uploadedGuids, isEmpty);
@@ -252,7 +266,7 @@ void main() {
       var opened = false;
       final ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
-        readToken: () async => null,
+        readSession: () async => null,
         openDatabase: () {
           opened = true;
           return RecordingDatabase(NativeDatabase.memory());
@@ -268,7 +282,7 @@ void main() {
       String? usedToken;
       final ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
-        readToken: () async => 'tok-bg',
+        readSession: () async => AuthSession(token: 'tok-bg', user: session().user),
         openDatabase: () => db,
         createUploader: (_, token) {
           usedToken = token;

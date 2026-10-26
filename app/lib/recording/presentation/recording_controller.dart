@@ -26,6 +26,9 @@ class RecordingController extends StateNotifier<RecordingUiState> {
   final RecordingRepository _repo;
   final int Function() _now; // epoch ms (injetavel para testes)
 
+  /// Conta logada no inicio da gravacao (dona da atividade), ou null.
+  final String? Function() _currentUserId;
+
   RecordingSession? _session;
   StreamSubscription<LocationSample>? _sub;
   String? _guid;
@@ -40,9 +43,11 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     required LocationSource source,
     required RecordingRepository repo,
     int Function()? now,
+    String? Function()? currentUserId,
   })  : _source = source,
         _repo = repo,
         _now = now ?? (() => DateTime.now().millisecondsSinceEpoch),
+        _currentUserId = currentUserId ?? (() => null),
         super(const RecordingUiState());
 
   String? get activityGuid => _guid;
@@ -58,6 +63,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
       type: type,
       startTimestampMs: _now(),
       autoPauseEnabled: autoPauseEnabled,
+      ownerUserId: _currentUserId(),
     );
 
     session.start(0); // base monotonica; a fonte conta a partir do inicio
