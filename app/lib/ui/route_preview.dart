@@ -1,6 +1,6 @@
 // Visualizacao simples da rota (polyline) com CustomPainter, sem dependencia de
-// mapa nativo. Para o MVP: mostra o traçado normalizado na area disponivel.
-// Upgrade futuro (etapa 99): MapLibre com tiles reais (exige toolchain JDK 21).
+// mapa nativo: mostra o tracado normalizado na area disponivel. Usada pelo
+// RouteMap onde nao ha mapa nativo (testes no host, plataformas sem MapLibre).
 library;
 
 import 'dart:math' as math;

@@ -10,7 +10,7 @@ import '../core/format/measures.dart';
 import '../persistence/database.dart';
 import '../recording/domain/splits.dart';
 import '../recording/domain/splits_from_waypoints.dart';
-import 'route_preview.dart';
+import 'route_map.dart';
 
 class ActivityDetailScreen extends ConsumerWidget {
   final Activity activity;
@@ -36,7 +36,7 @@ class ActivityDetailScreen extends ConsumerWidget {
               child: Center(child: CircularProgressIndicator()),
             ),
             error: (e, _) => SizedBox(height: 220, child: Center(child: Text('Erro: $e'))),
-            data: (route) => RoutePreview(route: route),
+            data: (route) => RouteMap(route: route),
           ),
           const SizedBox(height: 16),
           Text(formatDateTimeMs(activity.startTimestampMs),

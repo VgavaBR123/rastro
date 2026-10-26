@@ -10,7 +10,7 @@ import '../core/format/measures.dart';
 import '../persistence/recording_repository.dart';
 import '../recording/domain/recording_models.dart';
 import '../sync/background/background_sync_provider.dart';
-import 'route_preview.dart';
+import 'route_map.dart';
 
 class RecordingScreen extends ConsumerStatefulWidget {
   final ActivityType activityType;
@@ -58,7 +58,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            RoutePreview(route: ctrl.route),
+            RouteMap(route: ctrl.route, mode: RouteMapMode.follow),
             const SizedBox(height: 16),
             if (s.error != null)
               Padding(
