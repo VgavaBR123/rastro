@@ -128,6 +128,16 @@ class RecordingDatabase extends _$RecordingDatabase {
             t.isFinished.equals(true) & t.syncState.equalsValue(SyncState.pending)))
       .get();
 
+  /// Devolve para a fila as atividades que nao chegaram ao servidor: `failed`
+  /// (falha anterior) e `uploading` (app morto no meio do envio, que nunca
+  /// sairia desse estado sozinho). Seguro porque o backend e idempotente por
+  /// guid: reenviar algo que chegou devolve o mesmo upload. Devolve quantas.
+  Future<int> requeueStalledUploads() => (update(activities)
+        ..where((t) =>
+            t.isFinished.equals(true) &
+            t.syncState.isInValues([SyncState.failed, SyncState.uploading])))
+      .write(const ActivitiesCompanion(syncState: Value(SyncState.pending)));
+
   /// Atualiza o estagio de sincronizacao de uma atividade.
   Future<void> setSyncState(String guid, SyncState state) =>
       (update(activities)..where((t) => t.guid.equals(guid)))

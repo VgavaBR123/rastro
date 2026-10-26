@@ -8,6 +8,10 @@ import 'package:postgres/postgres.dart';
 import 'activity_store.dart';
 import 'fit_decoder.dart';
 
+const String _uniqueGuidIndexSql =
+    'CREATE UNIQUE INDEX IF NOT EXISTS uq_uploads_activity_guid '
+    'ON uploads (activity_guid) WHERE activity_guid IS NOT NULL';
+
 class PostgresActivityStore implements ActivityStore {
   final Connection _conn;
   PostgresActivityStore(this._conn);
@@ -29,7 +33,17 @@ class PostgresActivityStore implements ActivityStore {
       ),
       settings: const ConnectionSettings(sslMode: SslMode.disable),
     );
-    return PostgresActivityStore(conn);
+    final store = PostgresActivityStore(conn);
+    await store._ensureSchema();
+    return store;
+  }
+
+  /// Ajustes de esquema que o init.sql so aplica em volume novo. Idempotente.
+  Future<void> _ensureSchema() async {
+    // Uma atividade = um upload. Parcial porque uploads sem guid sao aceitos.
+    // Se o banco ja tiver guids repetidos de antes da regra, a criacao falha
+    // aqui com mensagem clara em vez de o upload falhar depois.
+    await _conn.execute(_uniqueGuidIndexSql);
   }
 
   Future<void> close() => _conn.close();
@@ -68,10 +82,17 @@ class PostgresActivityStore implements ActivityStore {
         'INSERT INTO uploads '
         '(id, status, received_at, size_bytes, activity_guid, fit, route, point_count) '
         'VALUES (@id, @status, @received_at, @size, @guid, @fit, $routeExpr, @points) '
+        // Dois envios simultaneos da mesma atividade: o segundo nao insere e
+        // devolvemos o registro do primeiro logo abaixo.
+        'ON CONFLICT (activity_guid) WHERE activity_guid IS NOT NULL DO NOTHING '
         'RETURNING point_count, ST_Length(route::geography) AS length_meters',
       ),
       parameters: parameters,
     );
+    if (inserted.isEmpty && activityGuid != null) {
+      final existing = await findByActivityGuid(activityGuid);
+      if (existing != null) return existing;
+    }
     final Map<String, dynamic> retorno =
         inserted.isEmpty ? const <String, dynamic>{} : inserted.first.toColumnMap();
 
@@ -91,6 +112,16 @@ class PostgresActivityStore implements ActivityStore {
     final result = await _conn.execute(
       Sql.named('${_selectUploads}WHERE id = @id'),
       parameters: {'id': id},
+    );
+    if (result.isEmpty) return null;
+    return _fromRow(result.first.toColumnMap());
+  }
+
+  @override
+  Future<UploadRecord?> findByActivityGuid(String activityGuid) async {
+    final result = await _conn.execute(
+      Sql.named('${_selectUploads}WHERE activity_guid = @guid'),
+      parameters: {'guid': activityGuid},
     );
     if (result.isEmpty) return null;
     return _fromRow(result.first.toColumnMap());

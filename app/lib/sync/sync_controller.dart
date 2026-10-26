@@ -23,6 +23,7 @@ class SyncController extends StateNotifier<SyncUiState> {
   Future<void> syncNow() async {
     if (state.running) return;
     state = const SyncUiState(running: true);
+    await _service.requeueStalled();
     final before = (await _db.pendingActivities()).length;
     if (before == 0) {
       state = const SyncUiState(message: 'Nada para sincronizar');

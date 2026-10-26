@@ -42,8 +42,46 @@ void main() {
     expect(body['activityGuid'], 'act-1');
   });
 
+  group('idempotencia por atividade', () {
+    Future<Response> post(List<int> body, {String? guid}) async => api(Request(
+          'POST',
+          Uri.parse('http://x/uploads'),
+          body: body,
+          headers: {if (guid != null) 'x-activity-guid': guid},
+        ));
+
+    test('reenvio da mesma atividade devolve o upload existente com 200',
+        () async {
+      final first = await post([1, 2, 3], guid: 'act-9');
+      expect(first.statusCode, 201);
+      final again = await post([1, 2, 3, 4], guid: 'act-9');
+      expect(again.statusCode, 200);
+      final body = await jsonOf(again);
+      expect(body['uploadId'], 'id1');
+      expect(body['sizeBytes'], 3, reason: 'o segundo arquivo nao e gravado');
+      expect(await store.listUploads(), hasLength(1));
+    });
+
+    test('atividades diferentes geram uploads diferentes', () async {
+      expect((await post([1], guid: 'a')).statusCode, 201);
+      expect((await post([1], guid: 'b')).statusCode, 201);
+      expect(await store.listUploads(), hasLength(2));
+    });
+
+    test('sem guid (ou guid vazio) nao deduplica', () async {
+      expect((await post([1])).statusCode, 201);
+      expect((await post([1])).statusCode, 201);
+      expect((await post([1], guid: ' ')).statusCode, 201);
+      expect((await post([1], guid: ' ')).statusCode, 201);
+      final all = await store.listUploads();
+      expect(all, hasLength(4));
+      expect(all.where((r) => r.activityGuid != null), isEmpty);
+    });
+  });
+
   test('POST /uploads vazio responde 400', () async {
-    final r = await api(Request('POST', Uri.parse('http://x/uploads'), body: <int>[]));
+    final r = await api(
+        Request('POST', Uri.parse('http://x/uploads'), body: <int>[]));
     expect(r.statusCode, 400);
   });
 
@@ -80,7 +118,8 @@ void main() {
           gerarFit(startTimeUnixMs: t0, pontos: rotaSintetica(12, t0));
       await enviar(fit);
 
-      final r = await api(Request('GET', Uri.parse('http://x/uploads/id1/route')));
+      final r =
+          await api(Request('GET', Uri.parse('http://x/uploads/id1/route')));
       expect(r.statusCode, 200);
       final body = await jsonOf(r);
       expect(body['type'], 'Feature');
@@ -107,20 +146,24 @@ void main() {
 
     test('upload sem rota utilizavel responde 204', () async {
       // Corpo que nao e um FIT valido: upload vale, rota nao existe.
-      await api(Request('POST', Uri.parse('http://x/uploads'), body: [1, 2, 3]));
-      final r = await api(Request('GET', Uri.parse('http://x/uploads/id1/route')));
+      await api(
+          Request('POST', Uri.parse('http://x/uploads'), body: [1, 2, 3]));
+      final r =
+          await api(Request('GET', Uri.parse('http://x/uploads/id1/route')));
       expect(r.statusCode, 204);
       expect(await r.readAsString(), isEmpty);
     });
 
     test('FIT com um unico ponto tambem responde 204', () async {
       await enviar(gerarFit(startTimeUnixMs: t0, pontos: rotaSintetica(1, t0)));
-      final r = await api(Request('GET', Uri.parse('http://x/uploads/id1/route')));
+      final r =
+          await api(Request('GET', Uri.parse('http://x/uploads/id1/route')));
       expect(r.statusCode, 204);
     });
 
     test('id inexistente responde 404', () async {
-      final r = await api(Request('GET', Uri.parse('http://x/uploads/zzz/route')));
+      final r =
+          await api(Request('GET', Uri.parse('http://x/uploads/zzz/route')));
       expect(r.statusCode, 404);
       expect((await jsonOf(r))['error'], isNotNull);
     });

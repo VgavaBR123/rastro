@@ -70,4 +70,16 @@ void main() {
     final h = await (db.select(db.activities)..where((t) => t.guid.equals('a'))).getSingle();
     expect(h.syncState, SyncState.failed);
   });
+
+  test('sync manual re-tenta o que falhou ou ficou preso em uploading', () async {
+    await seedPending(repo, 'f');
+    await seedPending(repo, 'u');
+    await db.setSyncState('f', SyncState.failed);
+    await db.setSyncState('u', SyncState.uploading);
+    final c = SyncController(SyncService(db, FakeUploader()), db);
+    await c.syncNow();
+    expect(c.state.message, contains('2 sincronizada'));
+    final rows = await db.select(db.activities).get();
+    expect(rows.map((r) => r.syncState), everyElement(SyncState.synced));
+  });
 }

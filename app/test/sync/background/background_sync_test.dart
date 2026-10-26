@@ -94,6 +94,16 @@ void main() {
       expect(await stateOf(db, 'a1'), SyncState.synced);
     });
 
+    test('re-envia atividade presa em uploading (app morto no meio)', () async {
+      await seedPendingActivity(db, 'a1');
+      await db.setSyncState('a1', SyncState.uploading);
+      final FakeUploader up = FakeUploader();
+
+      expect(await runBackgroundSync(db, SyncService(db, up)), isTrue);
+      expect(up.uploadedGuids, <String>['a1']);
+      expect(await stateOf(db, 'a1'), SyncState.synced);
+    });
+
     test('nao re-envia o que ja esta synced', () async {
       await seedPendingActivity(db, 'a1');
       await db.setSyncState('a1', SyncState.synced);

@@ -11,13 +11,11 @@
 library;
 
 import 'package:dio/dio.dart';
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'package:strava_estudo_app/app/providers.dart' show kSyncBaseUrl;
 import 'package:strava_estudo_app/persistence/database.dart';
-import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/sync/upload/activity_uploader.dart';
 import 'package:strava_estudo_app/sync/upload/dio_activity_uploader.dart';
 import 'package:strava_estudo_app/sync/upload/sync_service.dart';
@@ -30,28 +28,15 @@ const String kUnconfiguredSyncBaseUrl = 'https://example.invalid';
 bool isSyncBackendConfigured(String baseUrl) =>
     baseUrl.isNotEmpty && baseUrl != kUnconfiguredSyncBaseUrl;
 
-/// Devolve as atividades que falharam para a fila (failed -> pending), para
-/// que o job de fundo as tente de novo. O proprio SyncService documenta que
-/// `failed` fica na fila "para o retry/backoff do agendador externo"; como
-/// `pendingActivities()` so le `pending`, o re-enfileiramento e feito aqui.
-/// Devolve quantas foram re-enfileiradas.
-Future<int> requeueFailedActivities(RecordingDatabase db) {
-  return (db.update(db.activities)
-        ..where((t) =>
-            t.isFinished.equals(true) &
-            t.syncState.equalsValue(SyncState.failed)))
-      .write(const ActivitiesCompanion(syncState: Value(SyncState.pending)));
-}
-
 /// Uma rodada de sync de fundo sobre um banco ja aberto.
 ///
-/// Re-enfileira as falhas anteriores, processa todos os pendentes e devolve
+/// Re-enfileira o que falhou ou ficou preso em `uploading`, processa todos os pendentes e devolve
 /// true se tudo foi enviado (ou se nao havia nada), false se alguma atividade
 /// falhou ou se houve erro inesperado — nesse caso o agendador re-tenta com
 /// backoff. Nunca lanca.
 Future<bool> runBackgroundSync(RecordingDatabase db, SyncService service) async {
   try {
-    await requeueFailedActivities(db);
+    await service.requeueStalled();
     final int pending = (await db.pendingActivities()).length;
     if (pending == 0) return true;
     final int synced = await service.processPending();

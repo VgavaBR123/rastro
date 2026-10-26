@@ -41,10 +41,14 @@ Handler createApi(
     if (bytes.isEmpty) {
       return _json({'error': 'arquivo vazio'}, status: 400);
     }
-    final guid = req.headers['x-activity-guid'];
+    final header = req.headers['x-activity-guid']?.trim();
+    final guid = (header == null || header.isEmpty) ? null : header;
+    // Idempotente por atividade: reenvio da mesma atividade devolve o upload
+    // que ja existe com 200, em vez de criar outro com 201.
+    final id = newId();
     final rec = await store.saveUpload(bytes,
-        activityGuid: guid, nowMs: now(), id: newId());
-    return _json(rec.toJson(), status: 201);
+        activityGuid: guid, nowMs: now(), id: id);
+    return _json(rec.toJson(), status: rec.id == id ? 201 : 200);
   });
 
   router.get('/uploads/<id>', (Request req, String id) async {

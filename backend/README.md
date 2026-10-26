@@ -8,7 +8,7 @@ extrai a rota para uma geometria PostGIS. Nada aqui fala com o Strava.
 | Rota | Descricao |
 | --- | --- |
 | `GET /health` | `{"status":"ok"}` |
-| `POST /uploads` | corpo = arquivo FIT em `application/octet-stream`, header opcional `x-activity-guid`. Responde 201 com `{id, uploadId, status, receivedAt, sizeBytes, activityGuid}`. Corpo vazio = 400. |
+| `POST /uploads` | corpo = arquivo FIT em `application/octet-stream`, header opcional `x-activity-guid`. Responde 201 com `{id, uploadId, status, receivedAt, sizeBytes, activityGuid}`. **Idempotente por `x-activity-guid`**: reenvio da mesma atividade nao grava de novo e responde 200 com o upload existente (indice unico parcial `uq_uploads_activity_guid`, criado tambem ao conectar). Sem guid nao ha deduplicacao. Corpo vazio = 400. |
 | `GET /uploads/<id>` | metadados de um upload (404 se nao existe) |
 | `GET /uploads/<id>/route` | rota como Feature GeoJSON. 200 com a rota, **204 sem corpo** se o upload existe mas nao tem rota, 404 se o id nao existe |
 | `GET /activities` | ultimos uploads |

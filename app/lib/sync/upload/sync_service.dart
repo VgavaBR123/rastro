@@ -21,6 +21,10 @@ class SyncService {
       : _db = db,
         _uploader = uploader;
 
+  /// Devolve para a fila o que falhou ou ficou preso em `uploading`. Quem
+  /// dispara uma rodada (manual ou de fundo) chama isto antes de processar.
+  Future<int> requeueStalled() => _db.requeueStalledUploads();
+
   /// Percorre todas as atividades pendentes e tenta enviar cada uma. Devolve
   /// quantas foram sincronizadas com sucesso. Falhas sao marcadas como failed
   /// e nao interrompem o lote.

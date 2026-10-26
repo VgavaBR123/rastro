@@ -71,9 +71,17 @@ class RouteData {
 }
 
 abstract class ActivityStore {
-  /// Guarda o arquivo FIT recebido e devolve o uploadId gerado.
+  /// Guarda o arquivo FIT recebido e devolve o registro. Se ja existe upload
+  /// para o mesmo [activityGuid], nao grava nada e devolve o existente (com o
+  /// id dele, diferente de [id]).
   Future<UploadRecord> saveUpload(List<int> fitBytes, {String? activityGuid, required int nowMs, required String id});
   Future<UploadRecord?> getUpload(String id);
+
+  /// Upload ja recebido para a atividade [activityGuid], se houver. Base da
+  /// idempotencia: o app pode reenviar a mesma atividade (retry, sync manual
+  /// e de fundo ao mesmo tempo) e o servidor guarda uma so.
+  Future<UploadRecord?> findByActivityGuid(String activityGuid);
+
   Future<List<UploadRecord>> listUploads();
 
   /// Rota do upload [id]. Devolve null quando o upload nao existe OU quando
@@ -90,6 +98,10 @@ class InMemoryActivityStore implements ActivityStore {
   @override
   Future<UploadRecord> saveUpload(List<int> fitBytes,
       {String? activityGuid, required int nowMs, required String id}) async {
+    if (activityGuid != null) {
+      final existing = await findByActivityGuid(activityGuid);
+      if (existing != null) return existing;
+    }
     // Decodifica na entrada apenas para guardar os agregados; os bytes brutos
     // ficam em _blobs e a rota e remontada sob demanda em getRoute.
     final List<FitTrackPoint>? pontos = _decodificar(fitBytes);
@@ -111,6 +123,14 @@ class InMemoryActivityStore implements ActivityStore {
 
   @override
   Future<UploadRecord?> getUpload(String id) async => _records[id];
+
+  @override
+  Future<UploadRecord?> findByActivityGuid(String activityGuid) async {
+    for (final rec in _records.values) {
+      if (rec.activityGuid == activityGuid) return rec;
+    }
+    return null;
+  }
 
   @override
   Future<List<UploadRecord>> listUploads() async {

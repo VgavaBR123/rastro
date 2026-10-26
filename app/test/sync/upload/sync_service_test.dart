@@ -125,4 +125,35 @@ void main() {
 
     expect(fit.length, greaterThan(14));
   });
+
+  test('requeueStalled devolve failed e uploading para pending, e so eles',
+      () async {
+    for (final g in ['p', 'u', 'f', 's']) {
+      await seedPendingActivity(db, g);
+    }
+    await db.setSyncState('u', SyncState.uploading);
+    await db.setSyncState('f', SyncState.failed);
+    await db.setSyncState('s', SyncState.synced);
+    // Gravacao em andamento (nao finalizada) nunca entra na fila.
+    await db.into(db.activities).insert(ActivitiesCompanion.insert(
+          guid: 'rec',
+          activityType: ActivityType.run,
+          startTimestampMs: 1,
+          syncState: SyncState.uploading,
+        ));
+
+    final n = await SyncService(db, FakeUploader()).requeueStalled();
+
+    expect(n, 2);
+    final byGuid = {
+      for (final a in await db.select(db.activities).get()) a.guid: a.syncState,
+    };
+    expect(byGuid, {
+      'p': SyncState.pending,
+      'u': SyncState.pending,
+      'f': SyncState.pending,
+      's': SyncState.synced,
+      'rec': SyncState.uploading,
+    });
+  });
 }

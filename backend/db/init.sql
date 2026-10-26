@@ -20,3 +20,8 @@ ALTER TABLE uploads ADD COLUMN IF NOT EXISTS route geometry(LineString, 4326);
 ALTER TABLE uploads ADD COLUMN IF NOT EXISTS point_count INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_uploads_received_at ON uploads (received_at DESC);
+
+-- Uma atividade = um upload (reenvio devolve o existente). Parcial porque
+-- uploads sem guid continuam aceitos. O servidor tambem cria isto ao conectar.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_uploads_activity_guid
+  ON uploads (activity_guid) WHERE activity_guid IS NOT NULL;
