@@ -6,6 +6,10 @@ import 'fit_decoder.dart';
 
 class UploadRecord {
   final String id;
+
+  /// Dono do upload. Nao sai no JSON; a API so devolve uploads do proprio
+  /// usuario. Null apenas em uploads antigos (anteriores as contas).
+  final String? userId;
   final String status; // received | processed | error
   final int receivedAtMs;
   final int sizeBytes;
@@ -20,6 +24,7 @@ class UploadRecord {
 
   const UploadRecord({
     required this.id,
+    this.userId,
     required this.status,
     required this.receivedAtMs,
     required this.sizeBytes,
@@ -70,24 +75,46 @@ class RouteData {
       };
 }
 
+/// Agregados de um usuario para GET /me.
+class UserStats {
+  final int activityCount;
+  final double totalDistanceMeters;
+  const UserStats(this.activityCount, this.totalDistanceMeters);
+
+  Map<String, dynamic> toJson() => {
+        'activityCount': activityCount,
+        'totalDistanceMeters': totalDistanceMeters,
+      };
+}
+
+/// Todas as leituras sao escopadas por usuario: upload de outro usuario se
+/// comporta exatamente como upload inexistente.
 abstract class ActivityStore {
   /// Guarda o arquivo FIT recebido e devolve o registro. Se ja existe upload
-  /// para o mesmo [activityGuid], nao grava nada e devolve o existente (com o
-  /// id dele, diferente de [id]).
-  Future<UploadRecord> saveUpload(List<int> fitBytes, {String? activityGuid, required int nowMs, required String id});
-  Future<UploadRecord?> getUpload(String id);
+  /// do mesmo [userId] para o mesmo [activityGuid], nao grava nada e devolve
+  /// o existente (com o id dele, diferente de [id]).
+  Future<UploadRecord> saveUpload(List<int> fitBytes,
+      {required String userId,
+      String? activityGuid,
+      required int nowMs,
+      required String id});
+  Future<UploadRecord?> getUpload(String id, {required String userId});
 
-  /// Upload ja recebido para a atividade [activityGuid], se houver. Base da
-  /// idempotencia: o app pode reenviar a mesma atividade (retry, sync manual
-  /// e de fundo ao mesmo tempo) e o servidor guarda uma so.
-  Future<UploadRecord?> findByActivityGuid(String activityGuid);
+  /// Upload ja recebido de [userId] para a atividade [activityGuid], se
+  /// houver. Base da idempotencia: o app pode reenviar a mesma atividade
+  /// (retry, sync manual e de fundo ao mesmo tempo) e o servidor guarda uma
+  /// so. O mesmo guid vindo de outro usuario e outra atividade.
+  Future<UploadRecord?> findByActivityGuid(String userId, String activityGuid);
 
-  Future<List<UploadRecord>> listUploads();
+  Future<List<UploadRecord>> listUploads(String userId);
 
-  /// Rota do upload [id]. Devolve null quando o upload nao existe OU quando
-  /// existe mas nao tem rota utilizavel (menos de 2 pontos / FIT ilegivel).
-  /// Quem chama distingue os dois casos com [getUpload].
-  Future<RouteData?> getRoute(String id);
+  /// Rota do upload [id]. Devolve null quando o upload nao existe (ou e de
+  /// outro usuario) OU quando existe mas nao tem rota utilizavel (menos de 2
+  /// pontos / FIT ilegivel). Quem chama distingue os casos com [getUpload].
+  Future<RouteData?> getRoute(String id, {required String userId});
+
+  /// Quantidade de uploads e soma do comprimento das rotas de [userId].
+  Future<UserStats> statsFor(String userId);
 }
 
 /// Implementacao em memoria (testes e dev sem banco).
@@ -97,9 +124,12 @@ class InMemoryActivityStore implements ActivityStore {
 
   @override
   Future<UploadRecord> saveUpload(List<int> fitBytes,
-      {String? activityGuid, required int nowMs, required String id}) async {
+      {required String userId,
+      String? activityGuid,
+      required int nowMs,
+      required String id}) async {
     if (activityGuid != null) {
-      final existing = await findByActivityGuid(activityGuid);
+      final existing = await findByActivityGuid(userId, activityGuid);
       if (existing != null) return existing;
     }
     // Decodifica na entrada apenas para guardar os agregados; os bytes brutos
@@ -107,6 +137,7 @@ class InMemoryActivityStore implements ActivityStore {
     final List<FitTrackPoint>? pontos = _decodificar(fitBytes);
     final rec = UploadRecord(
       id: id,
+      userId: userId,
       status: 'received',
       receivedAtMs: nowMs,
       sizeBytes: fitBytes.length,
@@ -122,25 +153,38 @@ class InMemoryActivityStore implements ActivityStore {
   }
 
   @override
-  Future<UploadRecord?> getUpload(String id) async => _records[id];
+  Future<UploadRecord?> getUpload(String id, {required String userId}) async {
+    final rec = _records[id];
+    return (rec != null && rec.userId == userId) ? rec : null;
+  }
 
   @override
-  Future<UploadRecord?> findByActivityGuid(String activityGuid) async {
+  Future<UploadRecord?> findByActivityGuid(
+      String userId, String activityGuid) async {
     for (final rec in _records.values) {
-      if (rec.activityGuid == activityGuid) return rec;
+      if (rec.userId == userId && rec.activityGuid == activityGuid) return rec;
     }
     return null;
   }
 
   @override
-  Future<List<UploadRecord>> listUploads() async {
-    final list = _records.values.toList()
+  Future<List<UploadRecord>> listUploads(String userId) async {
+    final list = _records.values.where((r) => r.userId == userId).toList()
       ..sort((a, b) => b.receivedAtMs.compareTo(a.receivedAtMs));
     return list;
   }
 
   @override
-  Future<RouteData?> getRoute(String id) async {
+  Future<UserStats> statsFor(String userId) async {
+    final list = await listUploads(userId);
+    final double total =
+        list.fold(0.0, (soma, r) => soma + (r.lengthMeters ?? 0));
+    return UserStats(list.length, total);
+  }
+
+  @override
+  Future<RouteData?> getRoute(String id, {required String userId}) async {
+    if (await getUpload(id, userId: userId) == null) return null;
     final List<int>? bytes = _blobs[id];
     if (bytes == null) return null;
     final List<FitTrackPoint>? pontos = _decodificar(bytes);
@@ -150,7 +194,8 @@ class InMemoryActivityStore implements ActivityStore {
         'type': 'LineString',
         'coordinates': <List<double>>[
           // GeoJSON usa a ordem [longitude, latitude].
-          for (final FitTrackPoint p in pontos) <double>[p.longitude, p.latitude],
+          for (final FitTrackPoint p in pontos)
+            <double>[p.longitude, p.latitude],
         ],
       },
       pointCount: pontos.length,

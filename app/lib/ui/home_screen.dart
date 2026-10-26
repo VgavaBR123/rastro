@@ -8,7 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../recording/domain/recording_models.dart';
 import '../sync/background/background_sync_provider.dart';
+import 'auth_screen.dart';
 import 'history_screen.dart';
+import 'profile_screen.dart';
 import 'recording_screen.dart';
 import 'recovery_dialog.dart';
 import 'settings_screen.dart';
@@ -73,10 +75,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final signedIn = ref.watch(authControllerProvider).isSignedIn;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Atividades'),
         actions: [
+          IconButton(
+            key: const Key('account'),
+            icon: Icon(signedIn ? Icons.account_circle : Icons.login),
+            tooltip: signedIn ? 'Perfil' : 'Entrar',
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) =>
+                    signedIn ? const ProfileScreen() : const AuthScreen(),
+              ));
+            },
+          ),
           IconButton(
             key: const Key('history'),
             icon: const Icon(Icons.history),

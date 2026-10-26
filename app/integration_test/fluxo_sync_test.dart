@@ -1,5 +1,6 @@
-// Teste de ponta a ponta NO APARELHO: grava uma atividade, encerra, abre o
-// historico e sincroniza contra o BACKEND DE VERDADE.
+// Teste de ponta a ponta NO APARELHO: cria uma conta, grava uma atividade,
+// encerra, abre o historico, sincroniza contra o BACKEND DE VERDADE e confere
+// o total no perfil.
 //
 // O que este teste cobre e exatamente o que os testes de unidade nao cobrem:
 // o caminho HTTP real (octet-stream + header x-activity-guid) ate o servidor
@@ -27,6 +28,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
+import 'package:strava_estudo_app/auth/session_store.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/location_sample.dart';
@@ -60,25 +62,28 @@ class RotaFakeSource implements LocationSource {
 
   /// Emite o i-esimo ponto da rota.
   void emitir(int i) {
-    _c.add(LocationSample(
-      position: GeoPoint(
-        latitude: _lat0 + i * 0.00009,
-        longitude: _lon0 + i * 0.00009,
-        altitudeMeters: 850 + (i % 5).toDouble(),
+    _c.add(
+      LocationSample(
+        position: GeoPoint(
+          latitude: _lat0 + i * 0.00009,
+          longitude: _lon0 + i * 0.00009,
+          altitudeMeters: 850 + (i % 5).toDouble(),
+        ),
+        wallClockMs: _inicioMs + i * 1000,
+        monotonicMs: i * 1000,
+        horizontalAccuracyMeters: 5,
+        speedMetersPerSecond: 3,
       ),
-      wallClockMs: _inicioMs + i * 1000,
-      monotonicMs: i * 1000,
-      horizontalAccuracyMeters: 5,
-      speedMetersPerSecond: 3,
-    ));
+    );
   }
 }
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('gravar, encerrar e sincronizar contra o backend real',
-      (tester) async {
+  testWidgets('gravar, encerrar e sincronizar contra o backend real', (
+    tester,
+  ) async {
     final source = RotaFakeSource();
     final db = RecordingDatabase();
     addTearDown(db.close);
@@ -87,14 +92,46 @@ void main() {
     await db.delete(db.waypoints).go();
     await db.delete(db.activities).go();
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        locationSourceProvider.overrideWithValue(source),
-        recordingDatabaseProvider.overrideWithValue(db),
-      ],
-      child: const MaterialApp(home: HomeScreen()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          locationSourceProvider.overrideWithValue(source),
+          recordingDatabaseProvider.overrideWithValue(db),
+          // Sessao so em memoria: o teste nao deixa conta logada no aparelho.
+          sessionStoreProvider.overrideWithValue(InMemorySessionStore()),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
     await tester.pumpAndSettle();
+
+    // 0) Cria uma conta nova (e-mail unico por execucao) pela UI.
+    final email = 'e2e${DateTime.now().millisecondsSinceEpoch}@teste.dev';
+    debugPrint('[e2e] conta: $email');
+    await tester.tap(find.byKey(const Key('account')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('auth_toggle')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('auth_name')), 'Corredor E2E');
+    await tester.enterText(find.byKey(const Key('auth_email')), email);
+    await tester.enterText(
+      find.byKey(const Key('auth_password')),
+      'senha-e2e-123',
+    );
+    await tester.tap(find.byKey(const Key('auth_submit')));
+    for (
+      int i = 0;
+      i < 40 && find.byKey(const Key('auth_submit')).evaluate().isNotEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+    await tester.pumpAndSettle();
+    expect(
+      find.byIcon(Icons.account_circle),
+      findsOneWidget,
+      reason: 'o cadastro precisa ter funcionado no backend',
+    );
 
     // 1) Inicia uma corrida.
     expect(find.text('Correr'), findsOneWidget);
@@ -112,10 +149,12 @@ void main() {
     // A distancia tem que ter saido do zero.
     // _Metric mostra dois Texts: rotulo e valor (nessa ordem).
     final textos = tester
-        .widgetList<Text>(find.descendant(
-          of: find.byKey(const Key('distance')),
-          matching: find.byType(Text),
-        ))
+        .widgetList<Text>(
+          find.descendant(
+            of: find.byKey(const Key('distance')),
+            matching: find.byType(Text),
+          ),
+        )
         .toList();
     final String? distancia = textos.last.data;
     debugPrint('[e2e] distancia na tela: $distancia');
@@ -151,8 +190,26 @@ void main() {
     expect(
       finalizada.syncState,
       SyncState.synced,
-      reason: 'o backend precisa estar no ar em SYNC_BASE_URL '
+      reason:
+          'o backend precisa estar no ar em SYNC_BASE_URL '
           '(veja backend/README.md e use adb reverse tcp:8081 tcp:8081)',
     );
+
+    // 6) O perfil (vindo do servidor) conta a atividade da conta nova.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('account')));
+    for (
+      int i = 0;
+      i < 40 && find.byKey(const Key('profile_count')).evaluate().isEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+    final total = tester
+        .widget<Text>(find.byKey(const Key('profile_count')))
+        .data;
+    debugPrint('[e2e] atividades no perfil: $total');
+    expect(total, '1');
   });
 }

@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../persistence/database.dart';
 import 'upload/sync_service.dart';
 
+const String kSignInToSyncMessage = 'Entre na sua conta para sincronizar';
+
 class SyncUiState {
   final bool running;
   final String? message;
@@ -18,10 +20,19 @@ class SyncController extends StateNotifier<SyncUiState> {
   final SyncService _service;
   final RecordingDatabase _db;
 
-  SyncController(this._service, this._db) : super(const SyncUiState());
+  /// Sem conta nao ha para quem enviar: o upload seria recusado (401).
+  final Future<bool> Function() _isSignedIn;
+
+  SyncController(this._service, this._db, {Future<bool> Function()? isSignedIn})
+      : _isSignedIn = isSignedIn ?? (() async => true),
+        super(const SyncUiState());
 
   Future<void> syncNow() async {
     if (state.running) return;
+    if (!await _isSignedIn()) {
+      state = const SyncUiState(message: kSignInToSyncMessage);
+      return;
+    }
     state = const SyncUiState(running: true);
     await _service.requeueStalled();
     final before = (await _db.pendingActivities()).length;

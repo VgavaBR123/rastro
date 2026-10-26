@@ -5,13 +5,45 @@ extrai a rota para uma geometria PostGIS. Nada aqui fala com o Strava.
 
 ## Contrato
 
+JSON em tudo (exceto o corpo do upload). Rotas marcadas com **(B)** exigem
+`Authorization: Bearer <token>` e respondem 401 `{"error"}` sem token, com token
+desconhecido, revogado ou expirado.
+
+### Contas
+
+`user` = `{"id": string, "email": string, "displayName": string, "createdAt": epoch ms}`.
+
 | Rota | Descricao |
 | --- | --- |
-| `GET /health` | `{"status":"ok"}` |
-| `POST /uploads` | corpo = arquivo FIT em `application/octet-stream`, header opcional `x-activity-guid`. Responde 201 com `{id, uploadId, status, receivedAt, sizeBytes, activityGuid}`. **Idempotente por `x-activity-guid`**: reenvio da mesma atividade nao grava de novo e responde 200 com o upload existente (indice unico parcial `uq_uploads_activity_guid`, criado tambem ao conectar). Sem guid nao ha deduplicacao. Corpo vazio = 400. |
-| `GET /uploads/<id>` | metadados de um upload (404 se nao existe) |
-| `GET /uploads/<id>/route` | rota como Feature GeoJSON. 200 com a rota, **204 sem corpo** se o upload existe mas nao tem rota, 404 se o id nao existe |
-| `GET /activities` | ultimos uploads |
+| `POST /auth/register` | body `{"email","password","displayName"}` -> 201 `{"token","user"}`. Email normalizado (trim + lowercase). 400 `{"error"}` se email invalido (precisa de `@` e ponto no dominio), senha com menos de 8 caracteres ou `displayName` vazio apos trim. 409 se o email ja existe (qualquer caixa). |
+| `POST /auth/login` | body `{"email","password"}` -> 200 `{"token","user"}`. 401 com a **mesma mensagem** para email inexistente e senha errada. Cada login abre uma sessao nova (o app pode estar logado em mais de um aparelho). |
+| `POST /auth/logout` (B) | 204; revoga so o token usado. |
+| `GET /me` (B) | 200 `{"user", "stats": {"activityCount": int, "totalDistanceMeters": double}}`. Stats sobre os uploads do proprio usuario; distancia = soma do `lengthMeters` das rotas (0 sem rota). |
+| `PATCH /me` (B) | body `{"displayName"}` -> 200 `{"user"}`; 400 se vazio. |
+
+Seguranca:
+
+- Senha: PBKDF2-HMAC-SHA256 (`lib/src/auth/password.dart`, sobre o pacote oficial
+  `crypto`), salt aleatorio de 16 bytes por usuario, 120000 iteracoes. Guardada como
+  `pbkdf2_sha256$<iter>$<salt_b64>$<hash_b64>`; comparacao em tempo constante. O login
+  de email inexistente tambem roda um PBKDF2 para nao revelar, pelo tempo, quais emails
+  existem.
+- Token: 32 bytes de `Random.secure()` em base64url sem padding. A tabela `sessions` guarda
+  so o sha256 (hex) do token; validade de 180 dias.
+- Senha e token nunca vao para o log (`logRequests` registra so metodo, caminho e status).
+
+### Atividades
+
+Todas exigem Bearer e so enxergam os uploads do proprio usuario: upload de outro usuario
+responde **404, igual a inexistente** (nao revela que o id existe).
+
+| Rota | Descricao |
+| --- | --- |
+| `GET /health` | publico. `{"status":"ok"}` |
+| `POST /uploads` (B) | corpo = arquivo FIT em `application/octet-stream`, header opcional `x-activity-guid`. Responde 201 com `{id, uploadId, status, receivedAt, sizeBytes, activityGuid}`. **Idempotente por (usuario, `x-activity-guid`)**: reenvio da mesma atividade pelo mesmo usuario nao grava de novo e responde 200 com o upload existente; o mesmo guid vindo de outro usuario gera outro upload (indice unico parcial `uq_uploads_user_activity_guid`, criado tambem ao conectar). Sem guid nao ha deduplicacao. Corpo vazio = 400. |
+| `GET /uploads/<id>` (B) | metadados de um upload (404 se nao existe ou e de outro usuario) |
+| `GET /uploads/<id>/route` (B) | rota como Feature GeoJSON. 200 com a rota, **204 sem corpo** se o upload existe mas nao tem rota, 404 se o id nao existe (ou e de outro usuario) |
+| `GET /activities` (B) | ultimos uploads do usuario |
 
 `GET /uploads/<id>` e `GET /activities` devolvem, alem de `id`, `uploadId`, `status`,
 `receivedAt`, `sizeBytes` e `activityGuid`, dois campos de metrica que estao **sempre
@@ -65,26 +97,55 @@ Variaveis: `PORT`, `USE_INMEMORY`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `
 
 ## Smoke test de ponta a ponta
 
-1. Gere um FIT com o codificador do app (dentro de `app/`):
+1. Gere um FIT com o codificador do app (dentro de `app/`), num diretorio fora do repo:
 
    ```sh
-   dart run tool/gen_sample_fit.dart ../.tmp/exemplo.fit
+   dart run tool/gen_sample_fit.dart /tmp/exemplo.fit
    ```
 
-2. Envie e confira:
+2. Crie uma conta e guarde o token (se o email ja existir, `POST /auth/login` com
+   `{"email","password"}`):
+
+   ```sh
+   curl -s -X POST http://localhost:8081/auth/register \
+     -H "content-type: application/json" \
+     -d '{"email":"eu@exemplo.com","password":"senha-forte-1","displayName":"Eu"}'
+   # -> 201 {"token":"...","user":{...}}
+   TOKEN=<token devolvido>
+   ```
+
+3. Envie e confira:
 
    ```sh
    curl -X POST http://localhost:8081/uploads \
+     -H "authorization: Bearer $TOKEN" \
      -H "content-type: application/octet-stream" \
      -H "x-activity-guid: guid-smoke-1" \
-     --data-binary @../.tmp/exemplo.fit
+     --data-binary @/tmp/exemplo.fit
+   # -> 201; o mesmo comando de novo -> 200 com o mesmo uploadId
+
+   curl -H "authorization: Bearer $TOKEN" http://localhost:8081/me
+   # -> stats.activityCount = 1, stats.totalDistanceMeters ~ 809
 
    docker exec backend-db-1 psql -U postgres -d atividades -c \
-     "SELECT id, point_count, ST_NumPoints(route) pts, ROUND(ST_Length(route::geography)) metros FROM uploads;"
+     "SELECT id, user_id, point_count, ST_NumPoints(route) pts, ROUND(ST_Length(route::geography)) metros FROM uploads;"
    ```
+
+4. Isolamento e logout: com o token de uma segunda conta, `GET /uploads/<id da primeira>`
+   responde 404; `POST /auth/logout` com o primeiro token responde 204 e, depois dele,
+   `GET /me` com o mesmo token responde 401.
 
 Resultado esperado para o FIT de exemplo (60 pontos): `point_count = 60`, `pts = 60`,
 `metros` por volta de 800.
+
+Conferencia de seguranca no banco:
+
+```sh
+docker exec backend-db-1 psql -U postgres -d atividades -c \
+  "SELECT email, left(password_hash, 21) FROM users;"    # pbkdf2_sha256$120000
+docker exec backend-db-1 psql -U postgres -d atividades -c \
+  "SELECT token_hash, user_id, expires_at FROM sessions;" # so o sha256 em hex (64 chars)
+```
 
 ## Apontando o app para ca
 
@@ -97,8 +158,20 @@ Sem a flag o app usa `https://example.invalid` de proposito (nenhum upload sai d
 
 ## Esquema
 
-`db/init.sql` roda na primeira subida do container. Ao mudar o esquema, recrie o volume:
-`docker compose down -v && docker compose up -d`.
+`db/init.sql` roda na primeira subida do container. O servidor aplica as mesmas mudancas
+de forma idempotente ao conectar (`_ensureSchema` em `postgres_store.dart`), entao um volume
+antigo e migrado sem recriar: cria `users` e `sessions`, adiciona `uploads.user_id`
+(NULL = upload anterior as contas, invisivel pela API) e troca o indice unico
+`uq_uploads_activity_guid` por `uq_uploads_user_activity_guid (user_id, activity_guid)`.
+Para comecar do zero: `docker compose down -v && docker compose up -d`.
+
+## Riscos conhecidos
+
+- Sem rate limit nem bloqueio por tentativas em `/auth/login` e `/auth/register`.
+- Sem verificacao de email nem troca/recuperacao de senha.
+- Sessoes expiradas so sao apagadas quando alguem tenta usa-las (sem limpeza periodica).
+- Sem TLS no servidor: em producao precisa de um proxy HTTPS na frente, senao o token
+  trafega em claro.
 
 ## Testes
 

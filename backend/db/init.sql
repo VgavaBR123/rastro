@@ -21,7 +21,33 @@ ALTER TABLE uploads ADD COLUMN IF NOT EXISTS point_count INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_uploads_received_at ON uploads (received_at DESC);
 
--- Uma atividade = um upload (reenvio devolve o existente). Parcial porque
--- uploads sem guid continuam aceitos. O servidor tambem cria isto ao conectar.
-CREATE UNIQUE INDEX IF NOT EXISTS uq_uploads_activity_guid
-  ON uploads (activity_guid) WHERE activity_guid IS NOT NULL;
+-- Contas. email ja chega normalizado (trim + lowercase). password_hash no
+-- formato pbkdf2_sha256$<iter>$<salt_b64>$<hash_b64>.
+CREATE TABLE IF NOT EXISTS users (
+  id            TEXT PRIMARY KEY,
+  email         TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  display_name  TEXT NOT NULL,
+  created_at    BIGINT NOT NULL
+);
+
+-- Sessoes. Guarda so o sha256 do token (nunca o token em claro).
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at BIGINT NOT NULL,
+  expires_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id);
+
+-- Dono do upload. Uploads anteriores as contas ficam NULL (invisiveis pela API).
+ALTER TABLE uploads ADD COLUMN IF NOT EXISTS user_id TEXT NULL REFERENCES users(id);
+
+-- Uma atividade de um usuario = um upload (reenvio devolve o existente).
+-- Parcial porque uploads sem guid continuam aceitos. Substitui o indice antigo
+-- so por activity_guid. O servidor tambem aplica isto ao conectar.
+DROP INDEX IF EXISTS uq_uploads_activity_guid;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_uploads_user_activity_guid
+  ON uploads (user_id, activity_guid) WHERE activity_guid IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_uploads_user_received
+  ON uploads (user_id, received_at DESC);

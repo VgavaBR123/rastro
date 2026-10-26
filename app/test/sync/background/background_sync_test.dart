@@ -136,8 +136,9 @@ void main() {
 
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
+        readToken: () async => 'tok',
         openDatabase: () => db,
-        createUploader: (url) {
+        createUploader: (url, _) {
           usedUrl = url;
           return up;
         },
@@ -155,8 +156,9 @@ void main() {
 
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
+        readToken: () async => 'tok',
         openDatabase: () => db,
-        createUploader: (_) => FakeUploader(shouldFail: true),
+        createUploader: (_, _) => FakeUploader(shouldFail: true),
       );
 
       expect(ok, isFalse);
@@ -168,8 +170,9 @@ void main() {
 
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
+        readToken: () async => 'tok',
         openDatabase: () => db,
-        createUploader: (_) => throw StateError('sem rede'),
+        createUploader: (_, _) => throw StateError('sem rede'),
       );
 
       expect(ok, isFalse);
@@ -179,6 +182,7 @@ void main() {
     test('excecao ao abrir o banco nao escapa', () async {
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
+        readToken: () async => 'tok',
         openDatabase: () => throw StateError('disco cheio'),
       );
       expect(ok, isFalse);

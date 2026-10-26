@@ -7,6 +7,8 @@
 // padrao de upload assincrono descrito no relatorio 06, nao um endpoint real.
 library;
 
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -22,12 +24,18 @@ class DioActivityUploader implements ActivityUploader {
   final Dio _dio;
   final String _baseUrl;
 
-  DioActivityUploader(Dio dio, String baseUrl)
+  /// Token da sessao, lido a cada envio (o usuario pode ter saido/entrado
+  /// entre um upload e outro). Null = envia sem Authorization.
+  final Future<String?> Function()? _token;
+
+  DioActivityUploader(Dio dio, String baseUrl, {Future<String?> Function()? token})
       : _dio = dio,
-        _baseUrl = baseUrl;
+        _baseUrl = baseUrl,
+        _token = token;
 
   @override
   Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
+    final String? token = await _token?.call();
     try {
       final Response<dynamic> response = await _dio.post<dynamic>(
         '$_baseUrl/uploads',
@@ -37,6 +45,7 @@ class DioActivityUploader implements ActivityUploader {
             Headers.contentTypeHeader: 'application/octet-stream',
             Headers.contentLengthHeader: fitBytes.length,
             'x-activity-guid': activityGuid,
+            if (token != null) 'Authorization': 'Bearer $token',
           },
           // O backend responde 201 no sucesso; qualquer outro status cai no
           // tratamento abaixo em vez de virar DioException generica.
@@ -45,6 +54,9 @@ class DioActivityUploader implements ActivityUploader {
       );
 
       final int? status = response.statusCode;
+      if (status == 401) {
+        throw UnauthorizedUploadException();
+      }
       if (status == null || status < 200 || status >= 300) {
         throw UploadException('status HTTP inesperado: $status');
       }

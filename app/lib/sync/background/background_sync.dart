@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'package:strava_estudo_app/app/providers.dart' show kSyncBaseUrl;
+import 'package:strava_estudo_app/auth/session_store.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/sync/upload/activity_uploader.dart';
 import 'package:strava_estudo_app/sync/upload/dio_activity_uploader.dart';
@@ -51,21 +52,25 @@ Future<bool> runBackgroundSync(RecordingDatabase db, SyncService service) async 
 /// mesmo em caso de erro. As fabricas existem para os testes injetarem banco
 /// em memoria e uploader falso; em producao abrem o arquivo real e o Dio.
 ///
-/// Sem backend configurado devolve true sem tocar no banco (nao ha o que
-/// re-tentar).
+/// Sem backend configurado, ou sem usuario logado, devolve true sem tocar no
+/// banco: nao ha o que re-tentar ate o usuario entrar na conta (o login
+/// agenda uma rodada).
 Future<bool> performBackgroundSync({
   String baseUrl = kSyncBaseUrl,
+  Future<String?> Function()? readToken,
   RecordingDatabase Function()? openDatabase,
-  ActivityUploader Function(String baseUrl)? createUploader,
+  ActivityUploader Function(String baseUrl, String token)? createUploader,
 }) async {
   if (!isSyncBackendConfigured(baseUrl)) return true;
 
   RecordingDatabase? db;
   try {
+    final String? token = await (readToken ?? _readStoredToken)();
+    if (token == null) return true;
     db = (openDatabase ?? RecordingDatabase.new)();
     final ActivityUploader uploader = createUploader != null
-        ? createUploader(baseUrl)
-        : DioActivityUploader(Dio(), baseUrl);
+        ? createUploader(baseUrl, token)
+        : DioActivityUploader(Dio(), baseUrl, token: () async => token);
     return await runBackgroundSync(db, SyncService(db, uploader));
   } on Object catch (e) {
     debugPrint('[background-sync] falha ao preparar o sync: $e');
@@ -78,6 +83,9 @@ Future<bool> performBackgroundSync({
     }
   }
 }
+
+Future<String?> _readStoredToken() async =>
+    (await SecureSessionStore().read())?.token;
 
 /// Ponto de entrada chamado pelo sistema no isolate de fundo. Precisa ser
 /// top-level e marcado como entry point para nao ser removido pelo tree

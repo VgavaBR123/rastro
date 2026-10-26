@@ -10,6 +10,8 @@ import '../core/format/measures.dart';
 import '../persistence/database.dart';
 import '../recording/domain/recording_models.dart';
 import 'activity_detail_screen.dart';
+import '../sync/sync_controller.dart' show kSignInToSyncMessage;
+import 'auth_screen.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -26,7 +28,17 @@ class HistoryScreen extends ConsumerWidget {
       if (msg != null && msg != prev?.message) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text(msg)));
+          ..showSnackBar(SnackBar(
+            content: Text(msg),
+            action: msg == kSignInToSyncMessage
+                ? SnackBarAction(
+                    label: 'Entrar',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AuthScreen()),
+                    ),
+                  )
+                : null,
+          ));
         ref.invalidate(recentActivitiesProvider);
         ref.invalidate(pendingCountProvider);
       }

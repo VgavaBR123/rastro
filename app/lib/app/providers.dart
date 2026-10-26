@@ -5,7 +5,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
+import '../auth/auth_api.dart';
+import '../auth/auth_controller.dart';
+import '../auth/auth_models.dart';
+import '../auth/session_store.dart';
 import '../persistence/database.dart';
+import '../sync/background/background_sync_provider.dart';
 import '../sync/sync_controller.dart';
 import '../sync/upload/activity_uploader.dart';
 import '../sync/upload/dio_activity_uploader.dart';
@@ -72,8 +77,44 @@ const String kSyncBaseUrl = String.fromEnvironment(
   defaultValue: 'https://example.invalid',
 );
 
+final dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+    )));
+
+// --- Conta (login so e necessario para sincronizar) ---
+
+final sessionStoreProvider = Provider<SessionStore>((ref) => SecureSessionStore());
+
+final authApiProvider = Provider<AuthApi>((ref) {
+  return AuthApi(ref.watch(dioProvider), kSyncBaseUrl);
+});
+
+final authControllerProvider =
+    StateNotifierProvider<AuthController, AuthState>((ref) {
+  return AuthController(
+    ref.watch(authApiProvider),
+    ref.watch(sessionStoreProvider),
+    // Entrou: o que ficou pendente enquanto estava deslogado pode subir.
+    onSignedIn: () => ref.read(backgroundSyncSchedulerProvider).scheduleSoon(),
+  )..load();
+});
+
+/// Perfil com os totais do servidor. Exige sessao e rede.
+final profileProvider = FutureProvider.autoDispose<Profile>((ref) async {
+  ref.watch(authControllerProvider.select((s) => s.user));
+  final session = await ref.watch(sessionStoreProvider).read();
+  if (session == null) throw const AuthException('Entre na sua conta', statusCode: 401);
+  return ref.watch(authApiProvider).me(session.token);
+});
+
 final activityUploaderProvider = Provider<ActivityUploader>((ref) {
-  return DioActivityUploader(Dio(), kSyncBaseUrl);
+  final store = ref.watch(sessionStoreProvider);
+  return DioActivityUploader(
+    ref.watch(dioProvider),
+    kSyncBaseUrl,
+    token: () async => (await store.read())?.token,
+  );
 });
 
 final syncServiceProvider = Provider<SyncService>((ref) {
@@ -88,6 +129,7 @@ final syncControllerProvider =
   return SyncController(
     ref.watch(syncServiceProvider),
     ref.watch(recordingDatabaseProvider),
+    isSignedIn: () async => await ref.read(sessionStoreProvider).read() != null,
   );
 });
 
