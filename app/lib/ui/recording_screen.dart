@@ -7,12 +7,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
 import '../core/format/measures.dart';
+import '../persistence/recording_repository.dart';
 import '../recording/domain/recording_models.dart';
+import '../sync/background/background_sync_provider.dart';
 import 'route_preview.dart';
 
 class RecordingScreen extends ConsumerStatefulWidget {
   final ActivityType activityType;
-  const RecordingScreen({super.key, required this.activityType});
+
+  /// Quando presente, continua esta atividade interrompida em vez de comecar
+  /// uma nova.
+  final InterruptedActivity? resumeFrom;
+
+  const RecordingScreen({
+    super.key,
+    required this.activityType,
+    this.resumeFrom,
+  });
 
   @override
   ConsumerState<RecordingScreen> createState() => _RecordingScreenState();
@@ -22,12 +33,16 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicia a gravacao assim que a tela abre.
+    // Inicia (ou retoma) a gravacao assim que a tela abre.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctrl = ref.read(recordingControllerProvider.notifier);
+      final resumeFrom = widget.resumeFrom;
+      if (resumeFrom != null) {
+        ctrl.resumeInterrupted(resumeFrom);
+        return;
+      }
       final autoPause = ref.read(settingsProvider).autoPauseEnabled;
-      ref
-          .read(recordingControllerProvider.notifier)
-          .start(widget.activityType, autoPauseEnabled: autoPause);
+      ctrl.start(widget.activityType, autoPauseEnabled: autoPause);
     });
   }
 
@@ -55,7 +70,13 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             _Metric(label: 'Pace', value: formatPace(s.avgPaceSecondsPerMeter, metric: metric), key: const Key('pace')),
             _Metric(label: 'Elevacao', value: formatElevation(s.ascentMeters, metric: metric), key: const Key('elevation')),
             const SizedBox(height: 32),
-            _Controls(state: s.state, ctrl: ctrl),
+            _Controls(
+              state: s.state,
+              ctrl: ctrl,
+              // Atividade nova na fila: pede um sync assim que houver rede.
+              onStopped: () =>
+                  ref.read(backgroundSyncSchedulerProvider).scheduleSoon(),
+            ),
           ],
         ),
       ),
@@ -96,7 +117,12 @@ class _Metric extends StatelessWidget {
 class _Controls extends StatelessWidget {
   final RecordingState state;
   final dynamic ctrl;
-  const _Controls({required this.state, required this.ctrl});
+  final VoidCallback onStopped;
+  const _Controls({
+    required this.state,
+    required this.ctrl,
+    required this.onStopped,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -126,6 +152,7 @@ class _Controls extends StatelessWidget {
           label: const Text('Encerrar'),
           onPressed: () async {
             await ctrl.stop();
+            onStopped();
             if (context.mounted) Navigator.of(context).pop();
           },
         ),

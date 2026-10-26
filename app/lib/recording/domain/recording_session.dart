@@ -75,6 +75,40 @@ class RecordingSession {
     _clock.start(monotonicMs);
   }
 
+  /// Reconstroi a sessao de uma gravacao interrompida (app morto ou aparelho
+  /// reiniciado) a partir dos pontos ACEITOS ja persistidos, em ordem.
+  ///
+  /// Splits e elevacao sao refeitos pelo replay dos pontos; distancia e
+  /// cronometro continuam do ultimo ponto. [elapsedMs] e o tempo total desde o
+  /// inicio da atividade (relogio de parede); o intervalo em que o app ficou
+  /// fora conta como pausa, sem somar cronometro nem distancia.
+  /// [monotonicMs] e a base monotonica da nova fonte de localizacao.
+  void restore(
+    List<Waypoint> acceptedPoints, {
+    required int monotonicMs,
+    required int elapsedMs,
+  }) {
+    var timerMs = 0;
+    var distance = 0.0;
+    for (final wp in acceptedPoints) {
+      _splits.onAcceptedPoint(wp.cumulativeDistanceMeters, wp.timerTimeMs, wp.position);
+      final alt = wp.position.altitudeMeters;
+      if (alt != null) {
+        _elevation.process(alt, verticalAccuracyMeters: wp.verticalAccuracyMeters);
+      }
+      timerMs = wp.timerTimeMs;
+      distance = wp.cumulativeDistanceMeters;
+    }
+    _acceptedCount = acceptedPoints.length;
+    _pipeline.restoreDistance(distance);
+    _clock.restore(
+      monotonicMs,
+      elapsedMs: elapsedMs < timerMs ? timerMs : elapsedMs,
+      timerMs: timerMs,
+    );
+    _state = RecordingState.recording;
+  }
+
   void pauseManual(int monotonicMs) {
     if (_state == RecordingState.finished) return;
     _state = RecordingState.manuallyPaused;

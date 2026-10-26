@@ -20,6 +20,17 @@ class RecordingClock {
     _pauseStartedMonotonicMs = null;
   }
 
+  /// Restaura o relogio de uma gravacao interrompida (recuperacao pos-crash).
+  /// [monotonicMs] e o "agora" da nova base monotonica; [elapsedMs] e [timerMs]
+  /// sao os totais ja acumulados. A diferenca entre os dois entra como tempo
+  /// pausado, entao o cronometro continua de onde parou.
+  void restore(int monotonicMs, {required int elapsedMs, required int timerMs}) {
+    _startMonotonicMs = monotonicMs - elapsedMs;
+    _accumulatedPauseMs = elapsedMs - timerMs;
+    _pauseStartedMonotonicMs = null;
+    _lastMonotonicMs = monotonicMs;
+  }
+
   void pause(int monotonicMs) {
     if (!isRunning || isPaused) return;
     _pauseStartedMonotonicMs = monotonicMs;

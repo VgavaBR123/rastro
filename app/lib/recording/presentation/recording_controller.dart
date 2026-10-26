@@ -49,12 +49,51 @@ class RecordingController extends StateNotifier<RecordingUiState> {
 
   Future<void> start(ActivityType type, {bool autoPauseEnabled = true}) async {
     if (state.isActive) return;
-    final ok = await _source.ensurePermission();
-    if (!ok) {
-      state = state.copyWith(error: 'Permissao de localizacao negada');
-      return;
-    }
+    if (!await _ensurePermission()) return;
     final guid = 'act_${_now()}';
+    final session = _beginSession(guid, type, autoPauseEnabled);
+
+    await _repo.startActivity(
+      guid: guid,
+      type: type,
+      startTimestampMs: _now(),
+      autoPauseEnabled: autoPauseEnabled,
+    );
+
+    session.start(0); // base monotonica; a fonte conta a partir do inicio
+    _listen();
+  }
+
+  /// Continua uma atividade que ficou sem finalizar (app morto, reboot). O
+  /// estado e reconstruido dos pontos salvos; o tempo fora conta como pausa.
+  Future<void> resumeInterrupted(InterruptedActivity interrupted) async {
+    if (state.isActive) return;
+    if (!await _ensurePermission()) return;
+    final a = interrupted.activity;
+    final session = _beginSession(a.guid, a.activityType, a.autoPauseEnabled);
+    _route.addAll(interrupted.acceptedPoints.map((w) => w.position));
+
+    await _repo.resumeActivity(a.guid);
+
+    session.restore(
+      interrupted.acceptedPoints,
+      monotonicMs: 0, // a nova fonte conta a partir de agora
+      elapsedMs: _now() - a.startTimestampMs,
+    );
+    _listen();
+  }
+
+  Future<bool> _ensurePermission() async {
+    final ok = await _source.ensurePermission();
+    if (!ok) state = state.copyWith(error: 'Permissao de localizacao negada');
+    return ok;
+  }
+
+  RecordingSession _beginSession(
+    String guid,
+    ActivityType type,
+    bool autoPauseEnabled,
+  ) {
     _guid = guid;
     _batch.clear();
     _route.clear();
@@ -70,15 +109,10 @@ class RecordingController extends StateNotifier<RecordingUiState> {
       },
     );
     _session = session;
+    return session;
+  }
 
-    await _repo.startActivity(
-      guid: guid,
-      type: type,
-      startTimestampMs: _now(),
-      autoPauseEnabled: autoPauseEnabled,
-    );
-
-    session.start(0); // base monotonica; a fonte conta a partir do inicio
+  void _listen() {
     _sub = _source.positions().listen(_onSample, onError: _onError);
     _emit();
   }

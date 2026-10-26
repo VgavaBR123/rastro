@@ -28,6 +28,40 @@ WaypointsCompanion waypointToCompanion(String activityGuid, int seq, dom.Waypoin
   );
 }
 
+/// Converte uma linha do banco de volta em Waypoint de dominio.
+dom.Waypoint waypointFromRow(Waypoint row) {
+  return dom.Waypoint(
+    position: GeoPoint(
+      latitude: row.latitude,
+      longitude: row.longitude,
+      altitudeMeters: row.altitudeMeters,
+    ),
+    cumulativeDistanceMeters: row.cumulativeDistanceMeters,
+    elapsedTimeMs: row.elapsedTimeMs,
+    timerTimeMs: row.timerTimeMs,
+    classification: dom.WaypointClassification.values[row.classification],
+    horizontalAccuracyMeters: row.horizontalAccuracyMeters,
+    verticalAccuracyMeters: row.verticalAccuracyMeters,
+    speedMetersPerSecond: row.speedMetersPerSecond,
+  );
+}
+
+/// Atividade que ficou sem finalizar (app morto, reboot) e o que ja foi salvo
+/// dela, para a UI oferecer retomar, salvar ou descartar.
+class InterruptedActivity {
+  final Activity activity;
+
+  /// Pontos aceitos persistidos, em ordem.
+  final List<dom.Waypoint> acceptedPoints;
+
+  const InterruptedActivity(this.activity, this.acceptedPoints);
+
+  double get distanceMeters =>
+      acceptedPoints.isEmpty ? 0 : acceptedPoints.last.cumulativeDistanceMeters;
+  int get timerMs => acceptedPoints.isEmpty ? 0 : acceptedPoints.last.timerTimeMs;
+  int get elapsedMs => acceptedPoints.isEmpty ? 0 : acceptedPoints.last.elapsedTimeMs;
+}
+
 class RecordingRepository {
   final RecordingDatabase db;
   final Map<String, int> _seq = {};
@@ -84,6 +118,47 @@ class RecordingRepository {
 
   /// Cabecalhos nao finalizados -- candidatos a recuperacao na subida do app.
   Future<List<Activity>> unfinished() => db.unfinishedActivities();
+
+  /// Atividades interrompidas com os pontos ja salvos, mais recentes primeiro.
+  /// [exceptGuid] exclui a gravacao em andamento neste processo, se houver.
+  Future<List<InterruptedActivity>> interrupted({String? exceptGuid}) async {
+    final heads = (await db.unfinishedActivities())
+        .where((a) => a.guid != exceptGuid)
+        .toList()
+      ..sort((a, b) => b.startTimestampMs.compareTo(a.startTimestampMs));
+    return [
+      for (final a in heads)
+        InterruptedActivity(a, await _acceptedPoints(a.guid)),
+    ];
+  }
+
+  /// Prepara a continuacao de uma atividade interrompida: os proximos pontos
+  /// seguem a sequencia dos que ja estao no banco.
+  Future<void> resumeActivity(String guid) async {
+    final rows = await db.waypointsForActivity(guid);
+    _seq[guid] = rows.isEmpty ? 0 : rows.last.seq + 1;
+  }
+
+  /// Finaliza uma atividade interrompida com o que foi salvo ate o crash. O
+  /// fim e o instante do ultimo ponto (o tempo depois dele nao foi gravado).
+  Future<void> finishInterrupted(InterruptedActivity interrupted) {
+    final a = interrupted.activity;
+    return finish(
+      a.guid,
+      a.startTimestampMs + interrupted.elapsedMs,
+      distanceMeters: interrupted.distanceMeters,
+      timerTimeMs: interrupted.timerMs,
+    );
+  }
+
+  Future<List<dom.Waypoint>> _acceptedPoints(String guid) async {
+    final rows = await db.waypointsForActivity(guid);
+    return [
+      for (final r in rows)
+        if (r.classification == dom.WaypointClassification.accept.index)
+          waypointFromRow(r),
+    ];
+  }
 
   /// Pontos persistidos de uma atividade, para o replay de reconstrucao.
   Future<List<Waypoint>> waypoints(String guid) => db.waypointsForActivity(guid);

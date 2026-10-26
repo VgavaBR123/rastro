@@ -9,6 +9,11 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.stravaestudo.stravaEstudoApp.backgroundSync</string>
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>

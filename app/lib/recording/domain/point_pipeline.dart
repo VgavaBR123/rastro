@@ -135,6 +135,14 @@ class PointPipeline {
     _p1 = p;
   }
 
+  /// Retoma uma gravacao interrompida a partir da distancia ja acumulada. O
+  /// buffer recente fica vazio: o primeiro ponto depois da retomada nao soma o
+  /// trecho percorrido enquanto o app estava fora (mesma regra da pausa).
+  void restoreDistance(double cumulativeDistanceMeters) {
+    _cumulativeDistanceMeters = cumulativeDistanceMeters;
+    resetRecentBuffer();
+  }
+
   /// Zera o buffer de pontos recentes (etapa 03: apos reprovar por aceleracao ou
   /// ao sair de auto-pausa, a referencia recomeca). Nao zera a distancia.
   void resetRecentBuffer() {
