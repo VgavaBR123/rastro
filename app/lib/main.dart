@@ -10,6 +10,7 @@ import 'app/providers.dart' show kSyncBaseUrl;
 import 'sync/background/background_sync_provider.dart';
 import 'sync/background/background_sync_scheduler.dart';
 import 'app/router.dart';
+import 'ui/theme/app_theme.dart';
 
 /// DSN do Sentry (relatorio 07: observabilidade com Sentry, open source).
 /// Vazio = desligado: o SDK nem e inicializado e nada sai do aparelho.
@@ -65,10 +66,10 @@ class StravaEstudoApp extends ConsumerWidget {
     return MaterialApp.router(
       routerConfig: ref.watch(appRouterProvider),
       title: 'Atividades',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
-        useMaterial3: true,
-      ),
+      // Escuro por padrao (relatorio 11); o claro existe, mas e secundario.
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.dark,
     );
   }
 }

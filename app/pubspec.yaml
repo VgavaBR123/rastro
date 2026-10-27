@@ -79,6 +79,21 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Fontes do design system (relatorio 11), ambas OFL, do repositorio
+  # google/fonts. Licencas em assets/fonts/OFL-*.txt.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf
+    - family: BarlowSemiCondensed
+      fonts:
+        - asset: assets/fonts/BarlowSemiCondensed-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BarlowSemiCondensed-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BarlowSemiCondensed-Bold.ttf
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
