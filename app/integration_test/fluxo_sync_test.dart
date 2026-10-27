@@ -112,7 +112,9 @@ void main() {
     // 0) Cria uma conta nova (e-mail unico por execucao) pela UI.
     final email = 'e2e${DateTime.now().millisecondsSinceEpoch}@teste.dev';
     debugPrint('[e2e] conta: $email');
-    await tester.tap(find.byKey(const Key('account')));
+    await tester.tap(find.byKey(const Key('nav_profile')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('profile_signin')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('auth_toggle')));
     await tester.pumpAndSettle();
@@ -132,14 +134,17 @@ void main() {
     }
     await tester.pumpAndSettle();
     expect(
-      find.byIcon(Icons.account_circle),
+      find.byKey(const Key('profile_name')),
       findsOneWidget,
       reason: 'o cadastro precisa ter funcionado no backend',
     );
 
-    // 1) Inicia uma corrida.
-    expect(find.text('Correr'), findsOneWidget);
-    await tester.tap(find.text('Correr'));
+    // 1) Inicia uma corrida pela aba Gravar.
+    await tester.tap(find.byKey(const Key('nav_record')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sport_run')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('record_start')));
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -164,8 +169,18 @@ void main() {
     debugPrint('[e2e] distancia na tela: $distancia');
     expect(distancia, isNot('0 m'));
 
-    // 3) Encerra a atividade.
-    await tester.tap(find.byKey(const Key('stop')));
+    // 3) Encerra a atividade: pausa, segura Encerrar e salva na tela Salvar.
+    await tester.tap(find.byKey(const Key('pause')));
+    await tester.pumpAndSettle();
+    final gesto = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('stop'))),
+    );
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await gesto.up();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save_activity')));
     await tester.pumpAndSettle();
 
     final atividades = await db.recentActivities();
@@ -176,7 +191,7 @@ void main() {
     expect(atividade.syncState, SyncState.pending);
 
     // 4) Historico -> sincronizar.
-    await tester.tap(find.byKey(const Key('history')));
+    await tester.tap(find.byKey(const Key('nav_history')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('sync')), findsOneWidget);
     await tester.tap(find.byKey(const Key('sync')));
@@ -200,9 +215,7 @@ void main() {
     );
 
     // 6) O perfil (vindo do servidor) conta a atividade da conta nova.
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('account')));
+    await tester.tap(find.byKey(const Key('nav_profile')));
     for (
       int i = 0;
       i < 40 && find.byKey(const Key('profile_count')).evaluate().isEmpty;
@@ -218,9 +231,7 @@ void main() {
     expect(finalizada.remoteId, isNotNull, reason: 'id do servidor guardado');
 
     // 7) Excluir no historico apaga no servidor tambem: o perfil volta a 0.
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('history')));
+    await tester.tap(find.byKey(const Key('nav_history')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(Key('menu-${finalizada.guid}')));
     await tester.pumpAndSettle();
@@ -237,9 +248,7 @@ void main() {
     expect(await db.pendingRemoteDeletions(), isEmpty,
         reason: 'a exclusao precisa ter chegado ao servidor');
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('account')));
+    await tester.tap(find.byKey(const Key('nav_profile')));
     String? depois;
     for (int i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 250));

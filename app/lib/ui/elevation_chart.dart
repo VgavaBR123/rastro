@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 
 import '../activity/elevation_profile.dart';
 import '../core/format/measures.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_typography.dart';
 
 /// Rotulo do eixo de distancia: sempre em km ou mi, uma casa decimal
 /// ("0 km", "1.5 km", "0.9 mi").
@@ -17,7 +19,8 @@ String formatAxisDistance(double meters, {required bool metric}) {
   return '${v.toStringAsFixed(1)} $unit';
 }
 
-/// Secao do detalhe com o perfil: titulo, ganho, min/max e o grafico.
+/// Secao do detalhe com o perfil: titulo, ganho, min/max e o grafico, tudo
+/// na cor subida.
 class ElevationSection extends StatelessWidget {
   final ElevationProfile profile;
   final bool metric;
@@ -30,28 +33,31 @@ class ElevationSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final grey = const TextStyle(color: Colors.grey);
+    final c = AppColors.of(context);
+    final muted = AppText.label.copyWith(color: c.textMuted);
     return Column(
       key: const Key('elevationSection'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Elevacao',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
-            Text('Ganho', style: grey),
+            Expanded(
+              child: Text(
+                'Elevacao',
+                style: AppText.sectionTitle.copyWith(color: c.text),
+              ),
+            ),
+            Text('Ganho ', style: muted),
             Text(
               formatElevation(profile.gainMeters, metric: metric),
               key: const Key('elevationGain'),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: AppText.metricS.copyWith(color: c.subida.fg),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -61,10 +67,9 @@ class ElevationSection extends StatelessWidget {
                   key: const Key('elevationChart'),
                   painter: ElevationChartPainter(
                     profile: profile,
-                    fillColor: Theme.of(context).colorScheme.primary
-                        .withValues(alpha: 0.25),
-                    lineColor: Theme.of(context).colorScheme.primary,
-                    gridColor: Colors.grey.withValues(alpha: 0.4),
+                    fillColor: c.subida.fill.withValues(alpha: 0.22),
+                    lineColor: c.subida.fill,
+                    gridColor: c.line,
                   ),
                 ),
               ),
@@ -79,12 +84,12 @@ class ElevationSection extends StatelessWidget {
                   Text(
                     formatElevation(profile.maxAltitudeMeters, metric: metric),
                     key: const Key('elevationMax'),
-                    style: grey,
+                    style: muted,
                   ),
                   Text(
                     formatElevation(profile.minAltitudeMeters, metric: metric),
                     key: const Key('elevationMin'),
-                    style: grey,
+                    style: muted,
                   ),
                 ],
               ),
@@ -98,12 +103,12 @@ class ElevationSection extends StatelessWidget {
             Text(
               formatAxisDistance(profile.startDistanceMeters, metric: metric),
               key: const Key('elevationStartDistance'),
-              style: grey,
+              style: muted,
             ),
             Text(
               formatAxisDistance(profile.endDistanceMeters, metric: metric),
               key: const Key('elevationEndDistance'),
-              style: grey,
+              style: muted,
             ),
           ],
         ),

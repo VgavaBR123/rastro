@@ -1,16 +1,25 @@
-// Tela inicial: escolha do esporte e inicio da gravacao. Na abertura, oferece
-// recuperar uma atividade que ficou sem finalizar (app morto, reboot).
+// Inicio (relatorio 11): feed com o resumo da semana e as atividades recentes.
+// Na abertura, oferece recuperar uma atividade que ficou sem finalizar (app
+// morto, reboot). A escolha do esporte fica na tela Gravar.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-import '../recording/domain/recording_models.dart';
-import '../sync/background/background_sync_provider.dart';
-import 'recovery_dialog.dart';
 import 'package:go_router/go_router.dart';
+
+import '../activity/week_summary.dart';
+import '../app/providers.dart';
 import '../app/router.dart';
+import '../persistence/database.dart';
+import '../sync/background/background_sync_provider.dart';
+import 'components/activity_card.dart';
+import 'components/app_nav_bar.dart';
+import 'components/week_summary_card.dart';
+import 'recovery_dialog.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_theme.dart';
+import 'theme/app_typography.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -67,72 +76,146 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final signedIn = ref.watch(authControllerProvider).isSignedIn;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Atividades'),
-        actions: [
-          IconButton(
-            key: const Key('account'),
-            icon: Icon(signedIn ? Icons.account_circle : Icons.login),
-            tooltip: signedIn ? 'Perfil' : 'Entrar',
-            onPressed: () {
-              context.push(signedIn ? AppRoutes.profile : AppRoutes.auth);
-            },
-          ),
-          IconButton(
-            key: const Key('history'),
-            icon: const Icon(Icons.history),
-            tooltip: 'Historico',
-            onPressed: () {
-              context.push(AppRoutes.history);
-            },
-          ),
-          IconButton(
-            key: const Key('settings'),
-            icon: const Icon(Icons.settings),
-            tooltip: 'Configuracoes',
-            onPressed: () {
-              context.push(AppRoutes.settings);
-            },
+    final c = AppColors.of(context);
+    final metric = ref.watch(settingsProvider.select((s) => s.useMetric));
+    final recent = ref.watch(recentActivitiesProvider);
+    final week = ref.watch(weekSummaryProvider).value;
+    final today = ref.watch(weekClockProvider)().weekday - 1;
+
+    final children = <Widget>[
+      _Header(onSettings: () => context.push(AppRoutes.settings)),
+      const SizedBox(height: 16),
+      if (week != null) ...[
+        WeekSummaryCard(summary: week, useMetric: metric, todayIndex: today),
+        const SizedBox(height: 24),
+      ],
+      ...recent.when(
+        loading: () => const [
+          Padding(
+            padding: EdgeInsets.all(32),
+            child: Center(child: CircularProgressIndicator()),
           ),
         ],
+        error: (e, _) => [
+          Padding(
+            padding: const EdgeInsets.all(32),
+            child: Text('Erro: $e', style: AppText.body.copyWith(color: c.danger)),
+          ),
+        ],
+        data: (list) => list.isEmpty
+            ? [const _EmptyFeed()]
+            : [
+                Text('Atividades recentes', style: AppText.sectionTitle.copyWith(color: c.text)),
+                const SizedBox(height: 12),
+                for (final a in list) ...[
+                  RoutedActivityCard(
+                    key: Key('card-${a.guid}'),
+                    activity: a,
+                    onOpen: () => _open(a),
+                    onShare: _share,
+                  ),
+                  const SizedBox(height: 14),
+                ],
+              ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('Escolha a atividade', style: TextStyle(fontSize: 20)),
-            const SizedBox(height: 24),
-            _ActivityButton(type: ActivityType.run, label: 'Correr', icon: Icons.directions_run),
-            _ActivityButton(type: ActivityType.ride, label: 'Pedalar', icon: Icons.directions_bike),
-            _ActivityButton(type: ActivityType.walk, label: 'Caminhar', icon: Icons.directions_walk),
-          ],
+    ];
+
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(
+            AppShape.gutter,
+            12,
+            AppShape.gutter,
+            AppNavBar.reservedHeight(context),
+          ),
+          children: children,
         ),
       ),
     );
   }
+
+  void _open(Activity a) {
+    context.push(AppRoutes.activity(a.guid), extra: a);
+  }
+
+  // Ainda nao ha funcao de compartilhar.
+  void _share() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Em breve')));
+  }
 }
 
-class _ActivityButton extends StatelessWidget {
-  final ActivityType type;
-  final String label;
-  final IconData icon;
-  const _ActivityButton({required this.type, required this.label, required this.icon});
+/// Nome do app, titulo da tela e acesso as Configuracoes.
+class _Header extends StatelessWidget {
+  final VoidCallback onSettings;
+  const _Header({required this.onSettings});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 32),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          icon: Icon(icon),
-          label: Text(label),
-          onPressed: () {
-            context.push(AppRoutes.record(type));
-          },
+    final c = AppColors.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Nome provisorio: a marca ainda nao foi escolhida.
+              Text('Atividades', style: AppText.label.copyWith(color: c.primaryText)),
+              const SizedBox(height: 2),
+              Text('Inicio', style: AppText.screenTitle.copyWith(color: c.text)),
+            ],
+          ),
         ),
+        TextButton.icon(
+          key: const Key('settings'),
+          onPressed: onSettings,
+          style: TextButton.styleFrom(foregroundColor: c.textMuted, minimumSize: const Size(44, 44)),
+          icon: const Icon(Icons.tune_rounded),
+          label: const Text('Ajustes'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Feed vazio: convida a gravar a primeira atividade.
+class _EmptyFeed extends StatelessWidget {
+  const _EmptyFeed();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Container(
+      key: const Key('home_empty'),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: BorderRadius.circular(AppShape.card),
+        border: Border.all(color: c.line),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.route_rounded, size: 40, color: c.dist.fg),
+          const SizedBox(height: 12),
+          Text('Nenhuma atividade ainda', style: AppText.sectionTitle.copyWith(color: c.text)),
+          const SizedBox(height: 6),
+          Text(
+            'Grave sua primeira corrida, pedal ou caminhada.',
+            textAlign: TextAlign.center,
+            style: AppText.body.copyWith(color: c.textMuted),
+          ),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            key: const Key('home_record'),
+            onPressed: () => context.go(AppRoutes.recordSetup),
+            icon: const Icon(Icons.fiber_manual_record_rounded),
+            label: const Text('Gravar atividade'),
+          ),
+        ],
       ),
     );
   }

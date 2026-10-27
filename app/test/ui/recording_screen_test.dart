@@ -1,5 +1,6 @@
 // Widget test da RecordingScreen com providers sobrescritos (fonte fake + DB em
-// memoria). Verifica que a tela inicia a gravacao e renderiza metricas e controles.
+// memoria). Verifica que a tela inicia a gravacao, renderiza metricas e
+// controles, e o fluxo Pausar -> segurar Encerrar -> Salvar ou Descartar.
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -15,6 +16,7 @@ import 'package:strava_estudo_app/recording/service/recording_service.dart';
 import 'package:strava_estudo_app/settings/app_settings.dart';
 import 'package:strava_estudo_app/settings/settings_controller.dart';
 import 'package:strava_estudo_app/ui/recording_screen.dart';
+import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
 import '../fixtures/sample_route.dart';
 import '../recording/fakes.dart';
@@ -64,10 +66,13 @@ void main() {
     // Rotulos das metricas e controles presentes.
     expect(find.text('Distancia'), findsOneWidget);
     expect(find.text('Tempo'), findsOneWidget);
-    expect(find.text('Pace'), findsOneWidget);
-    expect(find.text('Elevacao'), findsOneWidget);
+    expect(find.text('Pace atual'), findsOneWidget);
+    expect(find.text('Pace medio'), findsOneWidget);
+    expect(find.text('Subida'), findsOneWidget);
     expect(find.byKey(const Key('pause')), findsOneWidget);
-    expect(find.byKey(const Key('stop')), findsOneWidget);
+    expect(find.byKey(const Key('lap')), findsOneWidget);
+    // Encerrar so aparece pausado.
+    expect(find.byKey(const Key('stop')), findsNothing);
   });
 
   testWidgets(
@@ -105,9 +110,11 @@ void main() {
     WidgetTester tester, {
     required bool metric,
     FakeRecordingService? service,
+    RecordingDatabase? database,
+    ThemeData? theme,
   }) async {
-    final db = RecordingDatabase(NativeDatabase.memory());
-    addTearDown(db.close);
+    final db = database ?? RecordingDatabase(NativeDatabase.memory());
+    if (database == null) addTearDown(db.close);
     final source = FakeLocationSource();
     await tester.pumpWidget(
       ProviderScope(
@@ -121,6 +128,7 @@ void main() {
             recordingServiceProvider.overrideWithValue(service),
         ],
         child: MaterialApp(
+          theme: theme,
           home: Builder(
             builder: (context) => Scaffold(
               body: Center(
@@ -236,4 +244,148 @@ void main() {
     expect(find.byType(RecordingScreen), findsNothing);
     expect(service.stops, 1);
   });
+
+  /// Segura o botao (variante hold) ate passar o tempo de confirmacao.
+  Future<void> hold(WidgetTester tester, Finder f) async {
+    final g = await tester.startGesture(tester.getCenter(f));
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await g.up();
+    await tester.pump();
+  }
+
+  /// Deixa o encerramento (banco real em memoria) terminar.
+  Future<void> drain(WidgetTester tester) async {
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pauseAndOpenSave(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('pause')));
+    await settle(tester);
+    expect(find.text('Pausado'), findsOneWidget);
+    expect(find.byKey(const Key('resume')), findsOneWidget);
+    await hold(tester, find.byKey(const Key('stop')));
+    expect(find.byKey(const Key('save_activity_view')), findsOneWidget);
+  }
+
+  testWidgets('Encerrar exige segurar: toque curto nao abre Salvar', (
+    tester,
+  ) async {
+    final source = await pumpScreen(tester, metric: true);
+    await feed(tester, source, 3);
+    await tester.tap(find.byKey(const Key('pause')));
+    await settle(tester);
+    await tester.tap(find.byKey(const Key('stop')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const Key('save_activity_view')), findsNothing);
+    expect(find.byKey(const Key('resume')), findsOneWidget);
+  });
+
+  testWidgets('Salvar: titulo sugerido, finaliza no banco e fecha a tela', (
+    tester,
+  ) async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final source = await pumpScreen(tester, metric: true, database: db);
+    await feed(tester, source, 5);
+    await pauseAndOpenSave(tester);
+
+    expect(find.byKey(const Key('save_distance')), findsOneWidget);
+    final list = find
+        .descendant(
+          of: find.byKey(const Key('save_activity_view')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('save_title')),
+      200,
+      scrollable: list,
+    );
+    final title = tester.widget<TextField>(find.byKey(const Key('save_title')));
+    expect(title.controller!.text, startsWith('Pedal da '));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('visibility_only_me')),
+      200,
+      scrollable: list,
+    );
+    await tester.tap(find.byKey(const Key('visibility_only_me')));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('save_activity')));
+    await drain(tester);
+    expect(find.byType(RecordingScreen), findsNothing);
+    final rows = await db.select(db.activities).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.isFinished, isTrue);
+  });
+
+  testWidgets('Voltar a gravacao sai da tela Salvar e segue pausado', (
+    tester,
+  ) async {
+    final source = await pumpScreen(tester, metric: true);
+    await feed(tester, source, 3);
+    await pauseAndOpenSave(tester);
+    await tester.tap(find.byKey(const Key('save_back')));
+    await tester.pump();
+    expect(find.byKey(const Key('save_activity_view')), findsNothing);
+    expect(find.byKey(const Key('resume')), findsOneWidget);
+  });
+
+  testWidgets('Descartar pede confirmacao e apaga a atividade', (
+    tester,
+  ) async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final source = await pumpScreen(tester, metric: true, database: db);
+    await feed(tester, source, 5);
+    await pauseAndOpenSave(tester);
+
+    await tester.tap(find.byKey(const Key('discard_activity')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('discard_dialog')), findsOneWidget);
+    // Cancelar mantem a tela Salvar.
+    await tester.tap(find.byKey(const Key('discard_cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('save_activity_view')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('discard_activity')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('discard_confirm')));
+    await drain(tester);
+    expect(find.byType(RecordingScreen), findsNothing);
+    expect(await db.select(db.activities).get(), isEmpty);
+  });
+
+  testWidgets('alterna para o mapa pelo botao', (tester) async {
+    final source = await pumpScreen(tester, metric: true);
+    await feed(tester, source, 3);
+    await tester.tap(find.byKey(const Key('toggle_map')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('recording_map')), findsOneWidget);
+    expect(find.text('Metricas'), findsOneWidget);
+  });
+
+  for (final (nome, tema) in [('escuro', AppTheme.dark), ('claro', AppTheme.light)]) {
+    testWidgets('renderiza gravando, pausado e Salvar no tema $nome', (
+      tester,
+    ) async {
+      final source = await pumpScreen(tester, metric: true, theme: tema);
+      await feed(tester, source, 5);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const Key('toggle_map')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('toggle_map')));
+      await tester.pumpAndSettle();
+      await pauseAndOpenSave(tester);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

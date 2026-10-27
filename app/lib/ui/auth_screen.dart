@@ -4,10 +4,14 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../app/providers.dart';
-import 'package:go_router/go_router.dart';
 import '../app/router.dart';
+import 'section_card.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_theme.dart';
+import 'theme/app_typography.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -55,66 +59,88 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     final auth = ref.watch(authControllerProvider);
+    const gap = SizedBox(height: 12);
     return Scaffold(
-      appBar: AppBar(title: Text(_register ? 'Criar conta' : 'Entrar')),
+      appBar: AppBar(),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(
+          AppShape.gutter,
+          0,
+          AppShape.gutter,
+          24,
+        ),
         child: Form(
           key: _form,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'A conta serve para guardar suas atividades no servidor. '
-                'Gravar funciona sem ela.',
-                style: TextStyle(color: Colors.grey),
+              ScreenTitle(
+                _register ? 'Criar conta' : 'Entrar',
+                subtitle:
+                    'A conta serve para guardar suas atividades no servidor. '
+                    'Gravar funciona sem ela.',
               ),
-              const SizedBox(height: 16),
-              if (_register)
-                TextFormField(
-                  key: const Key('auth_name'),
-                  controller: _name,
-                  decoration: const InputDecoration(labelText: 'Nome'),
-                  textInputAction: TextInputAction.next,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Informe seu nome'
-                      : null,
+              SectionCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_register) ...[
+                      TextFormField(
+                        key: const Key('auth_name'),
+                        controller: _name,
+                        decoration: const InputDecoration(labelText: 'Nome'),
+                        textInputAction: TextInputAction.next,
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Informe seu nome'
+                            : null,
+                      ),
+                      gap,
+                    ],
+                    TextFormField(
+                      key: const Key('auth_email'),
+                      controller: _email,
+                      decoration: const InputDecoration(labelText: 'E-mail'),
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      textInputAction: TextInputAction.next,
+                      validator: (v) => (v == null || !v.contains('@'))
+                          ? 'E-mail invalido'
+                          : null,
+                    ),
+                    gap,
+                    TextFormField(
+                      key: const Key('auth_password'),
+                      controller: _password,
+                      decoration: const InputDecoration(labelText: 'Senha'),
+                      obscureText: true,
+                      onFieldSubmitted: (_) => _submit(),
+                      validator: (v) =>
+                          (_register && (v == null || v.length < 8))
+                          ? 'Minimo de 8 caracteres'
+                          : (v == null || v.isEmpty)
+                          ? 'Informe a senha'
+                          : null,
+                    ),
+                    if (auth.error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          auth.error!,
+                          key: const Key('auth_error'),
+                          style: AppText.body.copyWith(color: c.danger),
+                        ),
+                      ),
+                  ],
                 ),
-              TextFormField(
-                key: const Key('auth_email'),
-                controller: _email,
-                decoration: const InputDecoration(labelText: 'E-mail'),
-                keyboardType: TextInputType.emailAddress,
-                autocorrect: false,
-                textInputAction: TextInputAction.next,
-                validator: (v) =>
-                    (v == null || !v.contains('@')) ? 'E-mail invalido' : null,
               ),
-              TextFormField(
-                key: const Key('auth_password'),
-                controller: _password,
-                decoration: const InputDecoration(labelText: 'Senha'),
-                obscureText: true,
-                onFieldSubmitted: (_) => _submit(),
-                validator: (v) => (_register && (v == null || v.length < 8))
-                    ? 'Minimo de 8 caracteres'
-                    : (v == null || v.isEmpty)
-                    ? 'Informe a senha'
-                    : null,
-              ),
-              const SizedBox(height: 16),
-              if (auth.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    auth.error!,
-                    key: const Key('auth_error'),
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                ),
               FilledButton(
                 key: const Key('auth_submit'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(56),
+                ),
                 onPressed: auth.busy ? null : _submit,
                 child: auth.busy
                     ? const SizedBox.square(
@@ -123,6 +149,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       )
                     : Text(_register ? 'Criar conta' : 'Entrar'),
               ),
+              const SizedBox(height: 8),
               TextButton(
                 key: const Key('auth_toggle'),
                 onPressed: auth.busy

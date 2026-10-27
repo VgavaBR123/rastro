@@ -1,10 +1,16 @@
-// Tela de configuracoes: unidades, pausa automatica e peso (para calorias).
+// Tela de configuracoes: unidades (metrico ou imperial), pausa automatica e
+// peso (para calorias), em secoes de cartao.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import 'components/segmented_selector.dart';
+import 'section_card.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_theme.dart';
+import 'theme/app_typography.dart';
 
 /// Libras por quilograma.
 const double kLbPerKg = 2.20462262185;
@@ -18,41 +24,85 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = AppColors.of(context);
     final s = ref.watch(settingsProvider);
     final ctrl = ref.read(settingsProvider.notifier);
     return Scaffold(
-      appBar: AppBar(title: const Text('Configuracoes')),
+      appBar: AppBar(),
       body: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          AppShape.gutter,
+          0,
+          AppShape.gutter,
+          24,
+        ),
         children: [
-          SwitchListTile(
-            key: const Key('metric'),
-            title: const Text('Unidades metricas'),
-            subtitle: Text(s.useMetric ? 'km, m, min/km' : 'mi, ft, min/mi'),
-            value: s.useMetric,
-            onChanged: ctrl.setUseMetric,
-          ),
-          SwitchListTile(
-            key: const Key('autopause'),
-            title: const Text('Pausa automatica'),
-            subtitle: const Text('Pausa sozinho quando voce para'),
-            value: s.autoPauseEnabled,
-            onChanged: ctrl.setAutoPauseEnabled,
-          ),
-          ListTile(
-            key: const Key('weight'),
-            title: const Text('Peso (para calorias)'),
-            subtitle: Text(
-              formatWeight(s.weightKg, metric: s.useMetric),
-              key: const Key('weightValue'),
+          const ScreenTitle('Configuracoes'),
+          SectionCard(
+            title: 'Unidades',
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SegmentedSelector<bool>(
+                  key: const Key('metric'),
+                  selected: s.useMetric,
+                  onChanged: ctrl.setUseMetric,
+                  options: [
+                    SegmentOption(
+                      value: true,
+                      label: 'Metrico',
+                      role: c.ciano,
+                      key: const Key('metric_on'),
+                    ),
+                    SegmentOption(
+                      value: false,
+                      label: 'Imperial',
+                      role: c.ciano,
+                      key: const Key('metric_off'),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
+                  child: Text(
+                    s.useMetric ? 'km, m, min/km' : 'mi, ft, min/mi',
+                    style: AppText.label.copyWith(color: c.textMuted),
+                  ),
+                ),
+              ],
             ),
-            trailing: const Icon(Icons.edit),
-            onTap: () => showDialog<void>(
-              context: context,
-              builder: (_) => WeightDialog(
-                initialKg: s.weightKg,
-                metric: s.useMetric,
-                onSave: ctrl.setWeightKg,
-              ),
+          ),
+          SectionCard(
+            title: 'Gravacao',
+            child: Column(
+              children: [
+                SwitchListTile(
+                  key: const Key('autopause'),
+                  title: const Text('Pausa automatica'),
+                  subtitle: const Text('Pausa sozinho quando voce para'),
+                  value: s.autoPauseEnabled,
+                  onChanged: ctrl.setAutoPauseEnabled,
+                ),
+                const SectionDivider(),
+                ListTile(
+                  key: const Key('weight'),
+                  title: const Text('Peso (para calorias)'),
+                  subtitle: Text(
+                    formatWeight(s.weightKg, metric: s.useMetric),
+                    key: const Key('weightValue'),
+                  ),
+                  trailing: Icon(Icons.edit_rounded, color: c.extra.fg),
+                  onTap: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => WeightDialog(
+                      initialKg: s.weightKg,
+                      metric: s.useMetric,
+                      onSave: ctrl.setWeightKg,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -164,7 +214,7 @@ class _WeightDialogState extends State<WeightDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancelar'),
         ),
-        TextButton(
+        FilledButton(
           key: const Key('weightSave'),
           onPressed: _save,
           child: const Text('Salvar'),

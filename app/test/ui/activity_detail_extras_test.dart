@@ -10,6 +10,10 @@ import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/domain/waypoint.dart' as dom;
 import 'package:strava_estudo_app/ui/activity_detail_screen.dart';
+import 'package:strava_estudo_app/ui/components/split_bar.dart';
+import 'package:strava_estudo_app/ui/components/sport_chip.dart';
+import 'package:strava_estudo_app/ui/theme/app_colors.dart';
+import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
 dom.Waypoint ponto(
   double dist,
@@ -94,14 +98,21 @@ Future<RecordingDatabase> vazia() async {
   return db;
 }
 
-Future<void> abrir(WidgetTester tester, RecordingDatabase db) async {
+Future<void> abrir(
+  WidgetTester tester,
+  RecordingDatabase db, {
+  ThemeData? theme,
+}) async {
   await tester.binding.setSurfaceSize(const Size(600, 2400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final activity = (await RecordingRepository(db).recent()).first;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [recordingDatabaseProvider.overrideWithValue(db)],
-      child: MaterialApp(home: ActivityDetailScreen(activity: activity)),
+      child: MaterialApp(
+        theme: theme,
+        home: ActivityDetailScreen(activity: activity),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -195,5 +206,141 @@ void main() {
     expect(find.byKey(const Key('detailBattery')), findsNothing);
     expect(find.text('Calorias'), findsNothing);
     expect(find.text('Bateria'), findsNothing);
+  });
+
+  for (final (nome, theme, colors) in [
+    ('escuro', AppTheme.dark, AppColors.dark),
+    ('claro', AppTheme.light, AppColors.light),
+  ]) {
+    testWidgets('visual do design system no tema $nome', (tester) async {
+      final db = await completa();
+      addTearDown(db.close);
+      await abrir(tester, db, theme: theme);
+
+      // Chip do esporte, titulo pelo horario e chip de sync.
+      expect(find.widgetWithText(SportChip, 'Corrida'), findsOneWidget);
+      expect(
+        textoDe(tester, const Key('detailTitle')),
+        startsWith('Corrida da '),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('detailSync')),
+          matching: find.text('Aguardando envio'),
+        ),
+        findsOneWidget,
+      );
+
+      // Grade 3 x 2, cada bloco tingido na cor da sua funcao.
+      Color tinta(String key) =>
+          (tester
+                      .widget<Container>(
+                        find
+                            .descendant(
+                              of: find.byKey(Key(key)),
+                              matching: find.byType(Container),
+                            )
+                            .first,
+                      )
+                      .decoration!
+                  as BoxDecoration)
+              .color!;
+      expect(tinta('detailDistance'), colors.dist.tint);
+      expect(tinta('detailTime'), colors.tempo.tint);
+      expect(tinta('detailPace'), colors.pace.tint);
+      expect(tinta('detailAscent'), colors.subida.tint);
+      expect(tinta('detailCalories'), colors.extra.tint);
+      expect(tinta('detailBattery'), colors.ciano.tint);
+      expect(naLinha('detailDistance', '1.50 km'), findsOneWidget);
+      expect(naLinha('detailAscent', '50 m'), findsOneWidget);
+      final y = tester.getTopLeft(find.byKey(const Key('detailDistance'))).dy;
+      expect(tester.getTopLeft(find.byKey(const Key('detailPace'))).dy, y);
+      expect(
+        tester.getTopLeft(find.byKey(const Key('detailAscent'))).dy,
+        greaterThan(y),
+      );
+
+      // Split 1 (5:00/km) e o mais rapido; o parcial (6:00/km), o mais lento.
+      SplitBar barra(int n) => tester.widget<SplitBar>(
+        find.descendant(
+          of: find.byKey(Key('split-$n')),
+          matching: find.byType(SplitBar),
+        ),
+      );
+      expect(barra(1).spec, const SplitBarSpec(1.0, SplitRank.fastest));
+      expect(barra(2).spec.rank, SplitRank.slowest);
+      expect(barra(2).spec.fraction, closeTo(0.55, 1e-9));
+      expect(find.byKey(const Key('splitLegend')), findsOneWidget);
+
+      // Fundo do tema, sem AppBar.
+      expect(find.byType(AppBar), findsNothing);
+      expect(
+        Theme.of(tester.element(find.byType(Scaffold))).scaffoldBackgroundColor,
+        colors.bg,
+      );
+    });
+  }
+
+  testWidgets('Compartilhar avisa que vem em breve; Voltar fecha a tela', (
+    tester,
+  ) async {
+    final db = await completa();
+    addTearDown(db.close);
+    await tester.binding.setSurfaceSize(const Size(600, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final activity = (await RecordingRepository(db).recent()).first;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [recordingDatabaseProvider.overrideWithValue(db)],
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => ActivityDetailScreen(activity: activity),
+                  ),
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('detailShare')));
+    await tester.pump();
+    expect(find.text('Em breve'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('detailBack')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ActivityDetailScreen), findsNothing);
+    expect(find.text('abrir'), findsOneWidget);
+  });
+
+  testWidgets('pedal mostra velocidade no lugar do pace', (tester) async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final repo = RecordingRepository(db);
+    await repo.startActivity(
+      guid: 'p',
+      type: ActivityType.ride,
+      startTimestampMs: 1000,
+    );
+    await repo.appendWaypoints('p', [
+      ponto(0, 0, null),
+      ponto(3000, 360000, null),
+    ]);
+    await repo.finish('p', 361000, distanceMeters: 3000, timerTimeMs: 360000);
+    await abrir(tester, db, theme: AppTheme.light);
+
+    expect(find.text('Velocidade'), findsOneWidget);
+    expect(find.text('Pace'), findsNothing);
+    expect(naLinha('detailPace', '30.0 km/h'), findsOneWidget);
+    expect(naLinha('detailAscent', '-- m'), findsOneWidget);
   });
 }

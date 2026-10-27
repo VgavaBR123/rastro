@@ -1,26 +1,29 @@
-// Funcoes de conta pela UI: esqueci a senha (2 passos, entra logado), trocar
-// senha (403 mostra erro e segue logado), sair de todos e excluir conta.
+// Funcoes de conta pela UI, a partir da aba Voce: esqueci a senha (2 passos,
+// entra logado), trocar senha (403 mostra erro e segue logado), sair de todos
+// e excluir conta (a aba fica no estado deslogado).
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/auth/session_store.dart';
+import 'package:strava_estudo_app/ui/profile_screen.dart';
 
 import '../auth/auth_test.dart' show RouteAdapter, meJson, session, sessionJson;
-import 'auth_flow_test.dart' show pumpApp;
+import 'auth_flow_test.dart' show openProfile, openSignIn, pumpApp;
 
-Future<void> openProfile(WidgetTester tester) async {
-  await tester.tap(find.byKey(const Key('account')));
-  await tester.pumpAndSettle();
-}
+/// Lista da aba Voce (as outras abas tambem tem rolagem).
+Finder profileScrollable() => find
+    .descendant(
+      of: find.byKey(const Key('profile_list')),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 Future<void> tapProfileItem(WidgetTester tester, String key) async {
   final item = find.byKey(Key(key));
-  await tester.scrollUntilVisible(
-    item,
-    200,
-    scrollable: find.byType(Scrollable).first,
-  );
+  await tester.scrollUntilVisible(item, 200, scrollable: profileScrollable());
   await tester.ensureVisible(item);
   await tester.pumpAndSettle();
   await tester.tap(item);
@@ -40,7 +43,7 @@ void main() {
       'GET /me': (200, meJson),
     });
     final store = await pumpApp(tester, adapter);
-    await openProfile(tester); // deslogado: abre a tela de login
+    await openSignIn(tester);
     await tester.enterText(
       find.byKey(const Key('auth_email')),
       'ana@exemplo.com',
@@ -84,9 +87,10 @@ void main() {
     await tester.tap(find.byKey(const Key('reset_submit')));
     await tester.pumpAndSettle();
 
-    // Voltou para a Home ja logado (as duas telas fecharam).
-    expect(find.text('Escolha a atividade'), findsOneWidget);
-    expect(find.byIcon(Icons.account_circle), findsOneWidget);
+    // Voltou para a aba Voce ja logado (as duas telas fecharam).
+    expect(find.byKey(const Key('auth_submit')), findsNothing);
+    expect(find.byKey(const Key('profile_name')), findsOneWidget);
+    expect(find.byKey(const Key('profile_signin')), findsNothing);
     expect((await store.read())!.token, 'tok-1');
     final resetIndex = paths(adapter)
         .toList()
@@ -111,7 +115,7 @@ void main() {
         ),
       }),
     );
-    await openProfile(tester);
+    await openSignIn(tester);
     await tester.tap(find.byKey(const Key('auth_forgot')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -251,8 +255,10 @@ void main() {
     await tester.tap(find.byKey(const Key('delete_confirm')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Escolha a atividade'), findsOneWidget);
-    expect(find.byIcon(Icons.login), findsOneWidget);
+    // A aba Voce fica no estado deslogado.
+    expect(find.byKey(const Key('delete_confirm')), findsNothing);
+    expect(find.byKey(const Key('profile_signin')), findsOneWidget);
+    expect(find.byKey(const Key('profile_name')), findsNothing);
     expect(await store.read(), isNull);
     final del = adapter.requests.lastWhere((r) => r.method == 'DELETE');
     expect(del.headers['Authorization'], 'Bearer tok-1');
@@ -278,6 +284,11 @@ void main() {
     expect(find.byKey(const Key('delete_error')), findsOneWidget);
     expect(find.text('Senha incorreta'), findsOneWidget);
     expect(await store.read(), isNotNull);
+
+    // Cancelar volta ao perfil, ainda logado.
+    await tester.tap(find.byKey(const Key('delete_cancel')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('profile_name')), findsOneWidget);
   });
 
   testWidgets('sair de todos os aparelhos pede confirmacao e volta deslogado', (
@@ -305,9 +316,29 @@ void main() {
     await tester.tap(find.byKey(const Key('logout_all_confirm')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Escolha a atividade'), findsOneWidget);
-    expect(find.byIcon(Icons.login), findsOneWidget);
+    expect(find.byKey(const Key('profile_signin')), findsOneWidget);
+    expect(find.byKey(const Key('profile_name')), findsNothing);
     expect(await store.read(), isNull);
     expect(paths(adapter), contains('POST /auth/logout-all'));
+  });
+
+  testWidgets('aba Voce viva rele os totais quando a lista local muda', (
+    tester,
+  ) async {
+    final adapter = RouteAdapter({'GET /me': (200, meJson)});
+    await pumpApp(tester, adapter, store: InMemorySessionStore(session()));
+    await openProfile(tester);
+    int meCalls() => paths(adapter).where((p) => p == 'GET /me').length;
+    final before = meCalls();
+
+    // Salvar, apagar ou sincronizar invalida os recentes; o perfil segue.
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(ProfileScreen)),
+    );
+    container.invalidate(recentActivitiesProvider);
+    await tester.pumpAndSettle();
+
+    expect(meCalls(), before + 1);
+    expect(find.byKey(const Key('profile_count')), findsOneWidget);
   });
 }

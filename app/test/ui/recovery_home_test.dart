@@ -66,7 +66,8 @@ void main() {
     addTearDown(db.close);
     await pumpHome(tester, db);
     expect(find.byKey(const Key('recovery_dialog')), findsNothing);
-    expect(find.text('Correr'), findsOneWidget);
+    // Inicio no ar, no estado vazio do feed.
+    expect(find.byKey(const Key('home_empty')), findsOneWidget);
   });
 
   testWidgets('Salvar finaliza a atividade com o que foi gravado', (tester) async {

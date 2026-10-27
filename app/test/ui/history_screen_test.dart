@@ -10,7 +10,9 @@ import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/domain/waypoint.dart' as dom;
 import 'package:strava_estudo_app/ui/activity_detail_screen.dart';
+import 'package:strava_estudo_app/ui/components/activity_card.dart';
 import 'package:strava_estudo_app/ui/history_screen.dart';
+import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
 dom.Waypoint acc(double lat, double dist) => dom.Waypoint(
       position: GeoPoint(latitude: lat, longitude: 0, altitudeMeters: 100),
@@ -41,9 +43,34 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Corrida'), findsOneWidget);
-    expect(find.byType(ListTile), findsOneWidget);
+    expect(find.text('Corrida'), findsOneWidget); // chip do esporte
+    expect(find.byType(ActivityCard), findsOneWidget);
   });
+
+  for (final (name, theme) in [('escuro', AppTheme.dark), ('claro', AppTheme.light)]) {
+    testWidgets('Historico no visual novo, com badge de pendentes ($name)', (tester) async {
+      final db = await seededDb();
+      addTearDown(db.close);
+
+      await tester.pumpWidget(ProviderScope(
+        overrides: [recordingDatabaseProvider.overrideWithValue(db)],
+        child: MaterialApp(theme: theme, home: const HistoryScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Historico'), findsOneWidget);
+      expect(find.byKey(const Key('sync')), findsOneWidget);
+      expect(find.byTooltip('Sincronizar (1)'), findsOneWidget);
+      final badge = tester.widget<Badge>(find.byType(Badge));
+      expect(badge.isLabelVisible, isTrue);
+      // Cartao compacto: sem miniatura e sem os botoes do feed.
+      final card = tester.widget<ActivityCard>(find.byType(ActivityCard));
+      expect(card.compact, isTrue);
+      expect(find.text('Ver detalhe'), findsNothing);
+      expect(find.text('1.20 km'), findsOneWidget);
+      expect(find.byKey(const Key('menu-a')), findsOneWidget);
+    });
+  }
 
   testWidgets('Confirmar no dialogo exclui a atividade da lista', (tester) async {
     final db = await seededDb();
@@ -64,7 +91,7 @@ void main() {
     await tester.tap(find.byKey(const Key('confirm-delete')));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ListTile), findsNothing);
+    expect(find.byType(ActivityCard), findsNothing);
     expect(find.text('Nenhuma atividade ainda'), findsOneWidget);
     expect(find.text('Atividade excluida'), findsOneWidget);
     expect(await RecordingRepository(db).recent(), isEmpty);
@@ -87,7 +114,7 @@ void main() {
     await tester.tap(find.byKey(const Key('cancel-delete')));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ListTile), findsOneWidget);
+    expect(find.byType(ActivityCard), findsOneWidget);
     expect(find.text('Atividade excluida'), findsNothing);
     expect((await RecordingRepository(db).recent()).length, 1);
   });

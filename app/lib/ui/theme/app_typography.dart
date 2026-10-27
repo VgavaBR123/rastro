@@ -48,6 +48,9 @@ abstract final class AppText {
   static final TextStyle navLabel = _inter(10.5, 600);
   static final TextStyle navLabelActive = _inter(10.5, 700);
 
+  /// Rotulo do botao Gravar da navegacao.
+  static final TextStyle recordLabel = _inter(11, 700);
+
   /// Texto dos BigActionButton.
   static final TextStyle action = _inter(19, 800);
 }

@@ -1,6 +1,7 @@
 // Visualizacao simples da rota (polyline) com CustomPainter, sem dependencia de
 // mapa nativo: mostra o tracado normalizado na area disponivel. Usada pelo
-// RouteMap onde nao ha mapa nativo (testes no host, plataformas sem MapLibre).
+// RouteMap onde nao ha mapa nativo (testes no host, plataformas sem MapLibre)
+// e como miniatura da rota no ActivityCard (cor do esporte, halo e partida).
 library;
 
 import 'dart:math' as math;
@@ -8,6 +9,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../recording/domain/geo.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_typography.dart';
 
 /// Projeta os pontos (lat/lon) para offsets de tela dentro de [size],
 /// preservando a proporcao e aplicando [padding]. Funcao pura (testavel).
@@ -56,16 +59,48 @@ double _uniformScale(double a, double b) {
 
 class RoutePreview extends StatelessWidget {
   final List<GeoPoint> route;
-  const RoutePreview({super.key, required this.route});
+
+  /// Cor do traco; padrao a cor primaria do tema.
+  final Color? color;
+
+  final double height;
+
+  /// Halo largo e translucido sob o traco (miniatura do cartao).
+  final bool halo;
+
+  /// Ponto ciano no inicio da rota.
+  final bool showStart;
+
+  /// Texto quando ainda nao ha pontos.
+  final String emptyLabel;
+
+  const RoutePreview({
+    super.key,
+    required this.route,
+    this.color,
+    this.height = 220,
+    this.halo = false,
+    this.showStart = false,
+    this.emptyLabel = 'Aguardando GPS...',
+  });
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     return SizedBox(
-      height: 220,
+      height: height,
       child: CustomPaint(
-        painter: _RoutePainter(route, Theme.of(context).colorScheme.primary),
+        painter: _RoutePainter(
+          route,
+          color ?? c.primary,
+          halo: halo,
+          start: showStart ? c.ciano.fill : null,
+          startRing: c.surface,
+        ),
         child: route.isEmpty
-            ? const Center(child: Text('Aguardando GPS...'))
+            ? Center(
+                child: Text(emptyLabel, style: AppText.label.copyWith(color: c.textMuted)),
+              )
             : const SizedBox.expand(),
       ),
     );
@@ -75,25 +110,39 @@ class RoutePreview extends StatelessWidget {
 class _RoutePainter extends CustomPainter {
   final List<GeoPoint> route;
   final Color color;
-  _RoutePainter(this.route, this.color);
+  final bool halo;
+  final Color? start;
+  final Color startRing;
+  _RoutePainter(this.route, this.color, {this.halo = false, this.start, required this.startRing});
 
   @override
   void paint(Canvas canvas, Size size) {
     final offsets = projectRoute(route, size);
     if (offsets.length < 2) return;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 4
-      ..style = PaintingStyle.stroke
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
     final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
     for (final o in offsets.skip(1)) {
       path.lineTo(o.dx, o.dy);
     }
-    canvas.drawPath(path, paint);
+    Paint stroke(Color c, double w) => Paint()
+      ..color = c
+      ..strokeWidth = w
+      ..style = PaintingStyle.stroke
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    // Relatorio 11: traco de 4,5 sobre um halo de 12 na propria cor a ~20%.
+    if (halo) canvas.drawPath(path, stroke(color.withValues(alpha: 0.2), 12));
+    canvas.drawPath(path, stroke(color, halo ? 4.5 : 4));
+    if (start != null) {
+      canvas.drawCircle(offsets.first, 6.5, Paint()..color = startRing);
+      canvas.drawCircle(offsets.first, 4.5, Paint()..color = start!);
+    }
   }
 
   @override
-  bool shouldRepaint(_RoutePainter old) => old.route.length != route.length;
+  bool shouldRepaint(_RoutePainter old) =>
+      old.route.length != route.length ||
+      old.color != color ||
+      old.halo != halo ||
+      old.start != start ||
+      old.startRing != startRing;
 }

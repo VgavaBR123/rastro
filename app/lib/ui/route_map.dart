@@ -15,6 +15,8 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../recording/domain/geo.dart';
 import 'route_preview.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_theme.dart';
 
 /// Estilo do mapa: OpenFreeMap Liberty (gratuito, sem chave, OSM).
 const String kMapStyleUrl = MapLibreStyles.openfreemapLiberty;
@@ -25,6 +27,9 @@ const double kMinBoundsSpanDegrees = 0.001;
 
 const String _sourceId = 'route';
 const String _layerId = 'route-line';
+const String _haloLayerId = 'route-halo';
+const String _startSourceId = 'route-start';
+const String _startLayerId = 'route-start-dot';
 
 /// A rota como FeatureCollection GeoJSON (ordem [lon, lat]). Funcao pura.
 Map<String, dynamic> routeFeatureCollection(List<GeoPoint> route) => {
@@ -39,6 +44,22 @@ Map<String, dynamic> routeFeatureCollection(List<GeoPoint> route) => {
               'coordinates': [
                 for (final p in route) [p.longitude, p.latitude],
               ],
+            },
+          },
+      ],
+    };
+
+/// O ponto de partida como FeatureCollection GeoJSON (vazia sem pontos).
+Map<String, dynamic> startFeatureCollection(List<GeoPoint> route) => {
+      'type': 'FeatureCollection',
+      'features': [
+        if (route.isNotEmpty)
+          {
+            'type': 'Feature',
+            'properties': <String, dynamic>{},
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [route.first.longitude, route.first.latitude],
             },
           },
       ],
@@ -79,32 +100,75 @@ enum RouteMapMode {
 class RouteMap extends StatelessWidget {
   final List<GeoPoint> route;
   final RouteMapMode mode;
-  final double height;
+
+  /// Altura fixa; null ocupa todo o espaco do pai (mapa em tela cheia).
+  final double? height;
+
+  /// Cor da rota; padrao a cor primaria. As telas passam a cor do esporte.
+  final Color? color;
+
+  /// Raio dos cantos; 0 no mapa em tela cheia.
+  final double borderRadius;
+
+  /// Texto enquanto nao ha pontos.
+  final String emptyLabel;
 
   const RouteMap({
     super.key,
     required this.route,
     this.mode = RouteMapMode.fit,
     this.height = 260,
+    this.color,
+    this.borderRadius = AppShape.tile,
+    this.emptyLabel = 'Aguardando GPS...',
   });
 
   @override
   Widget build(BuildContext context) {
-    if (!nativeMapSupported) return RoutePreview(route: route);
-    return SizedBox(
-      height: height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: _NativeRouteMap(route: route, mode: mode),
-      ),
-    );
+    final c = AppColors.of(context);
+    final lineColor = color ?? c.primary;
+    final Widget map = nativeMapSupported
+        ? _NativeRouteMap(
+            route: route,
+            mode: mode,
+            color: lineColor,
+            startColor: c.ciano.fill,
+            startRing: c.surface,
+          )
+        : ColoredBox(
+            color: c.map,
+            child: LayoutBuilder(
+              builder: (_, box) => RoutePreview(
+                route: route,
+                color: lineColor,
+                height: box.maxHeight.isFinite ? box.maxHeight : 220,
+                halo: true,
+                showStart: true,
+                emptyLabel: emptyLabel,
+              ),
+            ),
+          );
+    final clipped = borderRadius == 0
+        ? map
+        : ClipRRect(borderRadius: BorderRadius.circular(borderRadius), child: map);
+    if (height == null) return SizedBox.expand(child: clipped);
+    return SizedBox(height: height, width: double.infinity, child: clipped);
   }
 }
 
 class _NativeRouteMap extends StatefulWidget {
   final List<GeoPoint> route;
   final RouteMapMode mode;
-  const _NativeRouteMap({required this.route, required this.mode});
+  final Color color;
+  final Color startColor;
+  final Color startRing;
+  const _NativeRouteMap({
+    required this.route,
+    required this.mode,
+    required this.color,
+    required this.startColor,
+    required this.startRing,
+  });
 
   @override
   State<_NativeRouteMap> createState() => _NativeRouteMapState();
@@ -124,16 +188,40 @@ class _NativeRouteMapState extends State<_NativeRouteMap> {
   Future<void> _onStyleLoaded() async {
     final c = _controller;
     if (c == null) return;
-    final color = _hex(Theme.of(context).colorScheme.primary);
+    final color = _hex(widget.color);
     await c.addGeoJsonSource(_sourceId, routeFeatureCollection(widget.route));
+    // Relatorio 11: traco de 4,5 na cor do esporte sobre um halo de 12 a ~20%.
+    await c.addLineLayer(
+      _sourceId,
+      _haloLayerId,
+      LineLayerProperties(
+        lineColor: color,
+        lineWidth: 12,
+        lineOpacity: 0.2,
+        lineCap: 'round',
+        lineJoin: 'round',
+      ),
+    );
     await c.addLineLayer(
       _sourceId,
       _layerId,
       LineLayerProperties(
         lineColor: color,
-        lineWidth: 5,
+        lineWidth: 4.5,
         lineCap: 'round',
         lineJoin: 'round',
+      ),
+    );
+    // Ponto de partida em ciano.
+    await c.addGeoJsonSource(_startSourceId, startFeatureCollection(widget.route));
+    await c.addCircleLayer(
+      _startSourceId,
+      _startLayerId,
+      CircleLayerProperties(
+        circleColor: _hex(widget.startColor),
+        circleRadius: 5,
+        circleStrokeColor: _hex(widget.startRing),
+        circleStrokeWidth: 2,
       ),
     );
     _styleReady = true;
@@ -144,8 +232,12 @@ class _NativeRouteMapState extends State<_NativeRouteMap> {
   Future<void> _sync() async {
     final c = _controller;
     if (c == null || !_styleReady) return;
+    final before = _drawnPoints;
     _drawnPoints = widget.route.length;
     await c.setGeoJsonSource(_sourceId, routeFeatureCollection(widget.route));
+    if (before <= 0) {
+      await c.setGeoJsonSource(_startSourceId, startFeatureCollection(widget.route));
+    }
     await _moveCamera(animate: true);
   }
 
@@ -184,7 +276,7 @@ class _NativeRouteMapState extends State<_NativeRouteMap> {
       ),
       onMapCreated: (c) => _controller = c,
       onStyleLoadedCallback: _onStyleLoaded,
-      // O mapa fica dentro de uma tela rolavel: gestos so com intencao clara.
+      // O mapa pode ficar dentro de uma tela rolavel: gestos so com intencao clara.
       rotateGesturesEnabled: false,
       tiltGesturesEnabled: false,
       myLocationEnabled: false,

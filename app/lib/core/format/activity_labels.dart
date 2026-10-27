@@ -14,6 +14,18 @@ String activityTypeLabel(ActivityType t) {
   }
 }
 
+/// Titulo pelo horario de inicio: manha de 5h a 11h, tarde de 12h a 17h,
+/// noite no resto ("Corrida da manha").
+String suggestedActivityTitle(ActivityType type, DateTime start) {
+  final h = start.hour;
+  final period = h >= 5 && h < 12
+      ? 'da manha'
+      : h >= 12 && h < 18
+          ? 'da tarde'
+          : 'da noite';
+  return '${activityTypeLabel(type)} $period';
+}
+
 /// Estado de sincronizacao como o usuario le.
 String syncStateLabel(SyncState s) {
   switch (s) {

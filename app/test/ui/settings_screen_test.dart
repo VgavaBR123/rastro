@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/ui/settings_screen.dart';
+import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
 Future<RecordingDatabase> abrir(
   WidgetTester tester, {
@@ -20,7 +21,7 @@ Future<RecordingDatabase> abrir(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [recordingDatabaseProvider.overrideWithValue(db)],
-      child: const MaterialApp(home: SettingsScreen()),
+      child: MaterialApp(theme: AppTheme.dark, home: const SettingsScreen()),
     ),
   );
   await tester.pumpAndSettle();
@@ -44,10 +45,15 @@ void main() {
 
     expect(find.text('km, m, min/km'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('metric')));
+    expect(find.byKey(const Key('metric')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('metric_off')));
     await tester.pumpAndSettle();
 
     expect(find.text('mi, ft, min/mi'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('metric_on')));
+    await tester.pumpAndSettle();
+    expect(find.text('km, m, min/km'), findsOneWidget);
   });
 
   testWidgets('peso nao informado por padrao', (tester) async {

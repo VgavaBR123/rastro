@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/ui/route_preview.dart';
+import 'package:strava_estudo_app/ui/theme/app_colors.dart';
+import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
 void main() {
   const size = Size(200, 200);
@@ -43,5 +45,37 @@ void main() {
       home: Scaffold(body: RoutePreview(route: [])),
     ));
     expect(find.text('Aguardando GPS...'), findsOneWidget);
+  });
+
+  for (final (name, theme) in [('escuro', AppTheme.dark), ('claro', AppTheme.light)]) {
+    testWidgets('miniatura com cor, halo e partida desenha sem erro ($name)', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: theme,
+        home: Scaffold(
+          body: RoutePreview(
+            route: const [
+              GeoPoint(latitude: 0, longitude: 0),
+              GeoPoint(latitude: 0.001, longitude: 0.002),
+            ],
+            color: AppColors.dark.pace.fill,
+            height: 140,
+            halo: true,
+            showStart: true,
+            emptyLabel: 'Sem rota',
+          ),
+        ),
+      ));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Sem rota'), findsNothing);
+      expect(tester.getSize(find.byType(RoutePreview)).height, 140);
+    });
+  }
+
+  testWidgets('rotulo de vazio configuravel', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.dark,
+      home: const Scaffold(body: RoutePreview(route: [], emptyLabel: 'Sem rota')),
+    ));
+    expect(find.text('Sem rota'), findsOneWidget);
   });
 }

@@ -1,12 +1,15 @@
 // Dialogos de conta do perfil: trocar senha, sair de todos os aparelhos e
 // excluir conta. Cada um chama o AuthController e mostra o erro no proprio
-// dialogo (ex.: senha atual errada), fechando com `true` so no sucesso.
+// dialogo (ex.: senha atual errada), fechando com `true` so no sucesso. A
+// forma e as cores vem do dialogTheme; a exclusao usa danger.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_typography.dart';
 
 /// Trocar senha (atual, nova, confirmar). Continua logado no sucesso.
 Future<bool> showChangePasswordDialog(BuildContext context) async =>
@@ -37,14 +40,30 @@ Future<bool> showDeleteAccountDialog(BuildContext context) async =>
 
 Widget _errorText(String? error, Key key) => error == null
     ? const SizedBox.shrink()
-    : Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: Text(
-          error,
-          key: key,
-          style: const TextStyle(color: Colors.red),
+    : Builder(
+        builder: (context) => Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Text(
+            error,
+            key: key,
+            style: AppText.body.copyWith(color: AppColors.of(context).danger),
+          ),
         ),
       );
+
+/// Texto de apoio do dialogo (textMuted).
+Widget _note(String text, {Key? key}) => Builder(
+  builder: (context) => Text(
+    text,
+    key: key,
+    style: AppText.label.copyWith(
+      color: AppColors.of(context).textMuted,
+      fontWeight: FontWeight.w500,
+    ),
+  ),
+);
+
+const _fieldGap = SizedBox(height: 12);
 
 Widget _busyLabel(bool busy, String label) => busy
     ? const SizedBox.square(
@@ -111,6 +130,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                 validator: (v) =>
                     (v == null || v.isEmpty) ? 'Informe a senha atual' : null,
               ),
+              _fieldGap,
               TextFormField(
                 key: const Key('change_new'),
                 controller: _new,
@@ -120,6 +140,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                     ? 'Minimo de 8 caracteres'
                     : null,
               ),
+              _fieldGap,
               TextFormField(
                 key: const Key('change_confirm'),
                 controller: _confirm,
@@ -130,10 +151,9 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                 validator: (v) =>
                     v != _new.text ? 'As senhas nao conferem' : null,
               ),
-              const SizedBox(height: 8),
-              const Text(
+              _fieldGap,
+              _note(
                 'Os outros aparelhos conectados vao precisar entrar de novo.',
-                style: TextStyle(color: Colors.grey),
               ),
               _errorText(_error, const Key('change_error')),
             ],
@@ -248,9 +268,14 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final c = AppColors.of(context);
     final busy = ref.watch(authControllerProvider.select((s) => s.busy));
     return AlertDialog(
-      title: const Text('Excluir conta?'),
+      title: Text(
+        'Excluir conta?',
+        style: DialogTheme.of(context).titleTextStyle
+            ?.copyWith(color: c.danger),
+      ),
       content: SingleChildScrollView(
         child: Form(
           key: _form,
@@ -264,11 +289,8 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
                 key: Key('delete_warning'),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'As atividades gravadas neste aparelho continuam nele.',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
+              _note('As atividades gravadas neste aparelho continuam nele.'),
+              _fieldGap,
               TextFormField(
                 key: const Key('delete_password'),
                 controller: _password,
@@ -292,7 +314,10 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
         ),
         FilledButton(
           key: const Key('delete_confirm'),
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          style: FilledButton.styleFrom(
+            backgroundColor: c.danger,
+            foregroundColor: c.onFill,
+          ),
           onPressed: busy ? null : _confirm,
           child: _busyLabel(busy, 'Excluir conta'),
         ),

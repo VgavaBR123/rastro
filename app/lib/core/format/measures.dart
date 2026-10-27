@@ -78,3 +78,11 @@ String formatElevation(double meters, {bool metric = true}) {
   final double convertida = metric ? meters : meters * _pesPorMetro;
   return '${convertida.round()} $unidade';
 }
+
+/// Separa "12.50 km" em ("12.50", "km") no ultimo espaco. Sem espaco
+/// (ex.: "1:02:03"), a unidade sai null.
+(String, String?) splitMeasure(String formatted) {
+  final i = formatted.lastIndexOf(' ');
+  if (i <= 0) return (formatted, null);
+  return (formatted.substring(0, i), formatted.substring(i + 1));
+}

@@ -209,8 +209,7 @@ class _RecordButton extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     'Gravar',
-                    style: AppText.navLabelActive.copyWith(
-                      fontSize: 11,
+                    style: AppText.recordLabel.copyWith(
                       color: active ? c.primaryText : c.text,
                     ),
                   ),

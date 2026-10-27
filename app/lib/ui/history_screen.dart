@@ -1,18 +1,22 @@
-// Historico de atividades finalizadas.
+// Historico de atividades finalizadas, em cartoes compactos (relatorio 11),
+// com sincronizar (badge de pendentes) e excluir com confirmacao.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-import '../core/format/activity_labels.dart';
-import '../core/format/measures.dart';
-import '../persistence/database.dart';
-import '../recording/domain/recording_models.dart';
-import '../sync/sync_controller.dart' show kSignInToSyncMessage;
-import '../sync/background/background_sync_provider.dart';
 import 'package:go_router/go_router.dart';
+
+import '../app/providers.dart';
 import '../app/router.dart';
+import '../persistence/database.dart';
+import '../sync/background/background_sync_provider.dart';
+import '../sync/sync_controller.dart' show kSignInToSyncMessage;
+import 'components/activity_card.dart';
+import 'components/app_nav_bar.dart';
+import 'theme/app_colors.dart';
+import 'theme/app_theme.dart';
+import 'theme/app_typography.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -43,43 +47,74 @@ class HistoryScreen extends ConsumerWidget {
       }
     });
 
+    final c = AppColors.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Historico'),
-        actions: [
-          IconButton(
-            key: const Key('sync'),
-            tooltip: pending > 0 ? 'Sincronizar ($pending)' : 'Sincronizar',
-            icon: sync.running
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Badge(
-                    isLabelVisible: pending > 0,
-                    label: Text('$pending'),
-                    child: const Icon(Icons.cloud_upload),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppShape.gutter, 12, 8, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Historico', style: AppText.screenTitle.copyWith(color: c.text)),
                   ),
-            onPressed: sync.running
-                ? null
-                : () => ref.read(syncControllerProvider.notifier).syncNow(),
-          ),
-        ],
-      ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
-        data: (list) {
-          if (list.isEmpty) {
-            return const Center(child: Text('Nenhuma atividade ainda'));
-          }
-          return ListView.separated(
-            itemCount: list.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (_, i) => _ActivityTile(list[i]),
-          );
-        },
+                  IconButton(
+                    key: const Key('sync'),
+                    tooltip: pending > 0 ? 'Sincronizar ($pending)' : 'Sincronizar',
+                    icon: sync.running
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Badge(
+                            isLabelVisible: pending > 0,
+                            backgroundColor: c.pace.fill,
+                            textColor: c.onFill,
+                            label: Text('$pending'),
+                            child: Icon(Icons.cloud_upload_rounded, color: c.pace.fg),
+                          ),
+                    onPressed: sync.running
+                        ? null
+                        : () => ref.read(syncControllerProvider.notifier).syncNow(),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: async.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(
+                  child: Text('Erro: $e', style: AppText.body.copyWith(color: c.danger)),
+                ),
+                data: (list) {
+                  if (list.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Nenhuma atividade ainda',
+                        style: AppText.body.copyWith(color: c.textMuted),
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding: EdgeInsets.fromLTRB(
+                      AppShape.gutter,
+                      8,
+                      AppShape.gutter,
+                      AppNavBar.reservedHeight(context),
+                    ),
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (_, i) => _ActivityTile(list[i]),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -88,17 +123,6 @@ class HistoryScreen extends ConsumerWidget {
 class _ActivityTile extends ConsumerWidget {
   final Activity activity;
   const _ActivityTile(this.activity);
-
-  IconData get _icon {
-    switch (activity.activityType) {
-      case ActivityType.run:
-        return Icons.directions_run;
-      case ActivityType.ride:
-        return Icons.directions_bike;
-      case ActivityType.walk:
-        return Icons.directions_walk;
-    }
-  }
 
   /// Pede confirmacao e, se confirmado, apaga a atividade e atualiza as listas.
   /// Menu de contexto em vez de swipe: e o caminho mais simples de dirigir em
@@ -121,6 +145,7 @@ class _ActivityTile extends ConsumerWidget {
           ),
           TextButton(
             key: const Key('confirm-delete'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.of(dialogContext).danger),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Excluir'),
           ),
@@ -143,17 +168,18 @@ class _ActivityTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListTile(
-      leading: Icon(_icon),
-      title: Text(
-        '${activityTypeLabel(activity.activityType)} - ${formatDateTimeMs(activity.startTimestampMs)}',
-      ),
-      subtitle: Text(
-        '${formatDistance(activity.distanceMeters)} - ${formatDuration(activity.timerTimeMs)}',
-      ),
+    return ActivityCard(
+      key: Key('tile-${activity.guid}'),
+      activity: activity,
+      useMetric: ref.watch(settingsProvider.select((s) => s.useMetric)),
+      compact: true,
+      onOpen: () {
+        context.push(AppRoutes.activity(activity.guid), extra: activity);
+      },
       trailing: PopupMenuButton<String>(
         key: Key('menu-${activity.guid}'),
         tooltip: 'Acoes da atividade',
+        icon: Icon(Icons.more_horiz_rounded, color: AppColors.of(context).textMuted),
         onSelected: (value) {
           if (value == 'delete') _confirmAndDelete(context, ref);
         },
@@ -165,9 +191,6 @@ class _ActivityTile extends ConsumerWidget {
           ),
         ],
       ),
-      onTap: () {
-        context.push(AppRoutes.activity(activity.guid), extra: activity);
-      },
     );
   }
 }
