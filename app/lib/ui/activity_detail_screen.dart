@@ -187,7 +187,7 @@ class ActivityDetailScreen extends ConsumerWidget {
                       icon: Icons.ios_share,
                       tooltip: 'Compartilhar',
                       label: 'Compartilhar',
-                      onPressed: () => shareActivity(context, ref, activity),
+                      onPressed: () => shareActivity(context, activity),
                     ),
                   ],
                 ),

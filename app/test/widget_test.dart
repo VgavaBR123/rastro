@@ -98,6 +98,9 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('share-a')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('share-a')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('share_card')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('share_text_only')));
       await tester.pump();
       expect(sharer.texts, ['Corrida da manha\nCorrida | 1.20 km | 6:00 | 5:00 /km']);
     });
@@ -128,6 +131,9 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('share-a')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('share-a')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('share_card')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
     expect(sharer.texts.single, startsWith('Treino no parque\n'));
   });
@@ -141,6 +147,9 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('share-a')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('share-a')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('share_card')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
     expect(find.text('Nao foi possivel compartilhar'), findsOneWidget);
   });

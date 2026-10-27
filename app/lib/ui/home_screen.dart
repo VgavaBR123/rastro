@@ -113,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     key: Key('card-${a.guid}'),
                     activity: a,
                     onOpen: () => _open(a),
-                    onShare: () => shareActivity(context, ref, a),
+                    onShare: () => shareActivity(context, a),
                   ),
                   const SizedBox(height: 14),
                 ],

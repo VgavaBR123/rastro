@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pastas que o FileProvider do compartilhamento pode expor (ShareChannel.kt):
+     so as imagens geradas em cache/share/. -->
+<paths>
+    <cache-path name="share" path="share/" />
+</paths>

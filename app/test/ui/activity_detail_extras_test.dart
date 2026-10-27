@@ -326,8 +326,12 @@ void main() {
     expect(find.text('Seis voltas fortes'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('detailShare')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
     expect(sharer.texts, ['Tiro na pista\nCorrida | 1.50 km | 8:00 | 5:20 /km']);
+    await tester.tap(find.byKey(const Key('share_back')));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('detailBack')));
     await tester.pumpAndSettle();

@@ -36,7 +36,8 @@ import workmanager_apple
   }
 }
 
-/// Canal `stravaestudo/share`: abre o UIActivityViewController com um texto.
+/// Canal `stravaestudo/share`: abre o UIActivityViewController com um texto
+/// (`shareText`) ou com o PNG gerado pelo app (`shareImage`, texto opcional).
 /// No iPad a folha e um popover; ancora no centro da tela de cima.
 enum ShareChannel {
   static let name = "stravaestudo/share"
@@ -44,20 +45,34 @@ enum ShareChannel {
   static func register(messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(name: name, binaryMessenger: messenger)
     channel.setMethodCallHandler { call, result in
-      guard call.method == "shareText" else {
+      let args = call.arguments as? [String: Any]
+      var items: [Any] = []
+      switch call.method {
+      case "shareText":
+        guard let text = args?["text"] as? String, !text.isEmpty else {
+          result(FlutterError(code: "bad_args", message: "texto vazio", details: nil))
+          return
+        }
+        items = [text]
+      case "shareImage":
+        guard let path = args?["path"] as? String,
+              FileManager.default.fileExists(atPath: path) else {
+          result(FlutterError(code: "bad_args", message: "imagem inexistente", details: nil))
+          return
+        }
+        items = [URL(fileURLWithPath: path)]
+        if let text = args?["text"] as? String, !text.isEmpty {
+          items.append(text)
+        }
+      default:
         result(FlutterMethodNotImplemented)
-        return
-      }
-      guard let args = call.arguments as? [String: Any],
-            let text = args["text"] as? String, !text.isEmpty else {
-        result(FlutterError(code: "bad_args", message: "texto vazio", details: nil))
         return
       }
       guard let presenter = topViewController() else {
         result(FlutterError(code: "no_view", message: "sem tela para apresentar", details: nil))
         return
       }
-      let sheet = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+      let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)
       if let popover = sheet.popoverPresentationController {
         popover.sourceView = presenter.view
         popover.sourceRect = CGRect(
