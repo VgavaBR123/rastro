@@ -2,15 +2,44 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app/providers.dart' show kSyncBaseUrl;
 import 'sync/background/background_sync_provider.dart';
 import 'sync/background/background_sync_scheduler.dart';
 import 'ui/home_screen.dart';
 
+/// DSN do Sentry (relatorio 07: observabilidade com Sentry, open source).
+/// Vazio = desligado: o SDK nem e inicializado e nada sai do aparelho.
+///   flutter run --dart-define=SENTRY_DSN=https://...@.../...
+const String kSentryDsn = String.fromEnvironment('SENTRY_DSN');
+
 Future<void> main() async {
+  if (kSentryDsn.isEmpty) {
+    await _start();
+    return;
+  }
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = kSentryDsn;
+      // Sem dados pessoais (IP, usuario) e sem rastreio de desempenho: so
+      // erros e crashes. Localizacao nunca vai em evento.
+      options.sendDefaultPii = false;
+      options.tracesSampleRate = 0;
+    },
+    appRunner: _start,
+  );
+}
+
+Future<void> _start() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Porta pela qual o isolate do servico de gravacao (notificacao) entrega os
+  // toques nos botoes Pausar/Retomar, Volta e Encerrar ao isolate principal.
+  // Precisa existir antes do runApp (ver foreground_task_recording_service).
+  FlutterForegroundTask.initCommunicationPort();
 
   // Sync automatico em segundo plano: registra o dispatcher e garante a
   // tarefa periodica. Best effort — o agendador engole os proprios erros e,
@@ -22,9 +51,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        backgroundSyncSchedulerProvider.overrideWithValue(scheduler),
-      ],
+      overrides: [backgroundSyncSchedulerProvider.overrideWithValue(scheduler)],
       child: const StravaEstudoApp(),
     ),
   );

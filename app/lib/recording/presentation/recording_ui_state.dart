@@ -3,6 +3,50 @@ library;
 
 import '../domain/recording_models.dart';
 import '../domain/recording_session.dart';
+import '../domain/splits.dart';
+
+/// Split corrente ao vivo (relatorio 04): numero, distancia percorrida no
+/// split e pace ao vivo (null enquanto abaixo do piso de tempo).
+class LiveSplit {
+  final int number;
+  final double distanceMeters;
+  final double? paceSecondsPerMeter;
+
+  const LiveSplit({
+    required this.number,
+    required this.distanceMeters,
+    this.paceSecondsPerMeter,
+  });
+
+  /// Le o split corrente de uma lista de splits (km ou milha).
+  factory LiveSplit.of(SplitList list) {
+    final cur = list.currentSplit;
+    return LiveSplit(
+      number: list.completedCount + 1,
+      distanceMeters: cur?.distanceMeters ?? 0,
+      paceSecondsPerMeter: list.currentLivePaceSecondsPerMeter,
+    );
+  }
+}
+
+/// Volta corrente ao vivo.
+class LiveLap {
+  final int number;
+  final double distanceMeters;
+  final int timerMs;
+
+  const LiveLap({
+    required this.number,
+    required this.distanceMeters,
+    required this.timerMs,
+  });
+
+  factory LiveLap.of(LapRecord lap) => LiveLap(
+    number: lap.number,
+    distanceMeters: lap.distanceMeters,
+    timerMs: lap.durationMs,
+  );
+}
 
 class RecordingUiState {
   final RecordingState state;
@@ -14,6 +58,14 @@ class RecordingUiState {
   final int points;
   final String? error;
 
+  /// Split corrente em km e em milha; a tela escolhe pela unidade.
+  final LiveSplit splitKm;
+  final LiveSplit splitMile;
+
+  /// Volta corrente e quantas ja foram fechadas.
+  final LiveLap currentLap;
+  final int completedLaps;
+
   const RecordingUiState({
     this.state = RecordingState.idle,
     this.distanceMeters = 0,
@@ -23,16 +75,24 @@ class RecordingUiState {
     this.descentMeters = 0,
     this.points = 0,
     this.error,
+    this.splitKm = const LiveSplit(number: 1, distanceMeters: 0),
+    this.splitMile = const LiveSplit(number: 1, distanceMeters: 0),
+    this.currentLap = const LiveLap(number: 1, distanceMeters: 0, timerMs: 0),
+    this.completedLaps = 0,
   });
 
   bool get isRecording => state == RecordingState.recording;
   bool get isPaused =>
-      state == RecordingState.manuallyPaused || state == RecordingState.autoPaused;
+      state == RecordingState.manuallyPaused ||
+      state == RecordingState.autoPaused;
   bool get isActive => isRecording || isPaused;
 
   /// Pace medio (s/m) pelo tempo de cronometro; null se sem distancia.
   double? get avgPaceSecondsPerMeter =>
       distanceMeters > 0 ? (timerMs / 1000.0) / distanceMeters : null;
+
+  /// Split corrente na unidade escolhida.
+  LiveSplit split({required bool metric}) => metric ? splitKm : splitMile;
 
   factory RecordingUiState.fromStats(RecordingStats s, {String? error}) =>
       RecordingUiState(
@@ -46,6 +106,28 @@ class RecordingUiState {
         error: error,
       );
 
+  /// Estado completo a partir da sessao: metricas, split e volta correntes.
+  factory RecordingUiState.fromSession(
+    RecordingSession session, {
+    String? error,
+  }) {
+    final s = session.stats;
+    return RecordingUiState(
+      state: s.state,
+      distanceMeters: s.distanceMeters,
+      elapsedMs: s.elapsedMs,
+      timerMs: s.timerMs,
+      ascentMeters: s.ascentMeters,
+      descentMeters: s.descentMeters,
+      points: s.acceptedPointCount,
+      error: error,
+      splitKm: LiveSplit.of(session.splits.kilometers),
+      splitMile: LiveSplit.of(session.splits.miles),
+      currentLap: LiveLap.of(session.currentLap),
+      completedLaps: session.laps.length,
+    );
+  }
+
   RecordingUiState copyWith({RecordingState? state, String? error}) =>
       RecordingUiState(
         state: state ?? this.state,
@@ -56,5 +138,9 @@ class RecordingUiState {
         descentMeters: descentMeters,
         points: points,
         error: error,
+        splitKm: splitKm,
+        splitMile: splitMile,
+        currentLap: currentLap,
+        completedLaps: completedLaps,
       );
 }

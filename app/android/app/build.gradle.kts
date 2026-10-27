@@ -47,3 +47,12 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Conversor de altitude elipsoidal -> MSL (relatorio 03). Abaixo do
+    // Android 14 traz o proprio modelo de geoide; do 14 em diante delega a
+    // plataforma. 1.0.0 (jun/2026); a 1.0.1 ainda e recente demais.
+    implementation("androidx.core:core-location-altitude:1.0.0")
+    // NotificationCompat/ContextCompat/LocationCompat usados no Kotlin do app.
+    implementation("androidx.core:core:1.13.1")
+}

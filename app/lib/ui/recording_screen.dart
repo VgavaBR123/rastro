@@ -1,5 +1,7 @@
-// Tela de gravacao: inicia a captura, mostra metricas ao vivo e controla
-// pausar/retomar/encerrar. Consome o RecordingController via Riverpod.
+// Tela de gravacao: inicia a captura, mostra metricas ao vivo (com split e
+// volta correntes) e controla pausar/retomar/volta/encerrar. Consome o
+// RecordingController via Riverpod. As mesmas acoes chegam pela notificacao;
+// encerrar por qualquer caminho fecha esta tela.
 library;
 
 import 'package:flutter/material.dart';
@@ -9,6 +11,8 @@ import '../app/providers.dart';
 import '../core/format/measures.dart';
 import '../persistence/recording_repository.dart';
 import '../recording/domain/recording_models.dart';
+import '../recording/presentation/recording_controller.dart';
+import '../recording/presentation/recording_ui_state.dart';
 import '../sync/background/background_sync_provider.dart';
 import 'route_map.dart';
 
@@ -46,11 +50,29 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     });
   }
 
+  bool _closed = false;
+
+  /// Gravacao encerrada (pela tela ou pela notificacao): pede sync da
+  /// atividade nova e fecha a tela, uma vez so.
+  void _onFinished() {
+    if (_closed) return;
+    _closed = true;
+    ref.read(backgroundSyncSchedulerProvider).scheduleSoon();
+    if (mounted) Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<RecordingUiState>(recordingControllerProvider, (prev, next) {
+      if (next.state == RecordingState.finished &&
+          prev?.state != RecordingState.finished) {
+        _onFinished();
+      }
+    });
     final s = ref.watch(recordingControllerProvider);
     final ctrl = ref.read(recordingControllerProvider.notifier);
     final metric = ref.watch(settingsProvider).useMetric;
+    final split = s.split(metric: metric);
 
     return Scaffold(
       appBar: AppBar(title: Text(_title(widget.activityType))),
@@ -63,19 +85,58 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
             if (s.error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: Text(s.error!, style: const TextStyle(color: Colors.red)),
+                child: Text(
+                  s.error!,
+                  style: const TextStyle(color: Colors.red),
+                ),
               ),
-            _Metric(label: 'Distancia', value: formatDistance(s.distanceMeters, metric: metric), key: const Key('distance')),
-            _Metric(label: 'Tempo', value: formatDuration(s.timerMs), key: const Key('duration')),
-            _Metric(label: 'Pace', value: formatPace(s.avgPaceSecondsPerMeter, metric: metric), key: const Key('pace')),
-            _Metric(label: 'Elevacao', value: formatElevation(s.ascentMeters, metric: metric), key: const Key('elevation')),
+            _Metric(
+              label: 'Distancia',
+              value: formatDistance(s.distanceMeters, metric: metric),
+              key: const Key('distance'),
+            ),
+            _Metric(
+              label: 'Tempo',
+              value: formatDuration(s.timerMs),
+              key: const Key('duration'),
+            ),
+            _Metric(
+              label: 'Pace',
+              value: formatPace(s.avgPaceSecondsPerMeter, metric: metric),
+              key: const Key('pace'),
+            ),
+            _Metric(
+              label: 'Elevacao',
+              value: formatElevation(s.ascentMeters, metric: metric),
+              key: const Key('elevation'),
+            ),
+            const SizedBox(height: 8),
+            _LiveRow(
+              key: const Key('current_split'),
+              label: '${metric ? 'Km' : 'Milha'} ${split.number}',
+              distance: formatDistance(split.distanceMeters, metric: metric),
+              detail: formatPace(split.paceSecondsPerMeter, metric: metric),
+            ),
+            _LiveRow(
+              key: const Key('current_lap'),
+              label: 'Volta ${s.currentLap.number}',
+              distance: formatDistance(
+                s.currentLap.distanceMeters,
+                metric: metric,
+              ),
+              detail: formatDuration(s.currentLap.timerMs),
+            ),
             const SizedBox(height: 32),
             _Controls(
               state: s.state,
               ctrl: ctrl,
-              // Atividade nova na fila: pede um sync assim que houver rede.
-              onStopped: () =>
-                  ref.read(backgroundSyncSchedulerProvider).scheduleSoon(),
+              onStopped: () {
+                // Sem sessao ativa o stop nao muda o estado; fecha mesmo assim.
+                if (ref.read(recordingControllerProvider).state !=
+                    RecordingState.finished) {
+                  _onFinished();
+                }
+              },
             ),
           ],
         ),
@@ -107,7 +168,47 @@ class _Metric extends StatelessWidget {
       child: Column(
         children: [
           Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-          Text(value, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Linha compacta do split ou da volta corrente.
+class _LiveRow extends StatelessWidget {
+  final String label;
+  final String distance;
+  final String detail;
+  const _LiveRow({
+    required this.label,
+    required this.distance,
+    required this.detail,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(fontSize: 18);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ),
+          Expanded(
+            child: Text(distance, style: style, textAlign: TextAlign.center),
+          ),
+          Expanded(
+            child: Text(detail, style: style, textAlign: TextAlign.end),
+          ),
         ],
       ),
     );
@@ -116,7 +217,7 @@ class _Metric extends StatelessWidget {
 
 class _Controls extends StatelessWidget {
   final RecordingState state;
-  final dynamic ctrl;
+  final RecordingController ctrl;
   final VoidCallback onStopped;
   const _Controls({
     required this.state,
@@ -126,10 +227,13 @@ class _Controls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paused = state == RecordingState.manuallyPaused ||
+    final paused =
+        state == RecordingState.manuallyPaused ||
         state == RecordingState.autoPaused;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Wrap(
+      alignment: WrapAlignment.spaceEvenly,
+      spacing: 12,
+      runSpacing: 12,
       children: [
         if (!paused)
           FilledButton.icon(
@@ -145,6 +249,12 @@ class _Controls extends StatelessWidget {
             label: const Text('Retomar'),
             onPressed: ctrl.resume,
           ),
+        OutlinedButton.icon(
+          key: const Key('lap'),
+          icon: const Icon(Icons.flag),
+          label: const Text('Volta'),
+          onPressed: ctrl.lap,
+        ),
         FilledButton.icon(
           key: const Key('stop'),
           style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -153,7 +263,6 @@ class _Controls extends StatelessWidget {
           onPressed: () async {
             await ctrl.stop();
             onStopped();
-            if (context.mounted) Navigator.of(context).pop();
           },
         ),
       ],

@@ -1,11 +1,13 @@
 /// Deteccao de pausa automatica. Clean room a partir de relatorios/03
 /// (a pausa automatica e separada por esporte: corrida por movimento, pedal por
-/// velocidade de GPS). Aqui modelamos a interface e uma estrategia por velocidade;
-/// a estrategia por acelerometro (corrida) depende de sensor e fica na borda.
+/// velocidade de GPS). Aqui ficam a interface e a estrategia por velocidade; a
+/// estrategia por acelerometro (corrida) esta em motion_auto_pause.dart e
+/// recebe as amostras do sensor pela borda nativa.
 library;
 
 import 'geo.dart';
 import 'location_sample.dart';
+import 'motion_auto_pause.dart';
 import 'recording_models.dart';
 
 abstract class AutoPauseDetector {
@@ -96,11 +98,23 @@ class SpeedAutoPauseDetector implements AutoPauseDetector {
 AutoPauseDetector autoPauseFor(ActivityType type) {
   switch (type) {
     case ActivityType.ride:
-      return SpeedAutoPauseDetector(pauseThresholdMps: 1.0, resumeThresholdMps: 2.0);
+      return SpeedAutoPauseDetector(
+        pauseThresholdMps: 1.0,
+        resumeThresholdMps: 2.0,
+      );
     case ActivityType.run:
+      // Corrida: acelerometro. Sem sensor (ou enquanto ele nao chega), o
+      // mesmo detector por velocidade que a corrida usava antes.
+      return MotionAutoPauseDetector(
+        fallback: SpeedAutoPauseDetector(
+          pauseThresholdMps: 0.4,
+          resumeThresholdMps: 0.8,
+        ),
+      );
     case ActivityType.walk:
-      // Por ora, velocidade; a versao por acelerometro entra quando a borda
-      // nativa expuser o sensor (ver etapa 03 e roadmap).
-      return SpeedAutoPauseDetector(pauseThresholdMps: 0.4, resumeThresholdMps: 0.8);
+      return SpeedAutoPauseDetector(
+        pauseThresholdMps: 0.4,
+        resumeThresholdMps: 0.8,
+      );
   }
 }
