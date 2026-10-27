@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/persistence/recording_repository.dart';
+import 'package:strava_estudo_app/platform/activity_sharer.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/domain/waypoint.dart' as dom;
@@ -14,6 +15,8 @@ import 'package:strava_estudo_app/ui/components/split_bar.dart';
 import 'package:strava_estudo_app/ui/components/sport_chip.dart';
 import 'package:strava_estudo_app/ui/theme/app_colors.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
+
+import '../fixtures/fake_sharer.dart';
 
 dom.Waypoint ponto(
   double dist,
@@ -281,17 +284,23 @@ void main() {
     });
   }
 
-  testWidgets('Compartilhar avisa que vem em breve; Voltar fecha a tela', (
+  testWidgets('titulo e descricao salvos; Compartilhar manda o resumo; Voltar fecha', (
     tester,
   ) async {
     final db = await completa();
     addTearDown(db.close);
     await tester.binding.setSurfaceSize(const Size(600, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final activity = (await RecordingRepository(db).recent()).first;
+    final repo = RecordingRepository(db);
+    await repo.saveDetails('a', title: 'Tiro na pista', description: 'Seis voltas fortes');
+    final activity = (await repo.recent()).first;
+    final sharer = FakeActivitySharer();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [recordingDatabaseProvider.overrideWithValue(db)],
+        overrides: [
+          recordingDatabaseProvider.overrideWithValue(db),
+          activitySharerProvider.overrideWithValue(sharer),
+        ],
         child: MaterialApp(
           theme: AppTheme.dark,
           home: Builder(
@@ -312,9 +321,13 @@ void main() {
     await tester.tap(find.text('abrir'));
     await tester.pumpAndSettle();
 
+    expect(tester.widget<Text>(find.byKey(const Key('detailTitle'))).data, 'Tiro na pista');
+    expect(find.byKey(const Key('detailDescription')), findsOneWidget);
+    expect(find.text('Seis voltas fortes'), findsOneWidget);
+
     await tester.tap(find.byKey(const Key('detailShare')));
     await tester.pump();
-    expect(find.text('Em breve'), findsOneWidget);
+    expect(sharer.texts, ['Tiro na pista\nCorrida | 1.50 km | 8:00 | 5:20 /km']);
 
     await tester.tap(find.byKey(const Key('detailBack')));
     await tester.pumpAndSettle();
@@ -342,5 +355,7 @@ void main() {
     expect(find.text('Pace'), findsNothing);
     expect(naLinha('detailPace', '30.0 km/h'), findsOneWidget);
     expect(naLinha('detailAscent', '-- m'), findsOneWidget);
+    // Sem descricao salva, a linha nao aparece.
+    expect(find.byKey(const Key('detailDescription')), findsNothing);
   });
 }

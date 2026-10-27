@@ -112,10 +112,22 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   }
 
   Future<void> _save(ActivityDraft draft) async {
-    // Titulo, descricao e visibilidade ainda nao tem coluna no banco: ficam so
-    // na tela por enquanto.
     setState(() => _finishing = true);
-    await ref.read(recordingControllerProvider.notifier).stop();
+    final ctrl = ref.read(recordingControllerProvider.notifier);
+    final repo = ref.read(recordingRepositoryProvider);
+    // O guid fica no controller depois do fim; so grava os detalhes se havia
+    // gravacao.
+    final wasActive = ref.read(recordingControllerProvider).isActive;
+    final guid = ctrl.activityGuid;
+    await ctrl.stop();
+    if (wasActive && guid != null) {
+      await repo.saveDetails(
+        guid,
+        title: draft.title,
+        description: draft.description,
+        visibility: draft.visibility,
+      );
+    }
     if (!mounted) return;
     _close(sync: true);
   }
@@ -239,10 +251,20 @@ class _RecordingBody extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(AppShape.gutter, 12, AppShape.gutter, 8),
             child: Row(
               children: [
-                _StateChip(state: s.state),
+                // Wrap + FittedBox: em tela estreita os chips quebram de linha
+                // ou encolhem, sem transbordar.
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FittedBox(fit: BoxFit.scaleDown, child: _StateChip(state: s.state)),
+                      FittedBox(fit: BoxFit.scaleDown, child: SportChip(type: type)),
+                    ],
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Flexible(child: SportChip(type: type)),
-                const Spacer(),
                 FloatingMapButton(
                   key: const Key('toggle_map'),
                   icon: page == 0 ? Icons.map_rounded : Icons.speed_rounded,
@@ -578,7 +600,9 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    if (state.isPaused) {
+    // So a pausa manual troca os botoes por Retomar/Encerrar. Na pausa
+    // automatica a retomada vem sozinha ao se mover: seguem Volta e Pausar.
+    if (state.state == RecordingState.manuallyPaused) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -615,9 +639,11 @@ class _Controls extends StatelessWidget {
         onPressed: onClose,
       );
     }
+    // Gravando ou em pausa automatica; ainda iniciando, nada para pausar.
+    final running = state.isActive;
     return Row(
       children: [
-        _LapButton(onPressed: state.isRecording ? () => onLap() : null),
+        _LapButton(onPressed: running ? () => onLap() : null),
         const SizedBox(width: 12),
         Expanded(
           child: BigActionButton(
@@ -627,8 +653,7 @@ class _Controls extends StatelessWidget {
             variant: BigActionVariant.role,
             role: c.tempo,
             height: _height,
-            // Ainda iniciando: nada para pausar.
-            onPressed: state.isRecording ? onPause : null,
+            onPressed: running ? onPause : null,
           ),
         ),
       ],

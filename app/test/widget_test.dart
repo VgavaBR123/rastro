@@ -8,6 +8,7 @@ import 'package:strava_estudo_app/activity/week_summary.dart';
 import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/persistence/recording_repository.dart';
+import 'package:strava_estudo_app/platform/activity_sharer.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/domain/waypoint.dart' as dom;
@@ -15,6 +16,8 @@ import 'package:strava_estudo_app/ui/components/activity_card.dart';
 import 'package:strava_estudo_app/ui/components/week_summary_card.dart';
 import 'package:strava_estudo_app/ui/home_screen.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
+
+import 'fixtures/fake_sharer.dart';
 
 // Quarta-feira; a corrida semeada cai na segunda desta semana.
 final now = DateTime(2026, 10, 28, 12);
@@ -29,11 +32,17 @@ dom.Waypoint acc(double lat, double dist, double alt) => dom.Waypoint(
       verticalAccuracyMeters: 2,
     );
 
-Future<void> pumpHome(WidgetTester tester, RecordingDatabase db, {ThemeData? theme}) async {
+Future<void> pumpHome(
+  WidgetTester tester,
+  RecordingDatabase db, {
+  ThemeData? theme,
+  ActivitySharer? sharer,
+}) async {
   await tester.pumpWidget(ProviderScope(
     overrides: [
       recordingDatabaseProvider.overrideWithValue(db),
       weekClockProvider.overrideWithValue(() => now),
+      activitySharerProvider.overrideWithValue(sharer ?? FakeActivitySharer()),
     ],
     child: MaterialApp(theme: theme ?? AppTheme.dark, home: const HomeScreen()),
   ));
@@ -74,7 +83,8 @@ void main() {
       ]);
       await repo.finish('a', start + 360000, distanceMeters: 1200, timerTimeMs: 360000);
 
-      await pumpHome(tester, db, theme: theme);
+      final sharer = FakeActivitySharer();
+      await pumpHome(tester, db, theme: theme, sharer: sharer);
 
       expect(find.text('Esta semana'), findsOneWidget);
       expect(find.text('1 treino'), findsOneWidget);
@@ -89,7 +99,49 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('share-a')));
       await tester.pump();
-      expect(find.text('Em breve'), findsOneWidget);
+      expect(sharer.texts, ['Corrida da manha\nCorrida | 1.20 km | 6:00 | 5:00 /km']);
     });
   }
+
+  Future<RecordingDatabase> umaCorrida() async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    final repo = RecordingRepository(db);
+    final start = DateTime(2026, 10, 26, 7).millisecondsSinceEpoch;
+    await repo.startActivity(guid: 'a', type: ActivityType.run, startTimestampMs: start);
+    await repo.finish('a', start + 360000, distanceMeters: 1200, timerTimeMs: 360000);
+    return db;
+  }
+
+  testWidgets('Inicio mostra o titulo salvo e o compartilha', (tester) async {
+    final db = await umaCorrida();
+    addTearDown(db.close);
+    await RecordingRepository(db).saveDetails(
+      'a',
+      title: 'Treino no parque',
+      visibility: ActivityVisibility.onlyMe,
+    );
+    final sharer = FakeActivitySharer();
+    await pumpHome(tester, db, sharer: sharer);
+
+    expect(find.text('Treino no parque'), findsOneWidget);
+    expect(find.text('Corrida da manha'), findsNothing);
+    await tester.ensureVisible(find.byKey(const Key('share-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('share-a')));
+    await tester.pump();
+    expect(sharer.texts.single, startsWith('Treino no parque\n'));
+  });
+
+  testWidgets('Compartilhar com erro da plataforma mostra SnackBar', (tester) async {
+    final db = await umaCorrida();
+    addTearDown(db.close);
+    final sharer = FakeActivitySharer()..fail = true;
+    await pumpHome(tester, db, sharer: sharer);
+
+    await tester.ensureVisible(find.byKey(const Key('share-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('share-a')));
+    await tester.pump();
+    expect(find.text('Nao foi possivel compartilhar'), findsOneWidget);
+  });
 }

@@ -8,5 +8,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         // Ponte da altitude MSL (relatorio 03, "Decisao para o nosso app").
         MslAltitudeChannel.register(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
+        // Compartilhar atividade (folha nativa do sistema).
+        ShareChannel.register(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 }

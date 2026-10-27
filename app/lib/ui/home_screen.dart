@@ -17,6 +17,7 @@ import 'components/activity_card.dart';
 import 'components/app_nav_bar.dart';
 import 'components/week_summary_card.dart';
 import 'recovery_dialog.dart';
+import 'share_activity.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
@@ -112,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     key: Key('card-${a.guid}'),
                     activity: a,
                     onOpen: () => _open(a),
-                    onShare: _share,
+                    onShare: () => shareActivity(context, ref, a),
                   ),
                   const SizedBox(height: 14),
                 ],
@@ -138,13 +139,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void _open(Activity a) {
     context.push(AppRoutes.activity(a.guid), extra: a);
-  }
-
-  // Ainda nao ha funcao de compartilhar.
-  void _share() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Em breve')));
   }
 }
 

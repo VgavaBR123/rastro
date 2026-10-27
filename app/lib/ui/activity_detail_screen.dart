@@ -22,6 +22,7 @@ import 'elevation_chart.dart';
 import 'laps_section.dart';
 import 'route_map.dart';
 import 'section_card.dart';
+import 'share_activity.dart';
 import 'splits_section.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
@@ -63,7 +64,7 @@ class ActivityDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _mapHeader(context, c, routeAsync),
+            _mapHeader(context, ref, c, routeAsync),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppShape.gutter,
@@ -83,13 +84,22 @@ class ActivityDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    suggestedActivityTitle(
+                    displayActivityTitle(
+                      activity.title,
                       activity.activityType,
                       DateTime.fromMillisecondsSinceEpoch(activity.startTimestampMs),
                     ),
                     key: const Key('detailTitle'),
                     style: AppText.screenTitle.copyWith(color: c.text),
                   ),
+                  if (activity.description?.trim().isNotEmpty ?? false) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      activity.description!.trim(),
+                      key: const Key('detailDescription'),
+                      style: AppText.body.copyWith(color: c.textMuted),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -130,6 +140,7 @@ class ActivityDetailScreen extends ConsumerWidget {
   /// Mapa da rota com Voltar e Compartilhar flutuando por cima.
   Widget _mapHeader(
     BuildContext context,
+    WidgetRef ref,
     AppColors c,
     AsyncValue<List<GeoPoint>> routeAsync,
   ) {
@@ -176,9 +187,7 @@ class ActivityDetailScreen extends ConsumerWidget {
                       icon: Icons.ios_share,
                       tooltip: 'Compartilhar',
                       label: 'Compartilhar',
-                      onPressed: () => ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(const SnackBar(content: Text('Em breve'))),
+                      onPressed: () => shareActivity(context, ref, activity),
                     ),
                   ],
                 ),

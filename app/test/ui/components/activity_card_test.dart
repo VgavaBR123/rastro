@@ -12,8 +12,9 @@ import 'package:strava_estudo_app/ui/route_preview.dart';
 import 'package:strava_estudo_app/ui/theme/app_colors.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
-Activity activity(ActivityType t, {int hour = 7}) => Activity(
+Activity activity(ActivityType t, {int hour = 7, String? title}) => Activity(
       guid: 'g1',
+      title: title,
       activityType: t,
       startTimestampMs: DateTime(2026, 10, 26, hour, 5).millisecondsSinceEpoch,
       timerTimeMs: 1500000, // 25:00
@@ -123,6 +124,27 @@ void main() {
     expect(find.byKey(const Key('extra')), findsOneWidget);
     await tester.tap(find.text('Caminhada da manha'));
     expect(opened, 1);
+  });
+
+  testWidgets('titulo salvo pelo usuario substitui o sugerido', (tester) async {
+    await pump(
+      tester,
+      ActivityCard(
+        activity: activity(ActivityType.run, title: 'Longao de domingo'),
+        useMetric: true,
+        route: route,
+      ),
+    );
+    expect(find.text('Longao de domingo'), findsOneWidget);
+    expect(find.text('Corrida da manha'), findsNothing);
+  });
+
+  testWidgets('titulo salvo em branco cai no sugerido', (tester) async {
+    await pump(
+      tester,
+      ActivityCard(activity: activity(ActivityType.run, title: '  '), useMetric: true, compact: true),
+    );
+    expect(find.text('Corrida da manha'), findsOneWidget);
   });
 
   testWidgets('sem pontos gravados mostra aviso na miniatura', (tester) async {

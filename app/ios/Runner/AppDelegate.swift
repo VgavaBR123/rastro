@@ -29,5 +29,53 @@ import workmanager_apple
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // Compartilhar atividade (folha nativa do sistema).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "StravaEstudoShare") {
+      ShareChannel.register(messenger: registrar.messenger())
+    }
+  }
+}
+
+/// Canal `stravaestudo/share`: abre o UIActivityViewController com um texto.
+/// No iPad a folha e um popover; ancora no centro da tela de cima.
+enum ShareChannel {
+  static let name = "stravaestudo/share"
+
+  static func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: name, binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "shareText" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let args = call.arguments as? [String: Any],
+            let text = args["text"] as? String, !text.isEmpty else {
+        result(FlutterError(code: "bad_args", message: "texto vazio", details: nil))
+        return
+      }
+      guard let presenter = topViewController() else {
+        result(FlutterError(code: "no_view", message: "sem tela para apresentar", details: nil))
+        return
+      }
+      let sheet = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+      if let popover = sheet.popoverPresentationController {
+        popover.sourceView = presenter.view
+        popover.sourceRect = CGRect(
+          x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 0, height: 0)
+        popover.permittedArrowDirections = []
+      }
+      presenter.present(sheet, animated: true)
+      result(nil)
+    }
+  }
+
+  private static func topViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let window = scenes.flatMap { $0.windows }.first { $0.isKeyWindow } ?? scenes.first?.windows.first
+    var top = window?.rootViewController
+    while let presented = top?.presentedViewController {
+      top = presented
+    }
+    return top
   }
 }

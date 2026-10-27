@@ -99,7 +99,12 @@ class ActivityCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            suggestedActivityTitle(type, DateTime.fromMillisecondsSinceEpoch(activity.startTimestampMs)),
+            displayActivityTitle(
+              activity.title,
+              type,
+              DateTime.fromMillisecondsSinceEpoch(activity.startTimestampMs),
+            ),
+            key: Key('title-${activity.guid}'),
             style: AppText.sectionTitle.copyWith(color: c.text),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
