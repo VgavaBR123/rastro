@@ -20,7 +20,8 @@ import 'package:strava_estudo_app/sync/upload/sync_service.dart';
 class RecordingUploader implements ActivityUploader {
   final List<String> guids = [];
   @override
-  Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
+  Future<String> upload(Uint8List fitBytes,
+      {required String activityGuid, UploadMetadata? metadata}) async {
     guids.add(activityGuid);
     return 'up-$activityGuid';
   }

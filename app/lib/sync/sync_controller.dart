@@ -41,6 +41,7 @@ class SyncController extends StateNotifier<SyncUiState> {
     }
     state = const SyncUiState(running: true);
     await _service.prepareRound(userId);
+    await _service.processRemoteDeletions(ownerUserId: userId);
     final before =
         (await _db.pendingActivities(ownerUserId: userId)).length;
     if (before == 0) {

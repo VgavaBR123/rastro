@@ -20,7 +20,7 @@ import 'package:strava_estudo_app/sync/upload/activity_uploader.dart';
 /// extrai o uploadId do corpo da resposta. Esse e o contrato do nosso backend
 /// (`backend/lib/src/api.dart`). Simples e defensivo: qualquer desvio vira
 /// UploadException.
-class DioActivityUploader implements ActivityUploader {
+class DioActivityUploader implements ActivityUploader, RemoteActivityDeleter {
   final Dio _dio;
   final String _baseUrl;
 
@@ -34,7 +34,11 @@ class DioActivityUploader implements ActivityUploader {
         _token = token;
 
   @override
-  Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
+  Future<String> upload(
+    Uint8List fitBytes, {
+    required String activityGuid,
+    UploadMetadata? metadata,
+  }) async {
     final String? token = await _token?.call();
     try {
       final Response<dynamic> response = await _dio.post<dynamic>(
@@ -46,6 +50,7 @@ class DioActivityUploader implements ActivityUploader {
             Headers.contentLengthHeader: fitBytes.length,
             'x-activity-guid': activityGuid,
             if (token != null) 'Authorization': 'Bearer $token',
+            ...metadataHeaders(metadata),
           },
           // O backend responde 201 no sucesso; qualquer outro status cai no
           // tratamento abaixo em vez de virar DioException generica.
@@ -84,4 +89,33 @@ class DioActivityUploader implements ActivityUploader {
     }
     return 'upload-$activityGuid';
   }
+
+  @override
+  Future<void> deleteRemote(String remoteId) async {
+    final String? token = await _token?.call();
+    final Response<dynamic> response;
+    try {
+      response = await _dio.delete<dynamic>(
+        '$_baseUrl/activities/${Uri.encodeComponent(remoteId)}',
+        options: Options(
+          headers: {if (token != null) 'Authorization': 'Bearer $token'},
+          validateStatus: (int? s) => s != null,
+        ),
+      );
+    } on DioException catch (e) {
+      throw UploadException('falha de transporte: ${e.message}');
+    }
+    final int status = response.statusCode!;
+    if (status == 204 || status == 200 || status == 404) return;
+    if (status == 401) throw UnauthorizedUploadException();
+    throw UploadException('status HTTP inesperado ao apagar: $status');
+  }
 }
+
+/// Headers de metadados do upload (so os presentes).
+Map<String, String> metadataHeaders(UploadMetadata? m) => {
+      if (m?.activityType != null) 'x-activity-type': m!.activityType!,
+      if (m?.startTimeMs != null) 'x-start-time': '${m!.startTimeMs}',
+      if (m?.timerTimeMs != null) 'x-timer-time-ms': '${m!.timerTimeMs}',
+      if (m?.distanceMeters != null) 'x-distance-meters': '${m!.distanceMeters}',
+    };

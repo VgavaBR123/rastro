@@ -51,6 +51,25 @@ class SyncService {
     return synced;
   }
 
+  /// Leva ao servidor as exclusoes feitas no aparelho. Devolve quantas ficaram
+  /// para depois (falha de rede etc.). Sem suporte a exclusao no transporte,
+  /// nao faz nada.
+  Future<int> processRemoteDeletions({String? ownerUserId}) async {
+    final uploader = _uploader;
+    if (uploader is! RemoteActivityDeleter) return 0;
+    final deleter = uploader as RemoteActivityDeleter;
+    var left = 0;
+    for (final d in await _db.pendingRemoteDeletions(ownerUserId: ownerUserId)) {
+      try {
+        await deleter.deleteRemote(d.remoteId);
+        await _db.removeRemoteDeletion(d.remoteId);
+      } on Object {
+        left++;
+      }
+    }
+    return left;
+  }
+
   /// Envia uma atividade: marca uploading, monta o FIT, envia e marca synced.
   /// Em qualquer falha, marca failed e relanca para o chamador (processPending
   /// apenas conta; um worker avulso pode decidir o retry).
@@ -58,8 +77,17 @@ class SyncService {
     await _db.setSyncState(a.guid, SyncState.uploading);
     try {
       final fitBytes = await buildActivityFit(_db, a);
-      await _uploader.upload(fitBytes, activityGuid: a.guid);
-      await _db.setSyncState(a.guid, SyncState.synced);
+      final remoteId = await _uploader.upload(
+        fitBytes,
+        activityGuid: a.guid,
+        metadata: UploadMetadata(
+          activityType: a.activityType.name,
+          startTimeMs: a.startTimestampMs,
+          timerTimeMs: a.timerTimeMs,
+          distanceMeters: a.distanceMeters,
+        ),
+      );
+      await _db.markSynced(a.guid, remoteId);
     } on Object {
       await _db.setSyncState(a.guid, SyncState.failed);
       rethrow;

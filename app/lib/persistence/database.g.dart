@@ -171,6 +171,17 @@ class $ActivitiesTable extends Activities
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     guid,
@@ -187,6 +198,7 @@ class $ActivitiesTable extends Activities
     endBatteryLevel,
     autoPauseEnabled,
     ownerUserId,
+    remoteId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -300,6 +312,12 @@ class $ActivitiesTable extends Activities
         ),
       );
     }
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    }
     return context;
   }
 
@@ -369,6 +387,10 @@ class $ActivitiesTable extends Activities
         DriftSqlType.string,
         data['${effectivePrefix}owner_user_id'],
       ),
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      ),
     );
   }
 
@@ -402,6 +424,10 @@ class Activity extends DataClass implements Insertable<Activity> {
   /// conta; e reivindicada pela primeira conta que sincronizar. Impede que as
   /// pendentes de uma conta subam na conta de outra no mesmo aparelho.
   final String? ownerUserId;
+
+  /// Id da atividade no servidor (devolvido pelo upload). Null = nunca subiu
+  /// (ou subiu antes de guardarmos o id). Necessario para apagar la tambem.
+  final String? remoteId;
   const Activity({
     required this.guid,
     required this.activityType,
@@ -417,6 +443,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     this.endBatteryLevel,
     required this.autoPauseEnabled,
     this.ownerUserId,
+    this.remoteId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -453,6 +480,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     if (!nullToAbsent || ownerUserId != null) {
       map['owner_user_id'] = Variable<String>(ownerUserId);
     }
+    if (!nullToAbsent || remoteId != null) {
+      map['remote_id'] = Variable<String>(remoteId);
+    }
     return map;
   }
 
@@ -482,6 +512,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       ownerUserId: ownerUserId == null && nullToAbsent
           ? const Value.absent()
           : Value(ownerUserId),
+      remoteId: remoteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteId),
     );
   }
 
@@ -509,6 +542,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       endBatteryLevel: serializer.fromJson<int?>(json['endBatteryLevel']),
       autoPauseEnabled: serializer.fromJson<bool>(json['autoPauseEnabled']),
       ownerUserId: serializer.fromJson<String?>(json['ownerUserId']),
+      remoteId: serializer.fromJson<String?>(json['remoteId']),
     );
   }
   @override
@@ -533,6 +567,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       'endBatteryLevel': serializer.toJson<int?>(endBatteryLevel),
       'autoPauseEnabled': serializer.toJson<bool>(autoPauseEnabled),
       'ownerUserId': serializer.toJson<String?>(ownerUserId),
+      'remoteId': serializer.toJson<String?>(remoteId),
     };
   }
 
@@ -551,6 +586,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     Value<int?> endBatteryLevel = const Value.absent(),
     bool? autoPauseEnabled,
     Value<String?> ownerUserId = const Value.absent(),
+    Value<String?> remoteId = const Value.absent(),
   }) => Activity(
     guid: guid ?? this.guid,
     activityType: activityType ?? this.activityType,
@@ -572,6 +608,7 @@ class Activity extends DataClass implements Insertable<Activity> {
         : this.endBatteryLevel,
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
     ownerUserId: ownerUserId.present ? ownerUserId.value : this.ownerUserId,
+    remoteId: remoteId.present ? remoteId.value : this.remoteId,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
     return Activity(
@@ -609,6 +646,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       ownerUserId: data.ownerUserId.present
           ? data.ownerUserId.value
           : this.ownerUserId,
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
     );
   }
 
@@ -628,7 +666,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('startBatteryLevel: $startBatteryLevel, ')
           ..write('endBatteryLevel: $endBatteryLevel, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
-          ..write('ownerUserId: $ownerUserId')
+          ..write('ownerUserId: $ownerUserId, ')
+          ..write('remoteId: $remoteId')
           ..write(')'))
         .toString();
   }
@@ -649,6 +688,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     endBatteryLevel,
     autoPauseEnabled,
     ownerUserId,
+    remoteId,
   );
   @override
   bool operator ==(Object other) =>
@@ -667,7 +707,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.startBatteryLevel == this.startBatteryLevel &&
           other.endBatteryLevel == this.endBatteryLevel &&
           other.autoPauseEnabled == this.autoPauseEnabled &&
-          other.ownerUserId == this.ownerUserId);
+          other.ownerUserId == this.ownerUserId &&
+          other.remoteId == this.remoteId);
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
@@ -685,6 +726,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<int?> endBatteryLevel;
   final Value<bool> autoPauseEnabled;
   final Value<String?> ownerUserId;
+  final Value<String?> remoteId;
   final Value<int> rowid;
   const ActivitiesCompanion({
     this.guid = const Value.absent(),
@@ -701,6 +743,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.endBatteryLevel = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
     this.ownerUserId = const Value.absent(),
+    this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ActivitiesCompanion.insert({
@@ -718,6 +761,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.endBatteryLevel = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
     this.ownerUserId = const Value.absent(),
+    this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : guid = Value(guid),
        activityType = Value(activityType),
@@ -738,6 +782,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<int>? endBatteryLevel,
     Expression<bool>? autoPauseEnabled,
     Expression<String>? ownerUserId,
+    Expression<String>? remoteId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -755,6 +800,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (endBatteryLevel != null) 'end_battery_level': endBatteryLevel,
       if (autoPauseEnabled != null) 'auto_pause_enabled': autoPauseEnabled,
       if (ownerUserId != null) 'owner_user_id': ownerUserId,
+      if (remoteId != null) 'remote_id': remoteId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -774,6 +820,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<int?>? endBatteryLevel,
     Value<bool>? autoPauseEnabled,
     Value<String?>? ownerUserId,
+    Value<String?>? remoteId,
     Value<int>? rowid,
   }) {
     return ActivitiesCompanion(
@@ -791,6 +838,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       endBatteryLevel: endBatteryLevel ?? this.endBatteryLevel,
       autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
       ownerUserId: ownerUserId ?? this.ownerUserId,
+      remoteId: remoteId ?? this.remoteId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -844,6 +892,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (ownerUserId.present) {
       map['owner_user_id'] = Variable<String>(ownerUserId.value);
     }
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -867,6 +918,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('endBatteryLevel: $endBatteryLevel, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
           ..write('ownerUserId: $ownerUserId, ')
+          ..write('remoteId: $remoteId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1965,12 +2017,295 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   }
 }
 
+class $RemoteDeletionsTable extends RemoteDeletions
+    with TableInfo<$RemoteDeletionsTable, RemoteDeletion> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RemoteDeletionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerUserIdMeta = const VerificationMeta(
+    'ownerUserId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerUserId = GeneratedColumn<String>(
+    'owner_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMsMeta = const VerificationMeta(
+    'createdAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtMs = GeneratedColumn<int>(
+    'created_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [remoteId, ownerUserId, createdAtMs];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'remote_deletions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RemoteDeletion> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteIdMeta);
+    }
+    if (data.containsKey('owner_user_id')) {
+      context.handle(
+        _ownerUserIdMeta,
+        ownerUserId.isAcceptableOrUnknown(
+          data['owner_user_id']!,
+          _ownerUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_ms')) {
+      context.handle(
+        _createdAtMsMeta,
+        createdAtMs.isAcceptableOrUnknown(
+          data['created_at_ms']!,
+          _createdAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {remoteId};
+  @override
+  RemoteDeletion map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RemoteDeletion(
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      )!,
+      ownerUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_user_id'],
+      ),
+      createdAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $RemoteDeletionsTable createAlias(String alias) {
+    return $RemoteDeletionsTable(attachedDatabase, alias);
+  }
+}
+
+class RemoteDeletion extends DataClass implements Insertable<RemoteDeletion> {
+  final String remoteId;
+  final String? ownerUserId;
+  final int createdAtMs;
+  const RemoteDeletion({
+    required this.remoteId,
+    this.ownerUserId,
+    required this.createdAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['remote_id'] = Variable<String>(remoteId);
+    if (!nullToAbsent || ownerUserId != null) {
+      map['owner_user_id'] = Variable<String>(ownerUserId);
+    }
+    map['created_at_ms'] = Variable<int>(createdAtMs);
+    return map;
+  }
+
+  RemoteDeletionsCompanion toCompanion(bool nullToAbsent) {
+    return RemoteDeletionsCompanion(
+      remoteId: Value(remoteId),
+      ownerUserId: ownerUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerUserId),
+      createdAtMs: Value(createdAtMs),
+    );
+  }
+
+  factory RemoteDeletion.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RemoteDeletion(
+      remoteId: serializer.fromJson<String>(json['remoteId']),
+      ownerUserId: serializer.fromJson<String?>(json['ownerUserId']),
+      createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'remoteId': serializer.toJson<String>(remoteId),
+      'ownerUserId': serializer.toJson<String?>(ownerUserId),
+      'createdAtMs': serializer.toJson<int>(createdAtMs),
+    };
+  }
+
+  RemoteDeletion copyWith({
+    String? remoteId,
+    Value<String?> ownerUserId = const Value.absent(),
+    int? createdAtMs,
+  }) => RemoteDeletion(
+    remoteId: remoteId ?? this.remoteId,
+    ownerUserId: ownerUserId.present ? ownerUserId.value : this.ownerUserId,
+    createdAtMs: createdAtMs ?? this.createdAtMs,
+  );
+  RemoteDeletion copyWithCompanion(RemoteDeletionsCompanion data) {
+    return RemoteDeletion(
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
+      ownerUserId: data.ownerUserId.present
+          ? data.ownerUserId.value
+          : this.ownerUserId,
+      createdAtMs: data.createdAtMs.present
+          ? data.createdAtMs.value
+          : this.createdAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemoteDeletion(')
+          ..write('remoteId: $remoteId, ')
+          ..write('ownerUserId: $ownerUserId, ')
+          ..write('createdAtMs: $createdAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(remoteId, ownerUserId, createdAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RemoteDeletion &&
+          other.remoteId == this.remoteId &&
+          other.ownerUserId == this.ownerUserId &&
+          other.createdAtMs == this.createdAtMs);
+}
+
+class RemoteDeletionsCompanion extends UpdateCompanion<RemoteDeletion> {
+  final Value<String> remoteId;
+  final Value<String?> ownerUserId;
+  final Value<int> createdAtMs;
+  final Value<int> rowid;
+  const RemoteDeletionsCompanion({
+    this.remoteId = const Value.absent(),
+    this.ownerUserId = const Value.absent(),
+    this.createdAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RemoteDeletionsCompanion.insert({
+    required String remoteId,
+    this.ownerUserId = const Value.absent(),
+    required int createdAtMs,
+    this.rowid = const Value.absent(),
+  }) : remoteId = Value(remoteId),
+       createdAtMs = Value(createdAtMs);
+  static Insertable<RemoteDeletion> custom({
+    Expression<String>? remoteId,
+    Expression<String>? ownerUserId,
+    Expression<int>? createdAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (remoteId != null) 'remote_id': remoteId,
+      if (ownerUserId != null) 'owner_user_id': ownerUserId,
+      if (createdAtMs != null) 'created_at_ms': createdAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RemoteDeletionsCompanion copyWith({
+    Value<String>? remoteId,
+    Value<String?>? ownerUserId,
+    Value<int>? createdAtMs,
+    Value<int>? rowid,
+  }) {
+    return RemoteDeletionsCompanion(
+      remoteId: remoteId ?? this.remoteId,
+      ownerUserId: ownerUserId ?? this.ownerUserId,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
+    if (ownerUserId.present) {
+      map['owner_user_id'] = Variable<String>(ownerUserId.value);
+    }
+    if (createdAtMs.present) {
+      map['created_at_ms'] = Variable<int>(createdAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemoteDeletionsCompanion(')
+          ..write('remoteId: $remoteId, ')
+          ..write('ownerUserId: $ownerUserId, ')
+          ..write('createdAtMs: $createdAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RecordingDatabase extends GeneratedDatabase {
   _$RecordingDatabase(QueryExecutor e) : super(e);
   $RecordingDatabaseManager get managers => $RecordingDatabaseManager(this);
   late final $ActivitiesTable activities = $ActivitiesTable(this);
   late final $WaypointsTable waypoints = $WaypointsTable(this);
   late final $SettingsRowsTable settingsRows = $SettingsRowsTable(this);
+  late final $RemoteDeletionsTable remoteDeletions = $RemoteDeletionsTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1979,6 +2314,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     activities,
     waypoints,
     settingsRows,
+    remoteDeletions,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2007,6 +2343,7 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<int?> endBatteryLevel,
   Value<bool> autoPauseEnabled,
   Value<String?> ownerUserId,
+  Value<String?> remoteId,
   Value<int> rowid,
 });
 typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
@@ -2024,6 +2361,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<int?> endBatteryLevel,
   Value<bool> autoPauseEnabled,
   Value<String?> ownerUserId,
+  Value<String?> remoteId,
   Value<int> rowid,
 });
 
@@ -2127,6 +2465,11 @@ class $$ActivitiesTableFilterComposer
 
   ColumnFilters<String> get ownerUserId => $composableBuilder(
     column: $table.ownerUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2234,6 +2577,11 @@ class $$ActivitiesTableOrderingComposer
     column: $table.ownerUserId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -2308,6 +2656,9 @@ class $$ActivitiesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
+
   Expression<T> waypointsRefs<T extends Object>(
     Expression<T> Function($$WaypointsTableAnnotationComposer a) f,
   ) {
@@ -2376,6 +2727,7 @@ class $$ActivitiesTableTableManager
                 Value<int?> endBatteryLevel = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<String?> ownerUserId = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion(
                 guid: guid,
@@ -2392,6 +2744,7 @@ class $$ActivitiesTableTableManager
                 endBatteryLevel: endBatteryLevel,
                 autoPauseEnabled: autoPauseEnabled,
                 ownerUserId: ownerUserId,
+                remoteId: remoteId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2410,6 +2763,7 @@ class $$ActivitiesTableTableManager
                 Value<int?> endBatteryLevel = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<String?> ownerUserId = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion.insert(
                 guid: guid,
@@ -2426,6 +2780,7 @@ class $$ActivitiesTableTableManager
                 endBatteryLevel: endBatteryLevel,
                 autoPauseEnabled: autoPauseEnabled,
                 ownerUserId: ownerUserId,
+                remoteId: remoteId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3133,6 +3488,191 @@ typedef $$SettingsRowsTableProcessedTableManager =
       SettingsRow,
       PrefetchHooks Function()
     >;
+typedef $$RemoteDeletionsTableCreateCompanionBuilder =
+    RemoteDeletionsCompanion Function({
+      required String remoteId,
+      Value<String?> ownerUserId,
+      required int createdAtMs,
+      Value<int> rowid,
+    });
+typedef $$RemoteDeletionsTableUpdateCompanionBuilder =
+    RemoteDeletionsCompanion Function({
+      Value<String> remoteId,
+      Value<String?> ownerUserId,
+      Value<int> createdAtMs,
+      Value<int> rowid,
+    });
+
+class $$RemoteDeletionsTableFilterComposer
+    extends Composer<_$RecordingDatabase, $RemoteDeletionsTable> {
+  $$RemoteDeletionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RemoteDeletionsTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $RemoteDeletionsTable> {
+  $$RemoteDeletionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RemoteDeletionsTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $RemoteDeletionsTable> {
+  $$RemoteDeletionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$RemoteDeletionsTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $RemoteDeletionsTable,
+          RemoteDeletion,
+          $$RemoteDeletionsTableFilterComposer,
+          $$RemoteDeletionsTableOrderingComposer,
+          $$RemoteDeletionsTableAnnotationComposer,
+          $$RemoteDeletionsTableCreateCompanionBuilder,
+          $$RemoteDeletionsTableUpdateCompanionBuilder,
+          (
+            RemoteDeletion,
+            BaseReferences<
+              _$RecordingDatabase,
+              $RemoteDeletionsTable,
+              RemoteDeletion
+            >,
+          ),
+          RemoteDeletion,
+          PrefetchHooks Function()
+        > {
+  $$RemoteDeletionsTableTableManager(
+    _$RecordingDatabase db,
+    $RemoteDeletionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RemoteDeletionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RemoteDeletionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RemoteDeletionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> remoteId = const Value.absent(),
+                Value<String?> ownerUserId = const Value.absent(),
+                Value<int> createdAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RemoteDeletionsCompanion(
+                remoteId: remoteId,
+                ownerUserId: ownerUserId,
+                createdAtMs: createdAtMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String remoteId,
+                Value<String?> ownerUserId = const Value.absent(),
+                required int createdAtMs,
+                Value<int> rowid = const Value.absent(),
+              }) => RemoteDeletionsCompanion.insert(
+                remoteId: remoteId,
+                ownerUserId: ownerUserId,
+                createdAtMs: createdAtMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RemoteDeletionsTable, RemoteDeletion>(table),
+                  BaseReferences<
+                    _$RecordingDatabase,
+                    $RemoteDeletionsTable,
+                    RemoteDeletion
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RemoteDeletionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $RemoteDeletionsTable,
+      RemoteDeletion,
+      $$RemoteDeletionsTableFilterComposer,
+      $$RemoteDeletionsTableOrderingComposer,
+      $$RemoteDeletionsTableAnnotationComposer,
+      $$RemoteDeletionsTableCreateCompanionBuilder,
+      $$RemoteDeletionsTableUpdateCompanionBuilder,
+      (
+        RemoteDeletion,
+        BaseReferences<
+          _$RecordingDatabase,
+          $RemoteDeletionsTable,
+          RemoteDeletion
+        >,
+      ),
+      RemoteDeletion,
+      PrefetchHooks Function()
+    >;
 
 class $RecordingDatabaseManager {
   final _$RecordingDatabase _db;
@@ -3143,4 +3683,6 @@ class $RecordingDatabaseManager {
       $$WaypointsTableTableManager(_db, _db.waypoints);
   $$SettingsRowsTableTableManager get settingsRows =>
       $$SettingsRowsTableTableManager(_db, _db.settingsRows);
+  $$RemoteDeletionsTableTableManager get remoteDeletions =>
+      $$RemoteDeletionsTableTableManager(_db, _db.remoteDeletions);
 }

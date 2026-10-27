@@ -211,5 +211,41 @@ void main() {
         .data;
     debugPrint('[e2e] atividades no perfil: $total');
     expect(total, '1');
+    expect(finalizada.remoteId, isNotNull, reason: 'id do servidor guardado');
+
+    // 7) Excluir no historico apaga no servidor tambem: o perfil volta a 0.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('history')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('menu-${finalizada.guid}')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('delete-${finalizada.guid}')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('apagada do servidor'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-delete')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sync')));
+    for (int i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 250));
+      if ((await db.pendingRemoteDeletions()).isEmpty) break;
+    }
+    expect(await db.pendingRemoteDeletions(), isEmpty,
+        reason: 'a exclusao precisa ter chegado ao servidor');
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('account')));
+    String? depois;
+    for (int i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 250));
+      final f = find.byKey(const Key('profile_count'));
+      if (f.evaluate().isNotEmpty) {
+        depois = tester.widget<Text>(f).data;
+        if (depois == '0') break;
+      }
+    }
+    debugPrint('[e2e] atividades no perfil apos excluir: $depois');
+    expect(depois, '0');
   });
 }

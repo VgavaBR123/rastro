@@ -1,4 +1,5 @@
-// Perfil: nome editavel, e-mail, totais do que ja foi sincronizado e sair.
+// Perfil: nome editavel, e-mail, totais do que ja foi sincronizado, seguranca
+// da conta (trocar senha, sair de todos os aparelhos) e excluir conta.
 library;
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../core/format/activity_labels.dart';
 import '../core/format/measures.dart';
+import 'account_dialogs.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -77,6 +79,33 @@ class ProfileScreen extends ConsumerWidget {
           ),
           const Divider(),
           ListTile(
+            key: const Key('profile_change_password'),
+            leading: const Icon(Icons.lock_reset),
+            title: const Text('Trocar senha'),
+            onTap: () async {
+              final ok = await showChangePasswordDialog(context);
+              if (!context.mounted) return;
+              if (ok) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Senha alterada')));
+              } else if (!ref.read(authControllerProvider).isSignedIn) {
+                Navigator.of(context).pop(); // 401: a sessao caiu
+              }
+            },
+          ),
+          ListTile(
+            key: const Key('profile_logout_all'),
+            leading: const Icon(Icons.devices),
+            title: const Text('Sair de todos os aparelhos'),
+            subtitle: const Text('Encerra a conta em todos, inclusive neste'),
+            onTap: () => _leaveIfSignedOut(
+              context,
+              ref,
+              () => showLogoutAllDialog(context),
+            ),
+          ),
+          ListTile(
             key: const Key('profile_logout'),
             leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('Sair', style: TextStyle(color: Colors.red)),
@@ -86,12 +115,54 @@ class ProfileScreen extends ConsumerWidget {
               if (context.mounted) Navigator.of(context).pop();
             },
           ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              'Zona de perigo',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListTile(
+            key: const Key('profile_delete_account'),
+            leading: const Icon(Icons.delete_forever, color: Colors.red),
+            title: const Text(
+              'Excluir conta',
+              style: TextStyle(color: Colors.red),
+            ),
+            subtitle: const Text(
+              'Apaga a conta e as atividades no servidor. '
+              'As do aparelho continuam.',
+            ),
+            onTap: () => _leaveIfSignedOut(
+              context,
+              ref,
+              () => showDeleteAccountDialog(context),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Future<void> _editName(BuildContext context, WidgetRef ref, String current) async {
+  /// Abre o dialogo e, se a conta saiu (sucesso ou sessao caiu), fecha o perfil.
+  Future<void> _leaveIfSignedOut(
+    BuildContext context,
+    WidgetRef ref,
+    Future<bool> Function() dialog,
+  ) async {
+    await dialog();
+    if (!context.mounted) return;
+    if (!ref.read(authControllerProvider).isSignedIn) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _editName(
+    BuildContext context,
+    WidgetRef ref,
+    String current,
+  ) async {
     final controller = TextEditingController(text: current);
     final name = await showDialog<String>(
       context: context,
@@ -117,8 +188,9 @@ class ProfileScreen extends ConsumerWidget {
     );
     controller.dispose();
     if (name == null || name.trim().isEmpty || name.trim() == current) return;
-    final ok =
-        await ref.read(authControllerProvider.notifier).updateDisplayName(name);
+    final ok = await ref
+        .read(authControllerProvider.notifier)
+        .updateDisplayName(name);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nao foi possivel salvar o nome')),

@@ -43,11 +43,13 @@ Future<bool> runBackgroundSync(
 }) async {
   try {
     await service.prepareRound(userId);
+    final int deletionsLeft =
+        await service.processRemoteDeletions(ownerUserId: userId);
     final int pending =
         (await db.pendingActivities(ownerUserId: userId)).length;
-    if (pending == 0) return true;
-    final int synced = await service.processPending(ownerUserId: userId);
-    return synced == pending;
+    final int synced =
+        pending == 0 ? 0 : await service.processPending(ownerUserId: userId);
+    return synced == pending && deletionsLeft == 0;
   } on Object catch (e) {
     debugPrint('[background-sync] erro inesperado: $e');
     return false;

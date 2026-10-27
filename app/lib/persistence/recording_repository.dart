@@ -175,9 +175,13 @@ class RecordingRepository {
       db.recentActivities(limit: limit);
 
   /// Remove uma atividade do historico (cabecalho + pontos).
-  Future<void> deleteActivity(String guid) async {
+  /// Se ela ja estava no servidor, a exclusao de la entra na fila do sync.
+  Future<void> deleteActivity(String guid, {int? nowMs}) async {
     _seq.remove(guid);
-    await db.deleteActivity(guid);
+    await db.deleteActivity(
+      guid,
+      nowMs: nowMs ?? DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   /// Trajeto (so pontos aceitos) de uma atividade, para desenhar no detalhe.

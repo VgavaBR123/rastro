@@ -16,7 +16,8 @@ class FakeUploader implements ActivityUploader {
   final bool fail;
   FakeUploader({this.fail = false});
   @override
-  Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
+  Future<String> upload(Uint8List fitBytes,
+      {required String activityGuid, UploadMetadata? metadata}) async {
     if (fail) throw UploadException('boom');
     return 'ok-$activityGuid';
   }

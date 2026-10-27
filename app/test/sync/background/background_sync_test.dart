@@ -31,7 +31,8 @@ class SelectiveUploader implements ActivityUploader {
   SelectiveUploader(this.failFor);
 
   @override
-  Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
+  Future<String> upload(Uint8List fitBytes,
+      {required String activityGuid, UploadMetadata? metadata}) async {
     if (failFor.contains(activityGuid)) throw UploadException('falha');
     uploaded.add(activityGuid);
     return 'up-$activityGuid';

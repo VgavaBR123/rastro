@@ -15,10 +15,13 @@ import 'package:strava_estudo_app/sync/upload/sync_service.dart';
 class CapturingUploader implements ActivityUploader {
   Uint8List? lastBytes;
   String? lastGuid;
+  UploadMetadata? lastMetadata;
   @override
-  Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
+  Future<String> upload(Uint8List fitBytes,
+      {required String activityGuid, UploadMetadata? metadata}) async {
     lastBytes = fitBytes;
     lastGuid = activityGuid;
+    lastMetadata = metadata;
     return 'upload-$activityGuid';
   }
 }
@@ -49,6 +52,12 @@ void main() {
     final count = await service.processPending();
     expect(count, 1);
     expect(uploader.lastGuid, 'x');
+    // Metadados que o FIT minimo nao carrega vao junto (headers x-*).
+    final m = uploader.lastMetadata!;
+    expect(m.activityType, 'run');
+    expect(m.startTimeMs, 1000);
+    expect(m.timerTimeMs, 60000);
+    expect(m.distanceMeters, 11);
 
     // Header FIT: bytes 8..11 == ".FIT".
     final b = uploader.lastBytes!;
@@ -60,5 +69,6 @@ void main() {
           ..where((t) => t.guid.equals('x')))
         .getSingle();
     expect(header.syncState, SyncState.synced);
+    expect(header.remoteId, 'upload-x', reason: 'id do servidor guardado');
   });
 }

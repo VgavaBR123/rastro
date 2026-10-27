@@ -37,8 +37,23 @@ class Activities extends Table {
   /// pendentes de uma conta subam na conta de outra no mesmo aparelho.
   TextColumn get ownerUserId => text().nullable()();
 
+  /// Id da atividade no servidor (devolvido pelo upload). Null = nunca subiu
+  /// (ou subiu antes de guardarmos o id). Necessario para apagar la tambem.
+  TextColumn get remoteId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {guid};
+}
+
+/// Exclusoes que ainda precisam chegar ao servidor (apagou no aparelho sem
+/// rede, ou a chamada falhou). O sync processa e remove a linha.
+class RemoteDeletions extends Table {
+  TextColumn get remoteId => text()();
+  TextColumn get ownerUserId => text().nullable()();
+  IntColumn get createdAtMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {remoteId};
 }
 
 /// Fluxo de pontos de uma atividade, anexado de forma incremental.
@@ -69,12 +84,12 @@ class SettingsRows extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Activities, Waypoints, SettingsRows])
+@DriftDatabase(tables: [Activities, Waypoints, SettingsRows, RemoteDeletions])
 class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -82,6 +97,10 @@ class RecordingDatabase extends _$RecordingDatabase {
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.createTable(settingsRows);
           if (from < 3) await m.addColumn(activities, activities.ownerUserId);
+          if (from < 4) {
+            await m.addColumn(activities, activities.remoteId);
+            await m.createTable(remoteDeletions);
+          }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
         // isso por conta propria. Sem este pragma, o `onDelete: cascade`
@@ -157,6 +176,27 @@ class RecordingDatabase extends _$RecordingDatabase {
             t.syncState.isInValues([SyncState.failed, SyncState.uploading])))
       .write(const ActivitiesCompanion(syncState: Value(SyncState.pending)));
 
+  /// Upload aceito: guarda o id do servidor e marca synced.
+  Future<void> markSynced(String guid, String remoteId) =>
+      (update(activities)..where((t) => t.guid.equals(guid))).write(
+        ActivitiesCompanion(
+          syncState: const Value(SyncState.synced),
+          remoteId: Value(remoteId),
+        ),
+      );
+
+  /// Exclusoes pendentes no servidor. Com [ownerUserId], so as daquela conta
+  /// (e as sem dono).
+  Future<List<RemoteDeletion>> pendingRemoteDeletions({String? ownerUserId}) =>
+      (select(remoteDeletions)
+            ..where((t) => ownerUserId == null
+                ? const Constant(true)
+                : t.ownerUserId.equals(ownerUserId) | t.ownerUserId.isNull()))
+          .get();
+
+  Future<void> removeRemoteDeletion(String remoteId) =>
+      (delete(remoteDeletions)..where((t) => t.remoteId.equals(remoteId))).go();
+
   /// Atualiza o estagio de sincronizacao de uma atividade.
   Future<void> setSyncState(String guid, SyncState state) =>
       (update(activities)..where((t) => t.guid.equals(guid)))
@@ -191,10 +231,23 @@ class RecordingDatabase extends _$RecordingDatabase {
   }
 
   /// Apaga uma atividade do historico. Os `waypoints` saem junto pela FK em
-  /// cascata (habilitada em `beforeOpen`); a transacao garante que cabecalho e
-  /// pontos saiam de uma vez.
-  Future<void> deleteActivity(String guid) {
+  /// cascata (habilitada em `beforeOpen`). Se ela ja estava no servidor, a
+  /// exclusao de la entra na fila na mesma transacao: nunca fica uma atividade
+  /// apagada aqui e esquecida la.
+  Future<void> deleteActivity(String guid, {required int nowMs}) {
     return transaction(() async {
+      final a = await (select(activities)..where((t) => t.guid.equals(guid)))
+          .getSingleOrNull();
+      if (a == null) return;
+      if (a.remoteId != null) {
+        await into(remoteDeletions).insertOnConflictUpdate(
+          RemoteDeletionsCompanion.insert(
+            remoteId: a.remoteId!,
+            ownerUserId: Value(a.ownerUserId),
+            createdAtMs: nowMs,
+          ),
+        );
+      }
       await (delete(activities)..where((t) => t.guid.equals(guid))).go();
     });
   }

@@ -11,6 +11,7 @@ import '../persistence/database.dart';
 import '../recording/domain/recording_models.dart';
 import 'activity_detail_screen.dart';
 import '../sync/sync_controller.dart' show kSignInToSyncMessage;
+import '../sync/background/background_sync_provider.dart';
 import 'auth_screen.dart';
 
 class HistoryScreen extends ConsumerWidget {
@@ -110,7 +111,10 @@ class _ActivityTile extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Excluir atividade?'),
-        content: const Text('Esta acao nao pode ser desfeita.'),
+        content: Text(activity.remoteId != null
+            ? 'Ela tambem sera apagada do servidor. '
+                'Esta acao nao pode ser desfeita.'
+            : 'Esta acao nao pode ser desfeita.'),
         actions: [
           TextButton(
             key: const Key('cancel-delete'),
@@ -128,6 +132,10 @@ class _ActivityTile extends ConsumerWidget {
     if (confirmed != true) return;
 
     await ref.read(recordingRepositoryProvider).deleteActivity(activity.guid);
+    // Leva a exclusao ao servidor assim que houver rede.
+    if (activity.remoteId != null) {
+      ref.read(backgroundSyncSchedulerProvider).scheduleSoon();
+    }
     ref.invalidate(recentActivitiesProvider);
     ref.invalidate(pendingCountProvider);
     messenger

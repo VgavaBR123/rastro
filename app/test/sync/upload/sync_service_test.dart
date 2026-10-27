@@ -20,7 +20,8 @@ class FakeUploader implements ActivityUploader {
   FakeUploader({this.shouldFail = false});
 
   @override
-  Future<String> upload(Uint8List fitBytes, {required String activityGuid}) async {
+  Future<String> upload(Uint8List fitBytes,
+      {required String activityGuid, UploadMetadata? metadata}) async {
     if (shouldFail) {
       throw UploadException('falha simulada');
     }

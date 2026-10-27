@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import 'password_reset_screen.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -38,6 +39,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     if (ok && mounted) Navigator.of(context).pop();
   }
 
+  Future<void> _forgot() async {
+    final done = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PasswordResetScreen(initialEmail: _email.text),
+      ),
+    );
+    if (!mounted) return;
+    if (done == true) {
+      // Senha trocada: ja esta logado, fecha a tela de login tambem.
+      Navigator.of(context).pop();
+    } else {
+      ref.read(authControllerProvider.notifier).clearError();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
@@ -62,8 +78,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   controller: _name,
                   decoration: const InputDecoration(labelText: 'Nome'),
                   textInputAction: TextInputAction.next,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Informe seu nome' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Informe seu nome'
+                      : null,
                 ),
               TextFormField(
                 key: const Key('auth_email'),
@@ -84,8 +101,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 validator: (v) => (_register && (v == null || v.length < 8))
                     ? 'Minimo de 8 caracteres'
                     : (v == null || v.isEmpty)
-                        ? 'Informe a senha'
-                        : null,
+                    ? 'Informe a senha'
+                    : null,
               ),
               const SizedBox(height: 16),
               if (auth.error != null)
@@ -112,10 +129,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 onPressed: auth.busy
                     ? null
                     : () => setState(() => _register = !_register),
-                child: Text(_register
-                    ? 'Ja tenho conta'
-                    : 'Nao tem conta? Criar uma'),
+                child: Text(
+                  _register ? 'Ja tenho conta' : 'Nao tem conta? Criar uma',
+                ),
               ),
+              if (!_register)
+                TextButton(
+                  key: const Key('auth_forgot'),
+                  onPressed: auth.busy ? null : _forgot,
+                  child: const Text('Esqueci minha senha'),
+                ),
             ],
           ),
         ),
