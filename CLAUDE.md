@@ -89,6 +89,8 @@ Sem emojis. Texto limpo.
 
 So comeca quando o Gava pedir. Stack a definir (Flutter ou React Native + backend PostgreSQL/PostGIS em Docker).
 O codigo em `app/` e escrito do zero a partir de `relatorios/`, sem consultar `analise/`.
+Visual do app (cores, fontes, componentes, navegacao e telas): seguir `relatorios/11-design-system.md`,
+aprovado pelo Gava. Nenhuma tela usa cor, fonte ou tamanho fixo fora do tema.
 
 ## Emulador Android
 

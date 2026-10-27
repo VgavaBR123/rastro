@@ -22,6 +22,7 @@ Activity activity(ActivityType t, {int hour = 7}) => Activity(
       isFinished: true,
       syncState: SyncState.pending,
       autoPauseEnabled: true,
+      visibility: 'everyone',
     );
 
 const route = [

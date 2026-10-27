@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../core/format/activity_labels.dart';
 import '../core/format/measures.dart';
+import '../persistence/activity_visibility.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_models.dart';
 import 'components/big_action_button.dart';
@@ -20,7 +21,7 @@ import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
 
-enum ActivityVisibility { onlyMe, followers, everyone }
+export '../persistence/activity_visibility.dart';
 
 /// O que o usuario preencheu na tela Salvar.
 class ActivityDraft {

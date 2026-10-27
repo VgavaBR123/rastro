@@ -57,6 +57,9 @@ double _uniformScale(double a, double b) {
   return math.min(a, b);
 }
 
+/// Altura do bloco quando nao ha tracado (0 ou 1 ponto): sem retangulo vazio.
+const double kRoutePreviewEmptyHeight = 64;
+
 class RoutePreview extends StatelessWidget {
   final List<GeoPoint> route;
 
@@ -71,8 +74,12 @@ class RoutePreview extends StatelessWidget {
   /// Ponto ciano no inicio da rota.
   final bool showStart;
 
-  /// Texto quando ainda nao ha pontos.
-  final String emptyLabel;
+  /// Texto quando ainda nao ha pontos; null cai em 'Sem rota gravada'.
+  final String? emptyLabel;
+
+  /// Sem tracado (0 ou 1 ponto), encolhe para [kRoutePreviewEmptyHeight].
+  /// O RouteMap desliga: ali o fallback ocupa a area do mapa.
+  final bool compactWhenEmpty;
 
   const RoutePreview({
     super.key,
@@ -82,24 +89,29 @@ class RoutePreview extends StatelessWidget {
     this.halo = false,
     this.showStart = false,
     this.emptyLabel = 'Aguardando GPS...',
+    this.compactWhenEmpty = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final noLine = route.length < 2;
+    final label = emptyLabel ?? 'Sem rota gravada';
     return SizedBox(
-      height: height,
+      height: noLine && compactWhenEmpty ? math.min(height, kRoutePreviewEmptyHeight) : height,
+      width: double.infinity,
       child: CustomPaint(
         painter: _RoutePainter(
           route,
           color ?? c.primary,
           halo: halo,
-          start: showStart ? c.ciano.fill : null,
+          // Com 1 ponto so a partida aparece, mesmo sem showStart.
+          start: showStart || route.length == 1 ? c.ciano.fill : null,
           startRing: c.surface,
         ),
         child: route.isEmpty
             ? Center(
-                child: Text(emptyLabel, style: AppText.label.copyWith(color: c.textMuted)),
+                child: Text(label, style: AppText.label.copyWith(color: c.textMuted)),
               )
             : const SizedBox.expand(),
       ),
@@ -118,7 +130,11 @@ class _RoutePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final offsets = projectRoute(route, size);
-    if (offsets.length < 2) return;
+    if (offsets.isEmpty) return;
+    if (offsets.length == 1) {
+      if (start != null) _drawStart(canvas, offsets.first);
+      return;
+    }
     final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
     for (final o in offsets.skip(1)) {
       path.lineTo(o.dx, o.dy);
@@ -132,10 +148,12 @@ class _RoutePainter extends CustomPainter {
     // Relatorio 11: traco de 4,5 sobre um halo de 12 na propria cor a ~20%.
     if (halo) canvas.drawPath(path, stroke(color.withValues(alpha: 0.2), 12));
     canvas.drawPath(path, stroke(color, halo ? 4.5 : 4));
-    if (start != null) {
-      canvas.drawCircle(offsets.first, 6.5, Paint()..color = startRing);
-      canvas.drawCircle(offsets.first, 4.5, Paint()..color = start!);
-    }
+    if (start != null) _drawStart(canvas, offsets.first);
+  }
+
+  void _drawStart(Canvas canvas, Offset at) {
+    canvas.drawCircle(at, 6.5, Paint()..color = startRing);
+    canvas.drawCircle(at, 4.5, Paint()..color = start!);
   }
 
   @override

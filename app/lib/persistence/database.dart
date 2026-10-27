@@ -13,6 +13,9 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
 import '../recording/domain/recording_models.dart';
+import 'activity_visibility.dart';
+
+export 'activity_visibility.dart';
 
 part 'database.g.dart';
 
@@ -40,6 +43,20 @@ class Activities extends Table {
   /// Id da atividade no servidor (devolvido pelo upload). Null = nunca subiu
   /// (ou subiu antes de guardarmos o id). Necessario para apagar la tambem.
   TextColumn get remoteId => text().nullable()();
+
+  /// Titulo dado na tela Salvar. Null = sem titulo (a UI mostra o sugerido
+  /// pelo horario). Ainda nao sobe para o servidor (o contrato de upload nao
+  /// tem esse campo).
+  TextColumn get title => text().nullable()();
+
+  /// Descricao livre da tela Salvar. Null = vazia. Tambem nao sobe ainda.
+  TextColumn get description => text().nullable()();
+
+  /// Quem pode ver: 'private' | 'followers' | 'everyone' (ver
+  /// [ActivityVisibility]). Padrao 'everyone', o mesmo da tela Salvar; as
+  /// atividades antigas ganham esse valor na migracao. Por enquanto so local.
+  TextColumn get visibility =>
+      text().withDefault(const Constant('everyone'))();
 
   @override
   Set<Column> get primaryKey => {guid};
@@ -110,7 +127,7 @@ class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -125,6 +142,11 @@ class RecordingDatabase extends _$RecordingDatabase {
           if (from < 5) {
             await m.createTable(laps);
             await m.addColumn(settingsRows, settingsRows.weightKg);
+          }
+          if (from < 6) {
+            await m.addColumn(activities, activities.title);
+            await m.addColumn(activities, activities.description);
+            await m.addColumn(activities, activities.visibility);
           }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
@@ -249,6 +271,28 @@ class RecordingDatabase extends _$RecordingDatabase {
             ..orderBy([(t) => OrderingTerm.desc(t.startTimestampMs)])
             ..limit(limit))
           .get();
+
+  /// Grava o que o usuario preencheu na tela Salvar. Titulo e descricao
+  /// vazios (ou so espacos) viram null.
+  Future<void> saveActivityDetails(
+    String guid, {
+    String? title,
+    String? description,
+    required ActivityVisibility visibility,
+  }) {
+    String? clean(String? v) {
+      final t = v?.trim();
+      return t == null || t.isEmpty ? null : t;
+    }
+
+    return (update(activities)..where((t) => t.guid.equals(guid))).write(
+      ActivitiesCompanion(
+        title: Value(clean(title)),
+        description: Value(clean(description)),
+        visibility: Value(visibility.dbValue),
+      ),
+    );
+  }
 
   Future<void> markFinished(
     String guid,

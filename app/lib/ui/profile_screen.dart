@@ -269,30 +269,10 @@ class _UserCard extends ConsumerWidget {
     WidgetRef ref,
     String current,
   ) async {
-    final controller = TextEditingController(text: current);
     final name = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Seu nome'),
-        content: TextField(
-          key: const Key('profile_name_field'),
-          controller: controller,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            key: const Key('profile_name_save'),
-            onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
+      builder: (_) => _NameDialog(initial: current),
     );
-    controller.dispose();
     if (name == null || name.trim().isEmpty || name.trim() == current) return;
     final ok = await ref
         .read(authControllerProvider.notifier)
@@ -300,6 +280,50 @@ class _UserCard extends ConsumerWidget {
     if (!ok && context.mounted) {
       _snack(context, 'Nao foi possivel salvar o nome');
     }
+  }
+}
+
+/// Dialogo do nome. O controller vive no State para ser descartado so quando o
+/// dialogo sai da arvore (descartar ao fechar quebra a animacao de saida).
+class _NameDialog extends StatefulWidget {
+  final String initial;
+  const _NameDialog({required this.initial});
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Seu nome'),
+      content: TextField(
+        key: const Key('profile_name_field'),
+        controller: _controller,
+        autofocus: true,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const Key('profile_name_save'),
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('Salvar'),
+        ),
+      ],
+    );
   }
 }
 

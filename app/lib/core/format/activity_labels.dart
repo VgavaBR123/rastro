@@ -26,6 +26,12 @@ String suggestedActivityTitle(ActivityType type, DateTime start) {
   return '${activityTypeLabel(type)} $period';
 }
 
+/// Titulo a mostrar: o salvo pelo usuario ou, sem ele, o sugerido.
+String displayActivityTitle(String? saved, ActivityType type, DateTime start) {
+  final t = saved?.trim();
+  return t == null || t.isEmpty ? suggestedActivityTitle(type, start) : t;
+}
+
 /// Estado de sincronizacao como o usuario le.
 String syncStateLabel(SyncState s) {
   switch (s) {

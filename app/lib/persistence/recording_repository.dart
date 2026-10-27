@@ -120,6 +120,22 @@ class RecordingRepository {
     );
   }
 
+  /// Grava titulo, descricao e visibilidade escolhidos na tela Salvar.
+  /// Vazio vira null (a UI cai no titulo sugerido). So local por enquanto: o
+  /// upload (lib/sync) ainda nao envia esses campos ao servidor.
+  Future<void> saveDetails(
+    String guid, {
+    String? title,
+    String? description,
+    ActivityVisibility visibility = ActivityVisibility.everyone,
+  }) =>
+      db.saveActivityDetails(
+        guid,
+        title: title,
+        description: description,
+        visibility: visibility,
+      );
+
   /// Guarda uma volta fechada.
   Future<void> saveLap(
     String guid, {

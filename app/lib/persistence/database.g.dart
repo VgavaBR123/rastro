@@ -182,6 +182,38 @@ class $ActivitiesTable extends Activities
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _visibilityMeta = const VerificationMeta(
+    'visibility',
+  );
+  @override
+  late final GeneratedColumn<String> visibility = GeneratedColumn<String>(
+    'visibility',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('everyone'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     guid,
@@ -199,6 +231,9 @@ class $ActivitiesTable extends Activities
     autoPauseEnabled,
     ownerUserId,
     remoteId,
+    title,
+    description,
+    visibility,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -318,6 +353,27 @@ class $ActivitiesTable extends Activities
         remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
       );
     }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('visibility')) {
+      context.handle(
+        _visibilityMeta,
+        visibility.isAcceptableOrUnknown(data['visibility']!, _visibilityMeta),
+      );
+    }
     return context;
   }
 
@@ -391,6 +447,18 @@ class $ActivitiesTable extends Activities
         DriftSqlType.string,
         data['${effectivePrefix}remote_id'],
       ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      visibility: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}visibility'],
+      )!,
     );
   }
 
@@ -428,6 +496,19 @@ class Activity extends DataClass implements Insertable<Activity> {
   /// Id da atividade no servidor (devolvido pelo upload). Null = nunca subiu
   /// (ou subiu antes de guardarmos o id). Necessario para apagar la tambem.
   final String? remoteId;
+
+  /// Titulo dado na tela Salvar. Null = sem titulo (a UI mostra o sugerido
+  /// pelo horario). Ainda nao sobe para o servidor (o contrato de upload nao
+  /// tem esse campo).
+  final String? title;
+
+  /// Descricao livre da tela Salvar. Null = vazia. Tambem nao sobe ainda.
+  final String? description;
+
+  /// Quem pode ver: 'private' | 'followers' | 'everyone' (ver
+  /// [ActivityVisibility]). Padrao 'everyone', o mesmo da tela Salvar; as
+  /// atividades antigas ganham esse valor na migracao. Por enquanto so local.
+  final String visibility;
   const Activity({
     required this.guid,
     required this.activityType,
@@ -444,6 +525,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     required this.autoPauseEnabled,
     this.ownerUserId,
     this.remoteId,
+    this.title,
+    this.description,
+    required this.visibility,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -483,6 +567,13 @@ class Activity extends DataClass implements Insertable<Activity> {
     if (!nullToAbsent || remoteId != null) {
       map['remote_id'] = Variable<String>(remoteId);
     }
+    if (!nullToAbsent || title != null) {
+      map['title'] = Variable<String>(title);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['visibility'] = Variable<String>(visibility);
     return map;
   }
 
@@ -515,6 +606,13 @@ class Activity extends DataClass implements Insertable<Activity> {
       remoteId: remoteId == null && nullToAbsent
           ? const Value.absent()
           : Value(remoteId),
+      title: title == null && nullToAbsent
+          ? const Value.absent()
+          : Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      visibility: Value(visibility),
     );
   }
 
@@ -543,6 +641,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       autoPauseEnabled: serializer.fromJson<bool>(json['autoPauseEnabled']),
       ownerUserId: serializer.fromJson<String?>(json['ownerUserId']),
       remoteId: serializer.fromJson<String?>(json['remoteId']),
+      title: serializer.fromJson<String?>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
+      visibility: serializer.fromJson<String>(json['visibility']),
     );
   }
   @override
@@ -568,6 +669,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       'autoPauseEnabled': serializer.toJson<bool>(autoPauseEnabled),
       'ownerUserId': serializer.toJson<String?>(ownerUserId),
       'remoteId': serializer.toJson<String?>(remoteId),
+      'title': serializer.toJson<String?>(title),
+      'description': serializer.toJson<String?>(description),
+      'visibility': serializer.toJson<String>(visibility),
     };
   }
 
@@ -587,6 +691,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     bool? autoPauseEnabled,
     Value<String?> ownerUserId = const Value.absent(),
     Value<String?> remoteId = const Value.absent(),
+    Value<String?> title = const Value.absent(),
+    Value<String?> description = const Value.absent(),
+    String? visibility,
   }) => Activity(
     guid: guid ?? this.guid,
     activityType: activityType ?? this.activityType,
@@ -609,6 +716,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
     ownerUserId: ownerUserId.present ? ownerUserId.value : this.ownerUserId,
     remoteId: remoteId.present ? remoteId.value : this.remoteId,
+    title: title.present ? title.value : this.title,
+    description: description.present ? description.value : this.description,
+    visibility: visibility ?? this.visibility,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
     return Activity(
@@ -647,6 +757,13 @@ class Activity extends DataClass implements Insertable<Activity> {
           ? data.ownerUserId.value
           : this.ownerUserId,
       remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      visibility: data.visibility.present
+          ? data.visibility.value
+          : this.visibility,
     );
   }
 
@@ -667,7 +784,10 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('endBatteryLevel: $endBatteryLevel, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
           ..write('ownerUserId: $ownerUserId, ')
-          ..write('remoteId: $remoteId')
+          ..write('remoteId: $remoteId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('visibility: $visibility')
           ..write(')'))
         .toString();
   }
@@ -689,6 +809,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     autoPauseEnabled,
     ownerUserId,
     remoteId,
+    title,
+    description,
+    visibility,
   );
   @override
   bool operator ==(Object other) =>
@@ -708,7 +831,10 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.endBatteryLevel == this.endBatteryLevel &&
           other.autoPauseEnabled == this.autoPauseEnabled &&
           other.ownerUserId == this.ownerUserId &&
-          other.remoteId == this.remoteId);
+          other.remoteId == this.remoteId &&
+          other.title == this.title &&
+          other.description == this.description &&
+          other.visibility == this.visibility);
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
@@ -727,6 +853,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<bool> autoPauseEnabled;
   final Value<String?> ownerUserId;
   final Value<String?> remoteId;
+  final Value<String?> title;
+  final Value<String?> description;
+  final Value<String> visibility;
   final Value<int> rowid;
   const ActivitiesCompanion({
     this.guid = const Value.absent(),
@@ -744,6 +873,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.autoPauseEnabled = const Value.absent(),
     this.ownerUserId = const Value.absent(),
     this.remoteId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.visibility = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ActivitiesCompanion.insert({
@@ -762,6 +894,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.autoPauseEnabled = const Value.absent(),
     this.ownerUserId = const Value.absent(),
     this.remoteId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.visibility = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : guid = Value(guid),
        activityType = Value(activityType),
@@ -783,6 +918,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<bool>? autoPauseEnabled,
     Expression<String>? ownerUserId,
     Expression<String>? remoteId,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<String>? visibility,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -801,6 +939,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (autoPauseEnabled != null) 'auto_pause_enabled': autoPauseEnabled,
       if (ownerUserId != null) 'owner_user_id': ownerUserId,
       if (remoteId != null) 'remote_id': remoteId,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (visibility != null) 'visibility': visibility,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -821,6 +962,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<bool>? autoPauseEnabled,
     Value<String?>? ownerUserId,
     Value<String?>? remoteId,
+    Value<String?>? title,
+    Value<String?>? description,
+    Value<String>? visibility,
     Value<int>? rowid,
   }) {
     return ActivitiesCompanion(
@@ -839,6 +983,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
       ownerUserId: ownerUserId ?? this.ownerUserId,
       remoteId: remoteId ?? this.remoteId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      visibility: visibility ?? this.visibility,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -895,6 +1042,15 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (remoteId.present) {
       map['remote_id'] = Variable<String>(remoteId.value);
     }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (visibility.present) {
+      map['visibility'] = Variable<String>(visibility.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -919,6 +1075,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
           ..write('ownerUserId: $ownerUserId, ')
           ..write('remoteId: $remoteId, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('visibility: $visibility, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2916,6 +3075,9 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<bool> autoPauseEnabled,
   Value<String?> ownerUserId,
   Value<String?> remoteId,
+  Value<String?> title,
+  Value<String?> description,
+  Value<String> visibility,
   Value<int> rowid,
 });
 typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
@@ -2934,6 +3096,9 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<bool> autoPauseEnabled,
   Value<String?> ownerUserId,
   Value<String?> remoteId,
+  Value<String?> title,
+  Value<String?> description,
+  Value<String> visibility,
   Value<int> rowid,
 });
 
@@ -3060,6 +3225,21 @@ class $$ActivitiesTableFilterComposer
 
   ColumnFilters<String> get remoteId => $composableBuilder(
     column: $table.remoteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get visibility => $composableBuilder(
+    column: $table.visibility,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3197,6 +3377,21 @@ class $$ActivitiesTableOrderingComposer
     column: $table.remoteId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get visibility => $composableBuilder(
+    column: $table.visibility,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -3273,6 +3468,19 @@ class $$ActivitiesTableAnnotationComposer
 
   GeneratedColumn<String> get remoteId =>
       $composableBuilder(column: $table.remoteId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get visibility => $composableBuilder(
+    column: $table.visibility,
+    builder: (column) => column,
+  );
 
   Expression<T> waypointsRefs<T extends Object>(
     Expression<T> Function($$WaypointsTableAnnotationComposer a) f,
@@ -3368,6 +3576,9 @@ class $$ActivitiesTableTableManager
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<String?> ownerUserId = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> visibility = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion(
                 guid: guid,
@@ -3385,6 +3596,9 @@ class $$ActivitiesTableTableManager
                 autoPauseEnabled: autoPauseEnabled,
                 ownerUserId: ownerUserId,
                 remoteId: remoteId,
+                title: title,
+                description: description,
+                visibility: visibility,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3404,6 +3618,9 @@ class $$ActivitiesTableTableManager
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<String?> ownerUserId = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
+                Value<String?> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> visibility = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion.insert(
                 guid: guid,
@@ -3421,6 +3638,9 @@ class $$ActivitiesTableTableManager
                 autoPauseEnabled: autoPauseEnabled,
                 ownerUserId: ownerUserId,
                 remoteId: remoteId,
+                title: title,
+                description: description,
+                visibility: visibility,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

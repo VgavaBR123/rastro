@@ -21,6 +21,7 @@ import '../ui/record_setup_screen.dart';
 import '../ui/recording_screen.dart';
 import '../ui/settings_screen.dart';
 import '../ui/stats_screen.dart';
+import '../ui/theme/app_theme.dart';
 import 'providers.dart';
 
 /// Destinos do app. Caminhos so sao escritos aqui.
@@ -60,6 +61,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
   return GoRouter(
     navigatorKey: root,
     initialLocation: initialLocation,
+    observers: [_ClearSnackBarsObserver()],
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => AppShell(shell: shell),
@@ -135,25 +137,68 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = shell.currentIndex;
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(child: shell),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: AppNavBar(
-              currentIndex: index == kRecordBranch ? null : index,
-              recordActive: index == kRecordBranch,
-              onTabSelected: (i) => shell.goBranch(i, initialLocation: i == index),
-              onRecord: () => shell.goBranch(kRecordBranch),
-            ),
+    final theme = Theme.of(context);
+    // Com o teclado aberto a navegacao some (senao sobe junto e cobre o campo).
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    void go(int i) {
+      // Aviso de uma aba nao segue para a outra.
+      ScaffoldMessenger.maybeOf(context)?.clearSnackBars();
+      shell.goBranch(i, initialLocation: i == index);
+    }
+
+    // O ScaffoldMessenger mostra o aviso no Scaffold mais externo (este), entao
+    // a margem acima da navegacao precisa estar no tema acima dele.
+    return Theme(
+      data: theme.copyWith(
+        snackBarTheme: theme.snackBarTheme.copyWith(
+          insetPadding: EdgeInsets.fromLTRB(
+            AppShape.gutter,
+            5,
+            AppShape.gutter,
+            keyboardOpen ? 10 : AppNavBar.reservedHeight(context),
           ),
-        ],
+        ),
+      ),
+      child: Scaffold(
+        // As telas das abas tratam o teclado no proprio Scaffold.
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            Positioned.fill(child: shell),
+            if (!keyboardOpen)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: AppNavBar(
+                  currentIndex: index == kRecordBranch ? null : index,
+                  recordActive: index == kRecordBranch,
+                  onTabSelected: go,
+                  onRecord: () => go(kRecordBranch),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Fecha os avisos ao abrir ou fechar uma tela por cima do shell: um aviso
+/// do Detalhe ("Em breve") nao deve aparecer na tela de conta, por exemplo.
+class _ClearSnackBarsObserver extends NavigatorObserver {
+  void _clear(Route<dynamic>? route) {
+    // Dialogos e folhas nao contam: o aviso pode ser sobre eles.
+    if (route is! PageRoute) return;
+    final ctx = navigator?.context;
+    if (ctx != null) ScaffoldMessenger.maybeOf(ctx)?.clearSnackBars();
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _clear(route);
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _clear(route);
 }
 
 /// Grafo do app. Um por ProviderScope (testes criam o deles).
