@@ -9,7 +9,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'app/providers.dart' show kSyncBaseUrl;
 import 'sync/background/background_sync_provider.dart';
 import 'sync/background/background_sync_scheduler.dart';
-import 'ui/home_screen.dart';
+import 'app/router.dart';
 
 /// DSN do Sentry (relatorio 07: observabilidade com Sentry, open source).
 /// Vazio = desligado: o SDK nem e inicializado e nada sai do aparelho.
@@ -57,18 +57,18 @@ Future<void> _start() async {
   );
 }
 
-class StravaEstudoApp extends StatelessWidget {
+class StravaEstudoApp extends ConsumerWidget {
   const StravaEstudoApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp.router(
+      routerConfig: ref.watch(appRouterProvider),
       title: 'Atividades',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
     );
   }
 }

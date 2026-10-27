@@ -129,7 +129,8 @@ final recordingControllerProvider =
 /// Configuracoes do app (unidades, auto-pause), persistidas no banco.
 final settingsProvider = StateNotifierProvider<SettingsController, AppSettings>(
   (ref) {
-    return SettingsController(ref.watch(recordingDatabaseProvider))..load();
+    return SettingsController(ref.watch(recordingDatabaseProvider))
+    ..ensureLoaded();
   },
 );
 

@@ -9,10 +9,10 @@ import '../core/format/activity_labels.dart';
 import '../core/format/measures.dart';
 import '../persistence/database.dart';
 import '../recording/domain/recording_models.dart';
-import 'activity_detail_screen.dart';
 import '../sync/sync_controller.dart' show kSignInToSyncMessage;
 import '../sync/background/background_sync_provider.dart';
-import 'auth_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../app/router.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -34,9 +34,7 @@ class HistoryScreen extends ConsumerWidget {
             action: msg == kSignInToSyncMessage
                 ? SnackBarAction(
                     label: 'Entrar',
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const AuthScreen()),
-                    ),
+                    onPressed: () => context.push(AppRoutes.auth),
                   )
                 : null,
           ));
@@ -168,9 +166,7 @@ class _ActivityTile extends ConsumerWidget {
         ],
       ),
       onTap: () {
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => ActivityDetailScreen(activity: activity),
-        ));
+        context.push(AppRoutes.activity(activity.guid), extra: activity);
       },
     );
   }

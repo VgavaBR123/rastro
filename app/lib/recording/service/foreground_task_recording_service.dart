@@ -125,7 +125,14 @@ class ForegroundTaskRecordingService implements RecordingService {
         // junto; reiniciar so o servico deixaria uma notificacao orfa. A
         // retomada e a recuperacao pos-crash da Home.
         allowAutoRestart: false,
-        stopWithTask: true,
+        // ATENCAO: false de proposito. No flutter_foreground_task 11.0.3 esta
+        // opcao instala um TrackVisibilityUtils que para o servico assim que
+        // todas as Activities ficam em PAUSE, ou seja, ao ir para segundo
+        // plano (botao HOME, tela desligada) -- exatamente quando o servico e
+        // necessario. Achado no emulador: a notificacao sumia no HOME e o GPS
+        // parava. Encerrar ao tirar o app dos recentes ja e garantido pelo
+        // `android:stopWithTask="true"` do AndroidManifest (onTaskRemoved).
+        stopWithTask: false,
       ),
     );
   }

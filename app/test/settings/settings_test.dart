@@ -35,4 +35,16 @@ void main() {
     await c2.load();
     expect(c2.state.useMetric, false);
   });
+
+  test('ensureLoaded espera o banco e nao relê a cada chamada', () async {
+    await db.saveSettings(autoPauseEnabled: false);
+    final c = SettingsController(db);
+    // Antes de carregar, o estado e o padrao (auto-pause ligado).
+    expect(c.state.autoPauseEnabled, true);
+    final a = c.ensureLoaded();
+    final b = c.ensureLoaded();
+    expect(identical(a, b), isTrue);
+    await a;
+    expect(c.state.autoPauseEnabled, false);
+  });
 }

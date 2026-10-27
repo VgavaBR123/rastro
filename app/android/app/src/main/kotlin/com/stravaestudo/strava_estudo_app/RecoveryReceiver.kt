@@ -45,7 +45,8 @@ class RecoveryReceiver : BroadcastReceiver() {
 
     companion object {
         const val CHANNEL_ID = "recovery"
-        private const val NOTIFICATION_ID = 4201
+        // Diferente do id da notificacao da gravacao (kRecordingServiceId = 4201).
+        private const val NOTIFICATION_ID = 4202
 
         // Mesmo arquivo do Dart: getApplicationSupportDirectory() no Android
         // (path_provider_android) devolve context.filesDir.

@@ -38,7 +38,12 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   void initState() {
     super.initState();
     // Inicia (ou retoma) a gravacao assim que a tela abre.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Com o app recem-aberto as configuracoes podem nao ter vindo do banco
+      // ainda; sem esperar, a gravacao usaria os padroes (auto-pausa ligada,
+      // sem peso para as calorias).
+      await ref.read(settingsProvider.notifier).ensureLoaded();
+      if (!mounted) return;
       final ctrl = ref.read(recordingControllerProvider.notifier);
       final resumeFrom = widget.resumeFrom;
       if (resumeFrom != null) {

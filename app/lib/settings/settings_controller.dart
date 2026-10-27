@@ -13,6 +13,14 @@ class SettingsController extends StateNotifier<AppSettings> {
 
   SettingsController(this._db) : super(const AppSettings());
 
+  Future<void>? _loaded;
+
+  /// Garante que as configuracoes ja vieram do banco. Ate isso, o estado e o
+  /// PADRAO (auto-pausa ligada, sem peso): quem decide algo com elas na
+  /// abertura do app (ex.: iniciar uma gravacao) precisa esperar isto.
+  /// Carrega uma vez so; chamadas seguintes devolvem o mesmo Future.
+  Future<void> ensureLoaded() => _loaded ??= load();
+
   Future<void> load() async {
     final row = await _db.loadSettings();
     state = AppSettings(

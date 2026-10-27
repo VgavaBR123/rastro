@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
-import 'password_reset_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../app/router.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -40,10 +41,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _forgot() async {
-    final done = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => PasswordResetScreen(initialEmail: _email.text),
-      ),
+    final done = await context.push<bool>(
+      AppRoutes.passwordReset(email: _email.text.trim()),
     );
     if (!mounted) return;
     if (done == true) {

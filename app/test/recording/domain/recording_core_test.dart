@@ -94,6 +94,45 @@ void main() {
       expect(p.cumulativeDistanceMeters, 0.0);
     });
 
+    test('ancora errada nao trava a gravacao: re-ancora apos 3 teleportes', () {
+      // Regressao: visto no emulador. O 1o ponto aceito era um fix velho a
+      // ~555 m; todo fix real seguinte ficava a ~555 m dele em ~1 s e era
+      // rejeitado como teleporte PARA SEMPRE (a ancora nunca mudava), e a
+      // corrida inteira gravava 1 ponto so.
+      final p = PointPipeline();
+      p.process(sample(-19.9200, -43.9300, t: 0),
+          manuallyPaused: false, elapsedTimeMs: 0, timerTimeMs: 0);
+      final cls = <WaypointClassification>[];
+      for (var i = 1; i <= 6; i++) {
+        cls.add(p
+            .process(sample(-19.9250, -43.9300 + i * 0.00009, t: i * 1000),
+                manuallyPaused: false, elapsedTimeMs: i * 1000, timerTimeMs: i * 1000)
+            .classification);
+      }
+      expect(cls.take(2), everyElement(WaypointClassification.ignoreImplausibleSpeed));
+      // O 3o teleporte seguido vira a nova ancora (aceito, sem somar o salto)...
+      expect(cls[2], WaypointClassification.accept);
+      // ...e dali em diante a corrida segue normal.
+      expect(cls.skip(3), everyElement(WaypointClassification.accept));
+      // So os 3 trechos depois da re-ancoragem (~9,4 m cada) somam distancia.
+      expect(p.cumulativeDistanceMeters, closeTo(3 * 9.42, 0.5));
+    });
+
+    test('teleporte isolado continua rejeitado (nao re-ancora)', () {
+      final p = PointPipeline();
+      p.process(sample(0, 0, t: 0), manuallyPaused: false, elapsedTimeMs: 0, timerTimeMs: 0);
+      p.process(sample(0, 0.0001, t: 1000),
+          manuallyPaused: false, elapsedTimeMs: 1000, timerTimeMs: 1000);
+      // Um salto de ~1 km e volta ao trajeto.
+      final w = p.process(sample(0.009, 0.0001, t: 2000),
+          manuallyPaused: false, elapsedTimeMs: 2000, timerTimeMs: 2000);
+      expect(w.classification, WaypointClassification.ignoreImplausibleSpeed);
+      final back = p.process(sample(0, 0.0002, t: 3000),
+          manuallyPaused: false, elapsedTimeMs: 3000, timerTimeMs: 3000);
+      expect(back.classification, WaypointClassification.accept);
+      expect(p.cumulativeDistanceMeters, closeTo(2 * 11.13, 0.5));
+    });
+
     test('velocidade plausivel de pedal passa pelo portao', () {
       final p = PointPipeline();
       p.process(sample(0, 0, t: 0),

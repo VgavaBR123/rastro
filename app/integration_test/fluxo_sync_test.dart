@@ -34,7 +34,8 @@ import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/location_sample.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/source/location_source.dart';
-import 'package:strava_estudo_app/ui/home_screen.dart';
+import 'package:strava_estudo_app/app/router.dart';
+import 'package:strava_estudo_app/recording/service/recording_service.dart';
 
 /// Rota sintetica: pontos a ~10 m de distancia, 1 por segundo, emitidos sob
 /// demanda pelo teste (nada de timer: o teste controla o ritmo).
@@ -99,8 +100,11 @@ void main() {
           recordingDatabaseProvider.overrideWithValue(db),
           // Sessao so em memoria: o teste nao deixa conta logada no aparelho.
           sessionStoreProvider.overrideWithValue(InMemorySessionStore()),
+          // Este teste cobre o sync; a notificacao com acoes e verificada a
+          // parte (pediria permissao num dialogo do sistema e travaria aqui).
+          recordingServiceProvider.overrideWithValue(const NoopRecordingService()),
         ],
-        child: const MaterialApp(home: HomeScreen()),
+        child: MaterialApp.router(routerConfig: buildAppRouter()),
       ),
     );
     await tester.pumpAndSettle();

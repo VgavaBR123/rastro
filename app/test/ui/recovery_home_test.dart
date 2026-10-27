@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
+import 'package:strava_estudo_app/app/router.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/persistence/recording_repository.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
@@ -14,7 +15,6 @@ import 'package:strava_estudo_app/recording/domain/location_sample.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/domain/waypoint.dart' as dom;
 import 'package:strava_estudo_app/recording/source/location_source.dart';
-import 'package:strava_estudo_app/ui/home_screen.dart';
 import 'package:strava_estudo_app/ui/recording_screen.dart';
 
 class _FakeSource implements LocationSource {
@@ -47,12 +47,15 @@ Future<RecordingDatabase> dbWithInterrupted(Duration ago) async {
 }
 
 Future<void> pumpHome(WidgetTester tester, RecordingDatabase db) async {
+  final router = buildAppRouter();
+  addTearDown(router.dispose);
   await tester.pumpWidget(ProviderScope(
     overrides: [
       recordingDatabaseProvider.overrideWithValue(db),
       locationSourceProvider.overrideWithValue(_FakeSource()),
     ],
-    child: const MaterialApp(home: HomeScreen()),
+    // Grafo de navegacao real (go_router): as telas navegam por AppRoutes.
+    child: MaterialApp.router(routerConfig: router),
   ));
   await tester.pumpAndSettle();
 }

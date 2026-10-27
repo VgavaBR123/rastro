@@ -8,12 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../recording/domain/recording_models.dart';
 import '../sync/background/background_sync_provider.dart';
-import 'auth_screen.dart';
-import 'history_screen.dart';
-import 'profile_screen.dart';
-import 'recording_screen.dart';
 import 'recovery_dialog.dart';
-import 'settings_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../app/router.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -49,12 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
       switch (choice) {
         case RecoveryChoice.resume:
-          await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => RecordingScreen(
-              activityType: it.activity.activityType,
-              resumeFrom: it,
-            ),
-          ));
+          await context.push(AppRoutes.record(it.activity.activityType), extra: it);
           return;
         case RecoveryChoice.save:
           await repo.finishInterrupted(it);
@@ -85,10 +77,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(signedIn ? Icons.account_circle : Icons.login),
             tooltip: signedIn ? 'Perfil' : 'Entrar',
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) =>
-                    signedIn ? const ProfileScreen() : const AuthScreen(),
-              ));
+              context.push(signedIn ? AppRoutes.profile : AppRoutes.auth);
             },
           ),
           IconButton(
@@ -96,9 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: const Icon(Icons.history),
             tooltip: 'Historico',
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const HistoryScreen(),
-              ));
+              context.push(AppRoutes.history);
             },
           ),
           IconButton(
@@ -106,9 +93,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: const Icon(Icons.settings),
             tooltip: 'Configuracoes',
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const SettingsScreen(),
-              ));
+              context.push(AppRoutes.settings);
             },
           ),
         ],
@@ -145,9 +130,7 @@ class _ActivityButton extends StatelessWidget {
           icon: Icon(icon),
           label: Text(label),
           onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => RecordingScreen(activityType: type),
-            ));
+            context.push(AppRoutes.record(type));
           },
         ),
       ),

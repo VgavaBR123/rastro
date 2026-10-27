@@ -70,6 +70,37 @@ void main() {
     expect(find.byKey(const Key('stop')), findsOneWidget);
   });
 
+  testWidgets(
+      'app recem-aberto: a gravacao espera as configuracoes (auto-pausa off)',
+      (tester) async {
+    // Regressao vista no emulador: tocar em Correr logo apos abrir o app
+    // gravava com os PADROES (auto-pausa ligada, sem peso), porque as
+    // configuracoes ainda nao tinham carregado do banco.
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await db.saveSettings(autoPauseEnabled: false);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          locationSourceProvider.overrideWithValue(_FakeSource()),
+          recordingDatabaseProvider.overrideWithValue(db),
+          recordingServiceProvider.overrideWithValue(const NoopRecordingService()),
+        ],
+        child: const MaterialApp(
+          home: RecordingScreen(activityType: ActivityType.run),
+        ),
+      ),
+    );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+
+    final rows = await db.select(db.activities).get();
+    expect(rows, hasLength(1));
+    expect(rows.single.autoPauseEnabled, isFalse);
+  });
+
   Future<FakeLocationSource> pumpScreen(
     WidgetTester tester, {
     required bool metric,

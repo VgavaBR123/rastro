@@ -53,7 +53,16 @@ object MslAltitudeChannel {
     }
 
     private fun handleToMsl(context: Context, call: MethodCall, result: MethodChannel.Result) {
-        val lat = (call.argument<Any>("latitude") as? Number)?.toDouble()
+        // Android 14+ (API 34): a propria plataforma preenche a altitude MSL do
+        // fix (Location#getMslAltitudeMeters) e o geolocator ja a entrega no
+        // lugar da elipsoidal. Converter de novo somaria o geoide duas vezes
+        // (achado no emulador API 37: 850 m viravam 861,8 em vez de 855,9).
+        // null = "use a altitude que veio", que ja e MSL.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            result.success(null)
+            return
+        }
+        val lat =(call.argument<Any>("latitude") as? Number)?.toDouble()
         val lon = (call.argument<Any>("longitude") as? Number)?.toDouble()
         val alt = (call.argument<Any>("ellipsoidAltitudeMeters") as? Number)?.toDouble()
         if (lat == null || lon == null || alt == null ||

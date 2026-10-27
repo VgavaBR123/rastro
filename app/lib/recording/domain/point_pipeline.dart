@@ -35,6 +35,13 @@ const double kMaxAccelerationMps2 = 11.0;
 /// aceleracao nao alcanca (ele precisa de dois pontos anteriores).
 const double kMaxPlausibleSpeedMps = 50.0;
 
+/// Teleportes SEGUIDOS a partir dos quais o problema e a ancora, nao o ponto
+/// novo: o ultimo ponto aceito estava errado (fix velho, de antena) e todo fix
+/// real cairia longe dele para sempre. Na N-esima rejeicao seguida o ponto novo
+/// vira a ancora, sem somar o salto. Um teleporte isolado (1-2 pontos fora e
+/// volta ao trajeto) continua rejeitado.
+const int kTeleportReanchorCount = 3;
+
 class _AcceptedPoint {
   final GeoPoint position;
   final int monotonicMs;
@@ -49,6 +56,9 @@ class PointPipeline {
   _AcceptedPoint? _p1;
   _AcceptedPoint? _p2;
 
+  /// Rejeicoes seguidas pelo portao de teleporte (ver [kTeleportReanchorCount]).
+  int _teleportStreak = 0;
+
   double get cumulativeDistanceMeters => _cumulativeDistanceMeters;
 
   /// Processa uma amostra e devolve o Waypoint classificado.
@@ -61,9 +71,18 @@ class PointPipeline {
     required int elapsedTimeMs,
     required int timerTimeMs,
   }) {
-    final cls = _classify(sample, manuallyPaused);
+    var cls = _classify(sample, manuallyPaused);
 
+    if (cls == WaypointClassification.ignoreImplausibleSpeed) {
+      _teleportStreak++;
+      if (_teleportStreak >= kTeleportReanchorCount) {
+        // A ancora e que estava errada: recomeca dela sem somar o salto.
+        resetRecentBuffer();
+        cls = WaypointClassification.accept;
+      }
+    }
     if (cls == WaypointClassification.accept) {
+      _teleportStreak = 0;
       final last = _p1;
       if (last != null) {
         _cumulativeDistanceMeters += haversineMeters(last.position, sample.position);
@@ -148,5 +167,6 @@ class PointPipeline {
   void resetRecentBuffer() {
     _p1 = null;
     _p2 = null;
+    _teleportStreak = 0;
   }
 }

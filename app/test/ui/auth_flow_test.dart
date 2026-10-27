@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
+import 'package:strava_estudo_app/app/router.dart';
 import 'package:strava_estudo_app/auth/auth_api.dart';
 import 'package:strava_estudo_app/auth/session_store.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
-import 'package:strava_estudo_app/ui/home_screen.dart';
 
 import '../auth/auth_test.dart' show RouteAdapter, meJson, session, sessionJson;
 
@@ -20,6 +20,8 @@ Future<InMemorySessionStore> pumpApp(
   final db = RecordingDatabase(NativeDatabase.memory());
   addTearDown(db.close);
   final s = store ?? InMemorySessionStore();
+  final router = buildAppRouter();
+  addTearDown(router.dispose);
   await tester.pumpWidget(ProviderScope(
     overrides: [
       recordingDatabaseProvider.overrideWithValue(db),
@@ -27,7 +29,8 @@ Future<InMemorySessionStore> pumpApp(
       authApiProvider.overrideWithValue(
           AuthApi(Dio()..httpClientAdapter = adapter, 'http://srv')),
     ],
-    child: const MaterialApp(home: HomeScreen()),
+    // Grafo de navegacao real (go_router): as telas navegam por AppRoutes.
+    child: MaterialApp.router(routerConfig: router),
   ));
   await tester.pumpAndSettle();
   return s;
