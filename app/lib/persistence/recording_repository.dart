@@ -107,6 +107,7 @@ class RecordingRepository {
     int? endBattery,
     double? distanceMeters,
     int? timerTimeMs,
+    double? calories,
   }) {
     _seq.remove(guid);
     return db.markFinished(
@@ -115,8 +116,31 @@ class RecordingRepository {
       endBattery: endBattery,
       distanceMeters: distanceMeters,
       timerTimeMs: timerTimeMs,
+      calories: calories,
     );
   }
+
+  /// Guarda uma volta fechada.
+  Future<void> saveLap(
+    String guid, {
+    required int number,
+    required int startTimerMs,
+    required int endTimerMs,
+    required int endElapsedMs,
+    required double startDistanceMeters,
+    required double endDistanceMeters,
+  }) =>
+      db.insertLap(LapsCompanion.insert(
+        activityGuid: guid,
+        number: number,
+        startTimerMs: startTimerMs,
+        endTimerMs: endTimerMs,
+        endElapsedMs: endElapsedMs,
+        startDistanceMeters: startDistanceMeters,
+        endDistanceMeters: endDistanceMeters,
+      ));
+
+  Future<List<Lap>> laps(String guid) => db.lapsForActivity(guid);
 
   /// Cabecalhos nao finalizados -- candidatos a recuperacao na subida do app.
   Future<List<Activity>> unfinished() => db.unfinishedActivities();

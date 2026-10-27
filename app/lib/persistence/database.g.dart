@@ -1807,8 +1807,24 @@ class $SettingsRowsTable extends SettingsRows
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _weightKgMeta = const VerificationMeta(
+    'weightKg',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, useMetric, autoPauseEnabled];
+  late final GeneratedColumn<double> weightKg = GeneratedColumn<double>(
+    'weight_kg',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    useMetric,
+    autoPauseEnabled,
+    weightKg,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1839,6 +1855,12 @@ class $SettingsRowsTable extends SettingsRows
         ),
       );
     }
+    if (data.containsKey('weight_kg')) {
+      context.handle(
+        _weightKgMeta,
+        weightKg.isAcceptableOrUnknown(data['weight_kg']!, _weightKgMeta),
+      );
+    }
     return context;
   }
 
@@ -1860,6 +1882,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.bool,
         data['${effectivePrefix}auto_pause_enabled'],
       )!,
+      weightKg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}weight_kg'],
+      ),
     );
   }
 
@@ -1873,10 +1899,15 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   final int id;
   final bool useMetric;
   final bool autoPauseEnabled;
+
+  /// Peso do usuario em kg, para estimar calorias. Null = nao informado (sem
+  /// calorias).
+  final double? weightKg;
   const SettingsRow({
     required this.id,
     required this.useMetric,
     required this.autoPauseEnabled,
+    this.weightKg,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1884,6 +1915,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     map['id'] = Variable<int>(id);
     map['use_metric'] = Variable<bool>(useMetric);
     map['auto_pause_enabled'] = Variable<bool>(autoPauseEnabled);
+    if (!nullToAbsent || weightKg != null) {
+      map['weight_kg'] = Variable<double>(weightKg);
+    }
     return map;
   }
 
@@ -1892,6 +1926,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       id: Value(id),
       useMetric: Value(useMetric),
       autoPauseEnabled: Value(autoPauseEnabled),
+      weightKg: weightKg == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weightKg),
     );
   }
 
@@ -1904,6 +1941,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       id: serializer.fromJson<int>(json['id']),
       useMetric: serializer.fromJson<bool>(json['useMetric']),
       autoPauseEnabled: serializer.fromJson<bool>(json['autoPauseEnabled']),
+      weightKg: serializer.fromJson<double?>(json['weightKg']),
     );
   }
   @override
@@ -1913,15 +1951,21 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'id': serializer.toJson<int>(id),
       'useMetric': serializer.toJson<bool>(useMetric),
       'autoPauseEnabled': serializer.toJson<bool>(autoPauseEnabled),
+      'weightKg': serializer.toJson<double?>(weightKg),
     };
   }
 
-  SettingsRow copyWith({int? id, bool? useMetric, bool? autoPauseEnabled}) =>
-      SettingsRow(
-        id: id ?? this.id,
-        useMetric: useMetric ?? this.useMetric,
-        autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
-      );
+  SettingsRow copyWith({
+    int? id,
+    bool? useMetric,
+    bool? autoPauseEnabled,
+    Value<double?> weightKg = const Value.absent(),
+  }) => SettingsRow(
+    id: id ?? this.id,
+    useMetric: useMetric ?? this.useMetric,
+    autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
+    weightKg: weightKg.present ? weightKg.value : this.weightKg,
+  );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
       id: data.id.present ? data.id.value : this.id,
@@ -1929,6 +1973,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       autoPauseEnabled: data.autoPauseEnabled.present
           ? data.autoPauseEnabled.value
           : this.autoPauseEnabled,
+      weightKg: data.weightKg.present ? data.weightKg.value : this.weightKg,
     );
   }
 
@@ -1937,45 +1982,52 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     return (StringBuffer('SettingsRow(')
           ..write('id: $id, ')
           ..write('useMetric: $useMetric, ')
-          ..write('autoPauseEnabled: $autoPauseEnabled')
+          ..write('autoPauseEnabled: $autoPauseEnabled, ')
+          ..write('weightKg: $weightKg')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, useMetric, autoPauseEnabled);
+  int get hashCode => Object.hash(id, useMetric, autoPauseEnabled, weightKg);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is SettingsRow &&
           other.id == this.id &&
           other.useMetric == this.useMetric &&
-          other.autoPauseEnabled == this.autoPauseEnabled);
+          other.autoPauseEnabled == this.autoPauseEnabled &&
+          other.weightKg == this.weightKg);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<int> id;
   final Value<bool> useMetric;
   final Value<bool> autoPauseEnabled;
+  final Value<double?> weightKg;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
+    this.weightKg = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
+    this.weightKg = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
     Expression<bool>? useMetric,
     Expression<bool>? autoPauseEnabled,
+    Expression<double>? weightKg,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (useMetric != null) 'use_metric': useMetric,
       if (autoPauseEnabled != null) 'auto_pause_enabled': autoPauseEnabled,
+      if (weightKg != null) 'weight_kg': weightKg,
     });
   }
 
@@ -1983,11 +2035,13 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<int>? id,
     Value<bool>? useMetric,
     Value<bool>? autoPauseEnabled,
+    Value<double?>? weightKg,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
       useMetric: useMetric ?? this.useMetric,
       autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
+      weightKg: weightKg ?? this.weightKg,
     );
   }
 
@@ -2003,6 +2057,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (autoPauseEnabled.present) {
       map['auto_pause_enabled'] = Variable<bool>(autoPauseEnabled.value);
     }
+    if (weightKg.present) {
+      map['weight_kg'] = Variable<double>(weightKg.value);
+    }
     return map;
   }
 
@@ -2011,7 +2068,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     return (StringBuffer('SettingsRowsCompanion(')
           ..write('id: $id, ')
           ..write('useMetric: $useMetric, ')
-          ..write('autoPauseEnabled: $autoPauseEnabled')
+          ..write('autoPauseEnabled: $autoPauseEnabled, ')
+          ..write('weightKg: $weightKg')
           ..write(')'))
         .toString();
   }
@@ -2297,6 +2355,511 @@ class RemoteDeletionsCompanion extends UpdateCompanion<RemoteDeletion> {
   }
 }
 
+class $LapsTable extends Laps with TableInfo<$LapsTable, Lap> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LapsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _activityGuidMeta = const VerificationMeta(
+    'activityGuid',
+  );
+  @override
+  late final GeneratedColumn<String> activityGuid = GeneratedColumn<String>(
+    'activity_guid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES activities (guid) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _numberMeta = const VerificationMeta('number');
+  @override
+  late final GeneratedColumn<int> number = GeneratedColumn<int>(
+    'number',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startTimerMsMeta = const VerificationMeta(
+    'startTimerMs',
+  );
+  @override
+  late final GeneratedColumn<int> startTimerMs = GeneratedColumn<int>(
+    'start_timer_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endTimerMsMeta = const VerificationMeta(
+    'endTimerMs',
+  );
+  @override
+  late final GeneratedColumn<int> endTimerMs = GeneratedColumn<int>(
+    'end_timer_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endElapsedMsMeta = const VerificationMeta(
+    'endElapsedMs',
+  );
+  @override
+  late final GeneratedColumn<int> endElapsedMs = GeneratedColumn<int>(
+    'end_elapsed_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startDistanceMetersMeta =
+      const VerificationMeta('startDistanceMeters');
+  @override
+  late final GeneratedColumn<double> startDistanceMeters =
+      GeneratedColumn<double>(
+        'start_distance_meters',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _endDistanceMetersMeta = const VerificationMeta(
+    'endDistanceMeters',
+  );
+  @override
+  late final GeneratedColumn<double> endDistanceMeters =
+      GeneratedColumn<double>(
+        'end_distance_meters',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: true,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    activityGuid,
+    number,
+    startTimerMs,
+    endTimerMs,
+    endElapsedMs,
+    startDistanceMeters,
+    endDistanceMeters,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'laps';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Lap> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('activity_guid')) {
+      context.handle(
+        _activityGuidMeta,
+        activityGuid.isAcceptableOrUnknown(
+          data['activity_guid']!,
+          _activityGuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_activityGuidMeta);
+    }
+    if (data.containsKey('number')) {
+      context.handle(
+        _numberMeta,
+        number.isAcceptableOrUnknown(data['number']!, _numberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_numberMeta);
+    }
+    if (data.containsKey('start_timer_ms')) {
+      context.handle(
+        _startTimerMsMeta,
+        startTimerMs.isAcceptableOrUnknown(
+          data['start_timer_ms']!,
+          _startTimerMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_startTimerMsMeta);
+    }
+    if (data.containsKey('end_timer_ms')) {
+      context.handle(
+        _endTimerMsMeta,
+        endTimerMs.isAcceptableOrUnknown(
+          data['end_timer_ms']!,
+          _endTimerMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_endTimerMsMeta);
+    }
+    if (data.containsKey('end_elapsed_ms')) {
+      context.handle(
+        _endElapsedMsMeta,
+        endElapsedMs.isAcceptableOrUnknown(
+          data['end_elapsed_ms']!,
+          _endElapsedMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_endElapsedMsMeta);
+    }
+    if (data.containsKey('start_distance_meters')) {
+      context.handle(
+        _startDistanceMetersMeta,
+        startDistanceMeters.isAcceptableOrUnknown(
+          data['start_distance_meters']!,
+          _startDistanceMetersMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_startDistanceMetersMeta);
+    }
+    if (data.containsKey('end_distance_meters')) {
+      context.handle(
+        _endDistanceMetersMeta,
+        endDistanceMeters.isAcceptableOrUnknown(
+          data['end_distance_meters']!,
+          _endDistanceMetersMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_endDistanceMetersMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {activityGuid, number};
+  @override
+  Lap map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Lap(
+      activityGuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity_guid'],
+      )!,
+      number: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}number'],
+      )!,
+      startTimerMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_timer_ms'],
+      )!,
+      endTimerMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_timer_ms'],
+      )!,
+      endElapsedMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_elapsed_ms'],
+      )!,
+      startDistanceMeters: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}start_distance_meters'],
+      )!,
+      endDistanceMeters: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}end_distance_meters'],
+      )!,
+    );
+  }
+
+  @override
+  $LapsTable createAlias(String alias) {
+    return $LapsTable(attachedDatabase, alias);
+  }
+}
+
+class Lap extends DataClass implements Insertable<Lap> {
+  final String activityGuid;
+  final int number;
+  final int startTimerMs;
+  final int endTimerMs;
+  final int endElapsedMs;
+  final double startDistanceMeters;
+  final double endDistanceMeters;
+  const Lap({
+    required this.activityGuid,
+    required this.number,
+    required this.startTimerMs,
+    required this.endTimerMs,
+    required this.endElapsedMs,
+    required this.startDistanceMeters,
+    required this.endDistanceMeters,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['activity_guid'] = Variable<String>(activityGuid);
+    map['number'] = Variable<int>(number);
+    map['start_timer_ms'] = Variable<int>(startTimerMs);
+    map['end_timer_ms'] = Variable<int>(endTimerMs);
+    map['end_elapsed_ms'] = Variable<int>(endElapsedMs);
+    map['start_distance_meters'] = Variable<double>(startDistanceMeters);
+    map['end_distance_meters'] = Variable<double>(endDistanceMeters);
+    return map;
+  }
+
+  LapsCompanion toCompanion(bool nullToAbsent) {
+    return LapsCompanion(
+      activityGuid: Value(activityGuid),
+      number: Value(number),
+      startTimerMs: Value(startTimerMs),
+      endTimerMs: Value(endTimerMs),
+      endElapsedMs: Value(endElapsedMs),
+      startDistanceMeters: Value(startDistanceMeters),
+      endDistanceMeters: Value(endDistanceMeters),
+    );
+  }
+
+  factory Lap.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Lap(
+      activityGuid: serializer.fromJson<String>(json['activityGuid']),
+      number: serializer.fromJson<int>(json['number']),
+      startTimerMs: serializer.fromJson<int>(json['startTimerMs']),
+      endTimerMs: serializer.fromJson<int>(json['endTimerMs']),
+      endElapsedMs: serializer.fromJson<int>(json['endElapsedMs']),
+      startDistanceMeters: serializer.fromJson<double>(
+        json['startDistanceMeters'],
+      ),
+      endDistanceMeters: serializer.fromJson<double>(json['endDistanceMeters']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'activityGuid': serializer.toJson<String>(activityGuid),
+      'number': serializer.toJson<int>(number),
+      'startTimerMs': serializer.toJson<int>(startTimerMs),
+      'endTimerMs': serializer.toJson<int>(endTimerMs),
+      'endElapsedMs': serializer.toJson<int>(endElapsedMs),
+      'startDistanceMeters': serializer.toJson<double>(startDistanceMeters),
+      'endDistanceMeters': serializer.toJson<double>(endDistanceMeters),
+    };
+  }
+
+  Lap copyWith({
+    String? activityGuid,
+    int? number,
+    int? startTimerMs,
+    int? endTimerMs,
+    int? endElapsedMs,
+    double? startDistanceMeters,
+    double? endDistanceMeters,
+  }) => Lap(
+    activityGuid: activityGuid ?? this.activityGuid,
+    number: number ?? this.number,
+    startTimerMs: startTimerMs ?? this.startTimerMs,
+    endTimerMs: endTimerMs ?? this.endTimerMs,
+    endElapsedMs: endElapsedMs ?? this.endElapsedMs,
+    startDistanceMeters: startDistanceMeters ?? this.startDistanceMeters,
+    endDistanceMeters: endDistanceMeters ?? this.endDistanceMeters,
+  );
+  Lap copyWithCompanion(LapsCompanion data) {
+    return Lap(
+      activityGuid: data.activityGuid.present
+          ? data.activityGuid.value
+          : this.activityGuid,
+      number: data.number.present ? data.number.value : this.number,
+      startTimerMs: data.startTimerMs.present
+          ? data.startTimerMs.value
+          : this.startTimerMs,
+      endTimerMs: data.endTimerMs.present
+          ? data.endTimerMs.value
+          : this.endTimerMs,
+      endElapsedMs: data.endElapsedMs.present
+          ? data.endElapsedMs.value
+          : this.endElapsedMs,
+      startDistanceMeters: data.startDistanceMeters.present
+          ? data.startDistanceMeters.value
+          : this.startDistanceMeters,
+      endDistanceMeters: data.endDistanceMeters.present
+          ? data.endDistanceMeters.value
+          : this.endDistanceMeters,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Lap(')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('number: $number, ')
+          ..write('startTimerMs: $startTimerMs, ')
+          ..write('endTimerMs: $endTimerMs, ')
+          ..write('endElapsedMs: $endElapsedMs, ')
+          ..write('startDistanceMeters: $startDistanceMeters, ')
+          ..write('endDistanceMeters: $endDistanceMeters')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    activityGuid,
+    number,
+    startTimerMs,
+    endTimerMs,
+    endElapsedMs,
+    startDistanceMeters,
+    endDistanceMeters,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Lap &&
+          other.activityGuid == this.activityGuid &&
+          other.number == this.number &&
+          other.startTimerMs == this.startTimerMs &&
+          other.endTimerMs == this.endTimerMs &&
+          other.endElapsedMs == this.endElapsedMs &&
+          other.startDistanceMeters == this.startDistanceMeters &&
+          other.endDistanceMeters == this.endDistanceMeters);
+}
+
+class LapsCompanion extends UpdateCompanion<Lap> {
+  final Value<String> activityGuid;
+  final Value<int> number;
+  final Value<int> startTimerMs;
+  final Value<int> endTimerMs;
+  final Value<int> endElapsedMs;
+  final Value<double> startDistanceMeters;
+  final Value<double> endDistanceMeters;
+  final Value<int> rowid;
+  const LapsCompanion({
+    this.activityGuid = const Value.absent(),
+    this.number = const Value.absent(),
+    this.startTimerMs = const Value.absent(),
+    this.endTimerMs = const Value.absent(),
+    this.endElapsedMs = const Value.absent(),
+    this.startDistanceMeters = const Value.absent(),
+    this.endDistanceMeters = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LapsCompanion.insert({
+    required String activityGuid,
+    required int number,
+    required int startTimerMs,
+    required int endTimerMs,
+    required int endElapsedMs,
+    required double startDistanceMeters,
+    required double endDistanceMeters,
+    this.rowid = const Value.absent(),
+  }) : activityGuid = Value(activityGuid),
+       number = Value(number),
+       startTimerMs = Value(startTimerMs),
+       endTimerMs = Value(endTimerMs),
+       endElapsedMs = Value(endElapsedMs),
+       startDistanceMeters = Value(startDistanceMeters),
+       endDistanceMeters = Value(endDistanceMeters);
+  static Insertable<Lap> custom({
+    Expression<String>? activityGuid,
+    Expression<int>? number,
+    Expression<int>? startTimerMs,
+    Expression<int>? endTimerMs,
+    Expression<int>? endElapsedMs,
+    Expression<double>? startDistanceMeters,
+    Expression<double>? endDistanceMeters,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (activityGuid != null) 'activity_guid': activityGuid,
+      if (number != null) 'number': number,
+      if (startTimerMs != null) 'start_timer_ms': startTimerMs,
+      if (endTimerMs != null) 'end_timer_ms': endTimerMs,
+      if (endElapsedMs != null) 'end_elapsed_ms': endElapsedMs,
+      if (startDistanceMeters != null)
+        'start_distance_meters': startDistanceMeters,
+      if (endDistanceMeters != null) 'end_distance_meters': endDistanceMeters,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LapsCompanion copyWith({
+    Value<String>? activityGuid,
+    Value<int>? number,
+    Value<int>? startTimerMs,
+    Value<int>? endTimerMs,
+    Value<int>? endElapsedMs,
+    Value<double>? startDistanceMeters,
+    Value<double>? endDistanceMeters,
+    Value<int>? rowid,
+  }) {
+    return LapsCompanion(
+      activityGuid: activityGuid ?? this.activityGuid,
+      number: number ?? this.number,
+      startTimerMs: startTimerMs ?? this.startTimerMs,
+      endTimerMs: endTimerMs ?? this.endTimerMs,
+      endElapsedMs: endElapsedMs ?? this.endElapsedMs,
+      startDistanceMeters: startDistanceMeters ?? this.startDistanceMeters,
+      endDistanceMeters: endDistanceMeters ?? this.endDistanceMeters,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (activityGuid.present) {
+      map['activity_guid'] = Variable<String>(activityGuid.value);
+    }
+    if (number.present) {
+      map['number'] = Variable<int>(number.value);
+    }
+    if (startTimerMs.present) {
+      map['start_timer_ms'] = Variable<int>(startTimerMs.value);
+    }
+    if (endTimerMs.present) {
+      map['end_timer_ms'] = Variable<int>(endTimerMs.value);
+    }
+    if (endElapsedMs.present) {
+      map['end_elapsed_ms'] = Variable<int>(endElapsedMs.value);
+    }
+    if (startDistanceMeters.present) {
+      map['start_distance_meters'] = Variable<double>(
+        startDistanceMeters.value,
+      );
+    }
+    if (endDistanceMeters.present) {
+      map['end_distance_meters'] = Variable<double>(endDistanceMeters.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LapsCompanion(')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('number: $number, ')
+          ..write('startTimerMs: $startTimerMs, ')
+          ..write('endTimerMs: $endTimerMs, ')
+          ..write('endElapsedMs: $endElapsedMs, ')
+          ..write('startDistanceMeters: $startDistanceMeters, ')
+          ..write('endDistanceMeters: $endDistanceMeters, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RecordingDatabase extends GeneratedDatabase {
   _$RecordingDatabase(QueryExecutor e) : super(e);
   $RecordingDatabaseManager get managers => $RecordingDatabaseManager(this);
@@ -2306,6 +2869,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
   late final $RemoteDeletionsTable remoteDeletions = $RemoteDeletionsTable(
     this,
   );
+  late final $LapsTable laps = $LapsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2315,6 +2879,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     waypoints,
     settingsRows,
     remoteDeletions,
+    laps,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2324,6 +2889,13 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('waypoints', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'activities',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('laps', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -2381,6 +2953,24 @@ final class $$ActivitiesTableReferences
     );
 
     final cache = $_typedResult.readTableOrNull(_waypointsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LapsTable, List<Lap>> _lapsRefsTable(
+    _$RecordingDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.laps,
+    aliasName: 'activities__guid__laps__activity_guid',
+  );
+
+  $$LapsTableProcessedTableManager get lapsRefs {
+    final manager = $$LapsTableTableManager($_db, $_db.laps).filter(
+      (f) => f.activityGuid.guid.sqlEquals($_itemColumn<String>('guid')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_lapsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2489,6 +3079,31 @@ class $$ActivitiesTableFilterComposer
           }) => $$WaypointsTableFilterComposer(
             $db: $db,
             $table: $db.waypoints,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> lapsRefs(
+    Expression<bool> Function($$LapsTableFilterComposer f) f,
+  ) {
+    final $$LapsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.guid,
+      referencedTable: $db.laps,
+      getReferencedColumn: (t) => t.activityGuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LapsTableFilterComposer(
+            $db: $db,
+            $table: $db.laps,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -2683,6 +3298,31 @@ class $$ActivitiesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> lapsRefs<T extends Object>(
+    Expression<T> Function($$LapsTableAnnotationComposer a) f,
+  ) {
+    final $$LapsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.guid,
+      referencedTable: $db.laps,
+      getReferencedColumn: (t) => t.activityGuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LapsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.laps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ActivitiesTableTableManager
@@ -2698,7 +3338,7 @@ class $$ActivitiesTableTableManager
           $$ActivitiesTableUpdateCompanionBuilder,
           (Activity, $$ActivitiesTableReferences),
           Activity,
-          PrefetchHooks Function({bool waypointsRefs})
+          PrefetchHooks Function({bool waypointsRefs, bool lapsRefs})
         > {
   $$ActivitiesTableTableManager(_$RecordingDatabase db, $ActivitiesTable table)
     : super(
@@ -2791,10 +3431,13 @@ class $$ActivitiesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({waypointsRefs = false}) {
+          prefetchHooksCallback: ({waypointsRefs = false, lapsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (waypointsRefs) db.waypoints],
+              explicitlyWatchedTables: [
+                if (waypointsRefs) db.waypoints,
+                if (lapsRefs) db.laps,
+              ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
@@ -2814,6 +3457,22 @@ class $$ActivitiesTableTableManager
                             table,
                             p0,
                           ).waypointsRefs,
+                      currentColumn: 'guid',
+                      referencedColumn: 'activity_guid',
+                      typedResults: items,
+                    ),
+                  if (lapsRefs)
+                    await $_getPrefetchedDataByColumns<
+                      Activity,
+                      $ActivitiesTable,
+                      Lap,
+                      $LapsTable
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ActivitiesTableReferences
+                          ._lapsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ActivitiesTableReferences(db, table, p0).lapsRefs,
                       currentColumn: 'guid',
                       referencedColumn: 'activity_guid',
                       typedResults: items,
@@ -2838,7 +3497,7 @@ typedef $$ActivitiesTableProcessedTableManager =
       $$ActivitiesTableUpdateCompanionBuilder,
       (Activity, $$ActivitiesTableReferences),
       Activity,
-      PrefetchHooks Function({bool waypointsRefs})
+      PrefetchHooks Function({bool waypointsRefs, bool lapsRefs})
     >;
 typedef $$WaypointsTableCreateCompanionBuilder = WaypointsCompanion Function({
   Value<int> id,
@@ -3320,12 +3979,14 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<int> id,
       Value<bool> useMetric,
       Value<bool> autoPauseEnabled,
+      Value<double?> weightKg,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
       Value<int> id,
       Value<bool> useMetric,
       Value<bool> autoPauseEnabled,
+      Value<double?> weightKg,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -3349,6 +4010,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<bool> get autoPauseEnabled => $composableBuilder(
     column: $table.autoPauseEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weightKg => $composableBuilder(
+    column: $table.weightKg,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3376,6 +4042,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.autoPauseEnabled,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get weightKg => $composableBuilder(
+    column: $table.weightKg,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -3397,6 +4068,9 @@ class $$SettingsRowsTableAnnotationComposer
     column: $table.autoPauseEnabled,
     builder: (column) => column,
   );
+
+  GeneratedColumn<double> get weightKg =>
+      $composableBuilder(column: $table.weightKg, builder: (column) => column);
 }
 
 class $$SettingsRowsTableTableManager
@@ -3439,20 +4113,24 @@ class $$SettingsRowsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<bool> useMetric = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
+                Value<double?> weightKg = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 useMetric: useMetric,
                 autoPauseEnabled: autoPauseEnabled,
+                weightKg: weightKg,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<bool> useMetric = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
+                Value<double?> weightKg = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 useMetric: useMetric,
                 autoPauseEnabled: autoPauseEnabled,
+                weightKg: weightKg,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -3673,6 +4351,367 @@ typedef $$RemoteDeletionsTableProcessedTableManager =
       RemoteDeletion,
       PrefetchHooks Function()
     >;
+typedef $$LapsTableCreateCompanionBuilder = LapsCompanion Function({
+  required String activityGuid,
+  required int number,
+  required int startTimerMs,
+  required int endTimerMs,
+  required int endElapsedMs,
+  required double startDistanceMeters,
+  required double endDistanceMeters,
+  Value<int> rowid,
+});
+typedef $$LapsTableUpdateCompanionBuilder = LapsCompanion Function({
+  Value<String> activityGuid,
+  Value<int> number,
+  Value<int> startTimerMs,
+  Value<int> endTimerMs,
+  Value<int> endElapsedMs,
+  Value<double> startDistanceMeters,
+  Value<double> endDistanceMeters,
+  Value<int> rowid,
+});
+
+final class $$LapsTableReferences
+    extends BaseReferences<_$RecordingDatabase, $LapsTable, Lap> {
+  $$LapsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ActivitiesTable _activityGuidTable(_$RecordingDatabase db) =>
+      db.activities.createAlias('laps__activity_guid__activities__guid');
+
+  $$ActivitiesTableProcessedTableManager get activityGuid {
+    final $_column = $_itemColumn<String>('activity_guid')!;
+
+    final manager = $$ActivitiesTableTableManager(
+      $_db,
+      $_db.activities,
+    ).filter((f) => f.guid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_activityGuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LapsTableFilterComposer
+    extends Composer<_$RecordingDatabase, $LapsTable> {
+  $$LapsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startTimerMs => $composableBuilder(
+    column: $table.startTimerMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endTimerMs => $composableBuilder(
+    column: $table.endTimerMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endElapsedMs => $composableBuilder(
+    column: $table.endElapsedMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get startDistanceMeters => $composableBuilder(
+    column: $table.startDistanceMeters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get endDistanceMeters => $composableBuilder(
+    column: $table.endDistanceMeters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ActivitiesTableFilterComposer get activityGuid {
+    final $$ActivitiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityGuid,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.guid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableFilterComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LapsTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $LapsTable> {
+  $$LapsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startTimerMs => $composableBuilder(
+    column: $table.startTimerMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endTimerMs => $composableBuilder(
+    column: $table.endTimerMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endElapsedMs => $composableBuilder(
+    column: $table.endElapsedMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get startDistanceMeters => $composableBuilder(
+    column: $table.startDistanceMeters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get endDistanceMeters => $composableBuilder(
+    column: $table.endDistanceMeters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ActivitiesTableOrderingComposer get activityGuid {
+    final $$ActivitiesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityGuid,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.guid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableOrderingComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LapsTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $LapsTable> {
+  $$LapsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get number =>
+      $composableBuilder(column: $table.number, builder: (column) => column);
+
+  GeneratedColumn<int> get startTimerMs => $composableBuilder(
+    column: $table.startTimerMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get endTimerMs => $composableBuilder(
+    column: $table.endTimerMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get endElapsedMs => $composableBuilder(
+    column: $table.endElapsedMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get startDistanceMeters => $composableBuilder(
+    column: $table.startDistanceMeters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get endDistanceMeters => $composableBuilder(
+    column: $table.endDistanceMeters,
+    builder: (column) => column,
+  );
+
+  $$ActivitiesTableAnnotationComposer get activityGuid {
+    final $$ActivitiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityGuid,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.guid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LapsTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $LapsTable,
+          Lap,
+          $$LapsTableFilterComposer,
+          $$LapsTableOrderingComposer,
+          $$LapsTableAnnotationComposer,
+          $$LapsTableCreateCompanionBuilder,
+          $$LapsTableUpdateCompanionBuilder,
+          (Lap, $$LapsTableReferences),
+          Lap,
+          PrefetchHooks Function({bool activityGuid})
+        > {
+  $$LapsTableTableManager(_$RecordingDatabase db, $LapsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LapsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LapsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LapsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> activityGuid = const Value.absent(),
+                Value<int> number = const Value.absent(),
+                Value<int> startTimerMs = const Value.absent(),
+                Value<int> endTimerMs = const Value.absent(),
+                Value<int> endElapsedMs = const Value.absent(),
+                Value<double> startDistanceMeters = const Value.absent(),
+                Value<double> endDistanceMeters = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LapsCompanion(
+                activityGuid: activityGuid,
+                number: number,
+                startTimerMs: startTimerMs,
+                endTimerMs: endTimerMs,
+                endElapsedMs: endElapsedMs,
+                startDistanceMeters: startDistanceMeters,
+                endDistanceMeters: endDistanceMeters,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String activityGuid,
+                required int number,
+                required int startTimerMs,
+                required int endTimerMs,
+                required int endElapsedMs,
+                required double startDistanceMeters,
+                required double endDistanceMeters,
+                Value<int> rowid = const Value.absent(),
+              }) => LapsCompanion.insert(
+                activityGuid: activityGuid,
+                number: number,
+                startTimerMs: startTimerMs,
+                endTimerMs: endTimerMs,
+                endElapsedMs: endElapsedMs,
+                startDistanceMeters: startDistanceMeters,
+                endDistanceMeters: endDistanceMeters,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LapsTable, Lap>(table),
+                  $$LapsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({activityGuid = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (activityGuid) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.activityGuid,
+                        referencedTable: $$LapsTableReferences
+                            ._activityGuidTable(db),
+                        referencedColumn: $$LapsTableReferences
+                            ._activityGuidTable(db)
+                            .guid,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LapsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $LapsTable,
+      Lap,
+      $$LapsTableFilterComposer,
+      $$LapsTableOrderingComposer,
+      $$LapsTableAnnotationComposer,
+      $$LapsTableCreateCompanionBuilder,
+      $$LapsTableUpdateCompanionBuilder,
+      (Lap, $$LapsTableReferences),
+      Lap,
+      PrefetchHooks Function({bool activityGuid})
+    >;
 
 class $RecordingDatabaseManager {
   final _$RecordingDatabase _db;
@@ -3685,4 +4724,5 @@ class $RecordingDatabaseManager {
       $$SettingsRowsTableTableManager(_db, _db.settingsRows);
   $$RemoteDeletionsTableTableManager get remoteDeletions =>
       $$RemoteDeletionsTableTableManager(_db, _db.remoteDeletions);
+  $$LapsTableTableManager get laps => $$LapsTableTableManager(_db, _db.laps);
 }

@@ -74,22 +74,43 @@ class Waypoints extends Table {
   IntColumn get classification => integer()(); // index de WaypointClassification
 }
 
+/// Voltas (laps) marcadas pelo usuario durante a gravacao (relatorio 03: acao
+/// "lap" no servico). Cada linha e uma volta fechada, em ordem de [number].
+class Laps extends Table {
+  TextColumn get activityGuid =>
+      text().references(Activities, #guid, onDelete: KeyAction.cascade)();
+  IntColumn get number => integer()(); // 1-based
+  IntColumn get startTimerMs => integer()();
+  IntColumn get endTimerMs => integer()();
+  IntColumn get endElapsedMs => integer()();
+  RealColumn get startDistanceMeters => real()();
+  RealColumn get endDistanceMeters => real()();
+
+  @override
+  Set<Column> get primaryKey => {activityGuid, number};
+}
+
 /// Preferencias do app (linha unica, id=0).
 class SettingsRows extends Table {
   IntColumn get id => integer().withDefault(const Constant(0))();
   BoolColumn get useMetric => boolean().withDefault(const Constant(true))();
   BoolColumn get autoPauseEnabled => boolean().withDefault(const Constant(true))();
 
+  /// Peso do usuario em kg, para estimar calorias. Null = nao informado (sem
+  /// calorias).
+  RealColumn get weightKg => real().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Activities, Waypoints, SettingsRows, RemoteDeletions])
+@DriftDatabase(
+    tables: [Activities, Waypoints, SettingsRows, RemoteDeletions, Laps])
 class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -100,6 +121,10 @@ class RecordingDatabase extends _$RecordingDatabase {
           if (from < 4) {
             await m.addColumn(activities, activities.remoteId);
             await m.createTable(remoteDeletions);
+          }
+          if (from < 5) {
+            await m.createTable(laps);
+            await m.addColumn(settingsRows, settingsRows.weightKg);
           }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
@@ -123,7 +148,12 @@ class RecordingDatabase extends _$RecordingDatabase {
     return (select(settingsRows)..where((t) => t.id.equals(0))).getSingle();
   }
 
-  Future<void> saveSettings({bool? useMetric, bool? autoPauseEnabled}) async {
+  /// [weightKg] usa Value: `Value(null)` apaga o peso; ausente nao mexe.
+  Future<void> saveSettings({
+    bool? useMetric,
+    bool? autoPauseEnabled,
+    Value<double?> weightKg = const Value.absent(),
+  }) async {
     await loadSettings(); // garante a linha
     await (update(settingsRows)..where((t) => t.id.equals(0))).write(
       SettingsRowsCompanion(
@@ -131,9 +161,19 @@ class RecordingDatabase extends _$RecordingDatabase {
         autoPauseEnabled: autoPauseEnabled == null
             ? const Value.absent()
             : Value(autoPauseEnabled),
+        weightKg: weightKg,
       ),
     );
   }
+
+  // --- Voltas ---
+
+  Future<void> insertLap(LapsCompanion lap) => into(laps).insertOnConflictUpdate(lap);
+
+  Future<List<Lap>> lapsForActivity(String guid) => (select(laps)
+        ..where((t) => t.activityGuid.equals(guid))
+        ..orderBy([(t) => OrderingTerm(expression: t.number)]))
+      .get();
 
   // --- Atividade (cabecalho) ---
 
@@ -216,6 +256,7 @@ class RecordingDatabase extends _$RecordingDatabase {
     int? endBattery,
     double? distanceMeters,
     int? timerTimeMs,
+    double? calories,
   }) {
     return (update(activities)..where((t) => t.guid.equals(guid))).write(
       ActivitiesCompanion(
@@ -226,6 +267,7 @@ class RecordingDatabase extends _$RecordingDatabase {
         distanceMeters:
             distanceMeters == null ? const Value.absent() : Value(distanceMeters),
         timerTimeMs: timerTimeMs == null ? const Value.absent() : Value(timerTimeMs),
+        calories: calories == null ? const Value.absent() : Value(calories),
       ),
     );
   }
