@@ -1,24 +1,89 @@
-# Sobe o PostGIS com o esquema inicial. Para o MVP rodamos a API no host
-# (dart run bin/server.dart) apontando para este banco.
+# Desenvolvimento local: `docker compose up -d` sobe SO o banco (PostGIS na
+# 5433 do host) e a API roda no host com `dart run bin/server.dart`.
+#
+# Producao (VPS): ver docs/IMPLANTACAO.md.
+#   docker compose --profile app --profile https up -d
+#   - profile "app":   + API em container (build local deste diretorio)
+#   - profile "https": + Caddy na frente (TLS automatico Let's Encrypt)
+#   (o profile "https" sozinho tambem sobe a API, que e dependencia dele)
+#
+# Variaveis vem do arquivo .env deste diretorio (modelo em .env.example).
+# Todas tem padrao igual ao uso local de hoje, entao sem .env nada muda.
 services:
   db:
     image: postgis/postgis:16-3.4
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: atividades
+      POSTGRES_USER: ${DB_USER:-postgres}
+      # Usada so na criacao do volume; trocar depois exige ALTER USER.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-atividades}
     ports:
       # 5433 no host: a 5432 costuma estar ocupada por outro projeto local.
       # A API no host conecta com DB_PORT=5433.
-      - "5433:5432"
+      # Producao: DB_PUBLISH=127.0.0.1:5433 (so a propria VPS enxerga) ou o
+      # override deploy/docker-compose.prod.yml, que remove a porta.
+      - "${DB_PUBLISH:-5433}:5432"
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d atividades"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-atividades}"]
       interval: 3s
       timeout: 3s
       retries: 20
 
+  api:
+    profiles: ["app", "https"]
+    build: .
+    image: rastro-api:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      USE_INMEMORY: "0"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-atividades}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      MAILER: ${MAILER:-console}
+      # 1 atras do Caddy (profile https): os limites por IP usam o IP real.
+      TRUST_PROXY: ${TRUST_PROXY:-0}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_SSL: ${SMTP_SSL:-}
+    ports:
+      # 8081 no host (a 8080 e de outro projeto local). Producao atras do
+      # Caddy: API_PUBLISH=127.0.0.1:8081 para nao expor HTTP sem TLS.
+      - "${API_PUBLISH:-8081}:8080"
+    # O HEALTHCHECK (GET /health) vem do Dockerfile.
+
+  caddy:
+    profiles: ["https"]
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificados e chaves do ACME: perder isto obriga a reemitir.
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

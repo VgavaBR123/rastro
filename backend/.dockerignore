@@ -1,0 +1,21 @@
+# Contexto do docker build: so o necessario para compilar bin/server.dart.
+.dart_tool/
+.packages
+build/
+test/
+docs/
+db/
+*.md
+.env
+.env.*
+Dockerfile
+.dockerignore
+docker-compose*.yml
+deploy/*
+!deploy/healthcheck.dart
+.git/
+.gitignore
+.idea/
+.vscode/
+*.log
+*.fit

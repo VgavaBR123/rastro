@@ -5,21 +5,59 @@ extrai a rota para uma geometria PostGIS. Nada aqui fala com o Strava.
 
 ## Contrato
 
-JSON em tudo (exceto o corpo do upload). Rotas marcadas com **(B)** exigem
-`Authorization: Bearer <token>` e respondem 401 `{"error"}` sem token, com token
-desconhecido, revogado ou expirado.
+**A fonte de verdade e [`docs/CONTRATO.md`](docs/CONTRATO.md)**: rotas, status, formatos
+do `user`, do `activity` e do `stats`. App e backend sao escritos contra ele. A tabela
+abaixo e so um indice; em caso de divergencia vale o CONTRATO.
 
-### Contas
-
-`user` = `{"id": string, "email": string, "displayName": string, "createdAt": epoch ms}`.
-
-| Rota | Descricao |
+| Rota | Resumo |
 | --- | --- |
-| `POST /auth/register` | body `{"email","password","displayName"}` -> 201 `{"token","user"}`. Email normalizado (trim + lowercase). 400 `{"error"}` se email invalido (precisa de `@` e ponto no dominio), senha com menos de 8 caracteres ou `displayName` vazio apos trim. 409 se o email ja existe (qualquer caixa). |
-| `POST /auth/login` | body `{"email","password"}` -> 200 `{"token","user"}`. 401 com a **mesma mensagem** para email inexistente e senha errada. Cada login abre uma sessao nova (o app pode estar logado em mais de um aparelho). |
-| `POST /auth/logout` (B) | 204; revoga so o token usado. |
-| `GET /me` (B) | 200 `{"user", "stats": {"activityCount": int, "totalDistanceMeters": double}}`. Stats sobre os uploads do proprio usuario; distancia = soma do `lengthMeters` das rotas (0 sem rota). |
-| `PATCH /me` (B) | body `{"displayName"}` -> 200 `{"user"}`; 400 se vazio. |
+| `GET /health` | 200 `{"status":"ok","db":"ok"}`; 503 `{"status":"degraded","db":"erro"}` |
+| `POST /auth/register` | 201 `{token,user}`; 400; 409; 429 |
+| `POST /auth/login` | 200 `{token,user}`; 401; 429 |
+| `POST /auth/logout` (B) | 204, revoga o token usado |
+| `POST /auth/logout-all` (B) | 204, revoga todas as sessoes do usuario |
+| `POST /auth/password/change` (B) | 204, revoga as outras sessoes; 403 senha atual errada; 400 |
+| `POST /auth/password/forgot` | 202 sempre; codigo de 6 digitos pelo Mailer; 429 |
+| `POST /auth/password/reset` | 200 `{token,user}`; 400 `codigo invalido ou expirado` |
+| `GET /me` (B) | 200 `{user,stats}` (stats com `totalTimerTimeMs` e `byType`) |
+| `PATCH /me` (B) | 200 `{user}`; 400 |
+| `DELETE /me` (B) | body `{password}`; 204 apaga tudo do usuario; 403 |
+| `POST /uploads` (B) | FIT no corpo; headers `x-activity-guid`, `x-activity-type`, `x-start-time`, `x-timer-time-ms`, `x-distance-meters`; 201 novo, 200 reenvio |
+| `GET /activities?limit&before` (B) | 200 `{activities,nextCursor}` (keyset, cursor opaco) |
+| `GET /activities/<id>`, `GET /uploads/<id>` (B) | 200 activity; 404 |
+| `PATCH /activities/<id>` (B) | `{name}` ate 120 caracteres; 200 activity; 400; 404 |
+| `DELETE /activities/<id>` (B) | 204; 404 |
+| `GET /activities/<id>/route`, `GET /uploads/<id>/route` (B) | 200 Feature; 204 sem rota; 404 |
+| `GET /activities/<id>/fit` (B) | 200 bytes originais (`application/vnd.ant.fit`); 404 |
+
+(B) = exige `Authorization: Bearer <token>`; sem token, com token desconhecido, revogado ou
+expirado responde 401. 401 so significa sessao invalida: senha atual errada e 403.
+
+Detalhes de implementacao que o CONTRATO deixa em aberto:
+
+- Metadados invalidos no upload (tipo fora de `run|ride|walk`, numero negativo ou que
+  nao parseia) sao ignorados. O tipo aceita caixa diferente (`RUN` vira `run`).
+  `startTime`/`elapsedTimeMs` derivados do FIT usam os records com posicao valida
+  (os que o decodificador devolve). O reenvio do mesmo guid devolve o registro existente
+  e ignora os metadados novos.
+- Listagem: ordem `COALESCE(startTime, receivedAt) DESC, id DESC` (id comparado byte a
+  byte). O cursor e o par (chave, id) do ultimo item em base64url; cursor que a API nao
+  emitiu = 400. `limit` fora de 1..100 = 400.
+- `PATCH /activities/<id>`: o nome e trimado; o limite de 120 conta caracteres Unicode
+  (code points). Corpo sem o campo `name`, ou `name` que nao e texto nem null = 400.
+- `/fit`: o `filename` usa o guid (ou o id) com tudo fora de `[A-Za-z0-9._-]` trocado
+  por `_`, para nao quebrar o header.
+- `forgot` com corpo que nao e JSON = 400 (qualquer JSON valido = 202). O envio do email
+  e disparado sem esperar (a demora do SMTP revelaria que o email existe); falha de envio
+  vai para o log, sem o codigo.
+- `reset`: senha nova curta responde 400 antes de olhar o codigo (nao gasta tentativa).
+  A tentativa e consumida ANTES de conferir o codigo (UPDATE atomico), entao tentativas
+  simultaneas nao passam de 5. Sucesso troca a senha, revoga todas as sessoes e zera o
+  limite de falhas de login daquele email.
+- `change` e `DELETE /me`: alem do 403, 5 senhas erradas por usuario em 15 min geram
+  429 + `Retry-After` (as duas rotas somam), para um token roubado nao servir de
+  oraculo de senha.
+- `stats.totalTimerTimeMs` soma so o `timerTimeMs` informado (sem fallback).
 
 Seguranca:
 
@@ -31,6 +69,10 @@ Seguranca:
 - Token: 32 bytes de `Random.secure()` em base64url sem padding. A tabela `sessions` guarda
   so o sha256 (hex) do token; validade de 180 dias.
 - Senha e token nunca vao para o log (`logRequests` registra so metodo, caminho e status).
+- Codigo de recuperacao: 6 digitos de `Random.secure()`, valido 15 min, 5 tentativas.
+  A tabela `password_resets` guarda so o hash (PBKDF2 com salt, 1000 iteracoes, mesmo
+  formato das senhas); pedido novo substitui o anterior. Conferencia em tempo constante.
+  O codigo so aparece em log com `MAILER=console`.
 
 Limite de tentativas (`lib/src/auth/rate_limiter.dart`, janela deslizante):
 
@@ -39,11 +81,14 @@ Limite de tentativas (`lib/src/auth/rate_limiter.dart`, janela deslizante):
 | `POST /auth/login` | 5 falhas por email (normalizado: trim + lowercase) em 15 min. Email inexistente conta igual a senha errada. Login bem-sucedido zera o contador daquele email. |
 | `POST /auth/login` | 20 falhas por IP em 15 min (qualquer email; o sucesso nao zera este). |
 | `POST /auth/register` | 10 tentativas por IP por hora, com sucesso ou nao (400 e 409 contam). |
+| `POST /auth/password/forgot` | 3 pedidos por email e 10 por IP por hora (email existente ou nao). |
+| `POST /auth/password/change`, `DELETE /me` | 5 senhas erradas por usuario em 15 min. |
 
 Bloqueado, a rota responde **429** `{"error": "muitas tentativas"}` com o header
 **`Retry-After`** = segundos inteiros (arredondados para cima, >= 1) ate a tentativa mais
 antiga sair da janela. No login o 429 sai antes de olhar a senha: nem a senha correta
-passa e nao roda PBKDF2. Tentativa bloqueada nao conta. As demais rotas nao tem limite.
+passa e nao roda PBKDF2. Tentativa bloqueada nao conta. As demais rotas nao tem limite
+(o `reset` e limitado pelas 5 tentativas do codigo).
 
 O IP vem da conexao TCP (`shelf.io.connection_info`); `X-Forwarded-For` e ignorado por
 padrao porque o cliente pode inventa-lo. Atras de um proxy reverso confiavel, passe
@@ -59,25 +104,10 @@ ou Redis). Chaves antigas sao podadas na escrita, no maximo uma varredura por ja
 ### Atividades
 
 Todas exigem Bearer e so enxergam os uploads do proprio usuario: upload de outro usuario
-responde **404, igual a inexistente** (nao revela que o id existe).
+responde **404, igual a inexistente** (nao revela que o id existe). Formato do objeto
+`activity` no CONTRATO; todos os campos sempre presentes (podem vir `null`).
 
-| Rota | Descricao |
-| --- | --- |
-| `GET /health` | publico. `{"status":"ok"}` |
-| `POST /uploads` (B) | corpo = arquivo FIT em `application/octet-stream`, header opcional `x-activity-guid`. Responde 201 com `{id, uploadId, status, receivedAt, sizeBytes, activityGuid}`. **Idempotente por (usuario, `x-activity-guid`)**: reenvio da mesma atividade pelo mesmo usuario nao grava de novo e responde 200 com o upload existente; o mesmo guid vindo de outro usuario gera outro upload (indice unico parcial `uq_uploads_user_activity_guid`, criado tambem ao conectar). Sem guid nao ha deduplicacao. Corpo vazio = 400. |
-| `GET /uploads/<id>` (B) | metadados de um upload (404 se nao existe ou e de outro usuario) |
-| `GET /uploads/<id>/route` (B) | rota como Feature GeoJSON. 200 com a rota, **204 sem corpo** se o upload existe mas nao tem rota, 404 se o id nao existe (ou e de outro usuario) |
-| `GET /activities` (B) | ultimos uploads do usuario |
-
-`GET /uploads/<id>` e `GET /activities` devolvem, alem de `id`, `uploadId`, `status`,
-`receivedAt`, `sizeBytes` e `activityGuid`, dois campos de metrica que estao **sempre
-presentes** (podem vir `null`, para o cliente nao precisar distinguir "campo ausente" de
-"sem rota"):
-
-- `pointCount`: pontos com posicao valida lidos do FIT; `null` quando a decodificacao falhou.
-- `lengthMeters`: comprimento da rota em metros; `null` quando nao ha rota.
-
-`GET /uploads/<id>/route` responde:
+`GET /activities/<id>/route` (e o alias `/uploads/<id>/route`) responde:
 
 ```json
 {
@@ -117,7 +147,20 @@ PORT=8081 DB_PORT=5433 dart run bin/server.dart
 
 Sem Docker, da para rodar so com store em memoria: `USE_INMEMORY=1 dart run bin/server.dart`.
 
-Variaveis: `PORT`, `USE_INMEMORY`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`.
+Variaveis:
+
+| Variavel | Uso |
+| --- | --- |
+| `PORT` | porta HTTP (padrao 8080; localmente use 8081) |
+| `USE_INMEMORY` | `1` = stores em memoria, sem banco |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | conexao com o Postgres |
+| `MAILER` | `console` (padrao: codigo de recuperacao no log, so para desenvolvimento) ou `smtp` |
+| `SMTP_HOST`, `SMTP_FROM` | obrigatorias com `MAILER=smtp` (o servidor nao sobe sem elas) |
+| `SMTP_PORT` | padrao 587 (ou 465 com `SMTP_SSL`) |
+| `SMTP_USER`, `SMTP_PASSWORD` | credenciais do servidor SMTP (opcionais) |
+| `SMTP_SSL` | `true`/`1` = TLS direto (465). Senao STARTTLS; o pacote `mailer` recusa enviar sem TLS |
+
+`MAILER` com outro valor derruba a subida com erro.
 
 ## Smoke test de ponta a ponta
 
@@ -155,7 +198,26 @@ Variaveis: `PORT`, `USE_INMEMORY`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `
      "SELECT id, user_id, point_count, ST_NumPoints(route) pts, ROUND(ST_Length(route::geography)) metros FROM uploads;"
    ```
 
-4. Isolamento e logout: com o token de uma segunda conta, `GET /uploads/<id da primeira>`
+4. Metadados, nome, download e recuperacao de senha:
+
+   ```sh
+   curl -X POST http://localhost:8081/uploads -H "authorization: Bearer $TOKEN" \
+     -H "x-activity-guid: guid-smoke-2" -H "x-activity-type: run" \
+     -H "x-timer-time-ms: 540000" -H "x-distance-meters: 812.5" --data-binary @/tmp/exemplo.fit
+   curl -H "authorization: Bearer $TOKEN" "http://localhost:8081/activities?limit=20"
+   curl -X PATCH http://localhost:8081/activities/<id> -H "authorization: Bearer $TOKEN" \
+     -H "content-type: application/json" -d '{"name":"Corrida"}'
+   curl -o baixado.fit -H "authorization: Bearer $TOKEN" http://localhost:8081/activities/<id>/fit
+   cmp /tmp/exemplo.fit baixado.fit   # identicos
+   curl -X POST http://localhost:8081/auth/password/forgot \
+     -H "content-type: application/json" -d '{"email":"eu@exemplo.com"}'   # 202
+   # com MAILER=console o codigo aparece no log do servidor:
+   # [mailer:console] codigo de recuperacao para eu@exemplo.com: 123456 (valido por 15 min)
+   curl -X POST http://localhost:8081/auth/password/reset -H "content-type: application/json" \
+     -d '{"email":"eu@exemplo.com","code":"123456","newPassword":"senha-nova-1"}'  # 200 {token,user}
+   ```
+
+5. Isolamento e logout: com o token de uma segunda conta, `GET /uploads/<id da primeira>`
    responde 404; `POST /auth/logout` com o primeiro token responde 204 e, depois dele,
    `GET /me` com o mesmo token responde 401.
 
@@ -169,6 +231,8 @@ docker exec backend-db-1 psql -U postgres -d atividades -c \
   "SELECT email, left(password_hash, 21) FROM users;"    # pbkdf2_sha256$120000
 docker exec backend-db-1 psql -U postgres -d atividades -c \
   "SELECT token_hash, user_id, expires_at FROM sessions;" # so o sha256 em hex (64 chars)
+docker exec backend-db-1 psql -U postgres -d atividades -c \
+  "SELECT user_id, left(code_hash, 19), attempts FROM password_resets;" # pbkdf2_sha256$1000
 ```
 
 ## Apontando o app para ca
@@ -187,6 +251,16 @@ de forma idempotente ao conectar (`_ensureSchema` em `postgres_store.dart`), ent
 antigo e migrado sem recriar: cria `users` e `sessions`, adiciona `uploads.user_id`
 (NULL = upload anterior as contas, invisivel pela API) e troca o indice unico
 `uq_uploads_activity_guid` por `uq_uploads_user_activity_guid (user_id, activity_guid)`.
+Depois vieram: FK `uploads.user_id` com `ON DELETE CASCADE` (a antiga e trocada so se
+ainda nao for cascata), colunas de metadados (`activity_type`, `name`, `start_time`,
+`elapsed_time_ms`, `timer_time_ms`, `distance_meters`), o indice de paginacao
+`idx_uploads_user_sort` e a tabela `password_resets` (FK em cascata para `users`).
+
+Correcao de dados: ate esta versao o INSERT passava o FIT sem tipo explicito e o driver
+gravava no `bytea` o TEXTO do array (`{14,32,...}`), nao os bytes. O INSERT agora usa
+`Type.byteArray`, e `_ensureSchema` converte de volta as linhas antigas nesse formato (um
+FIT de verdade nunca comeca com `{`). Rotas e `point_count` antigos nao foram afetados
+porque eram calculados em Dart antes do INSERT.
 Para comecar do zero: `docker compose down -v && docker compose up -d`.
 
 ## Riscos conhecidos
@@ -195,7 +269,13 @@ Para comecar do zero: `docker compose down -v && docker compose up -d`.
   instancias). Atras de NAT/proxy sem `confiarEmForwardedFor`, todos os clientes
   dividem o mesmo limite por IP. Bloqueio por email permite a um atacante travar o login
   de uma conta conhecida por ate 15 min (trade-off aceito contra forca bruta).
-- Sem verificacao de email nem troca/recuperacao de senha.
+- Sem verificacao de email no cadastro. A recuperacao de senha depende de um provedor
+  SMTP real em producao (`MAILER=smtp`); com `console` o codigo vai para o log.
+- Codigo de 6 digitos: com o banco vazado, o hash de um pedido ativo e quebravel por
+  forca bruta (1 milhao de candidatos); a protecao real e a validade curta (15 min) e o
+  limite de 5 tentativas.
+- Uploads antigos (antes dos metadados) ficam com `startTime`/`elapsedTimeMs` null e sao
+  ordenados por `receivedAt`; nao ha backfill a partir do FIT guardado.
 - Sessoes expiradas so sao apagadas quando alguem tenta usa-las (sem limpeza periodica).
 - Sem TLS no servidor: em producao precisa de um proxy HTTPS na frente, senao o token
   trafega em claro.

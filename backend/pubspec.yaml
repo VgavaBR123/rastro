@@ -9,6 +9,7 @@ dependencies:
   shelf_router: ^1.1.0
   postgres: ^3.4.0
   crypto: ^3.0.8
+  mailer: ^7.2.0
 
 dev_dependencies:
   test: ^1.25.0

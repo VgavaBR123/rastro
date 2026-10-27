@@ -1,0 +1,741 @@
+# Descricao OpenAPI da API do backend proprio.
+# Fonte de verdade: docs/CONTRATO.md. Se divergir, vale o CONTRATO e este
+# arquivo deve ser corrigido.
+openapi: 3.1.0
+info:
+  title: API de atividades (backend proprio)
+  version: 1.0.0
+  summary: Contas, upload de arquivos FIT e consulta de atividades.
+  description: |
+    Backend proprio do app de atividades (clean room; nunca fala com servidores
+    de terceiros).
+
+    Convencoes:
+    - JSON em tudo, exceto upload e download de FIT. Erro = `{"error": "<mensagem>"}`.
+    - Autenticacao: `Authorization: Bearer <token>` (token opaco, validade de 180 dias).
+    - 401 significa so "sessao invalida ou ausente" (o app desloga ao receber 401 de
+      rota protegida). Senha atual errada em rota protegida = 403, nunca 401.
+    - Tempos em epoch ms (inteiro). Distancias em metros (double).
+    - Recurso de outro usuario = 404 (igual a inexistente).
+    - Excesso de tentativas = 429 com header `Retry-After` (segundos).
+    - Em producao a API fica atras de um proxy HTTPS que recusa corpos acima de
+      25 MB com 413.
+servers:
+  - url: https://{dominio}
+    description: Producao (atras do Caddy)
+    variables:
+      dominio:
+        default: api.exemplo.com
+  - url: http://localhost:8081
+    description: Desenvolvimento local
+tags:
+  - name: saude
+  - name: conta
+  - name: atividades
+security:
+  - bearer: []
+
+paths:
+  /health:
+    get:
+      tags: [saude]
+      operationId: health
+      summary: Saude da API e do banco
+      security: []
+      responses:
+        '200':
+          description: API e banco respondendo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: ok, db: ok }
+        '503':
+          description: O banco nao responde.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { status: degraded, db: erro }
+
+  /auth/register:
+    post:
+      tags: [conta]
+      operationId: register
+      summary: Cria conta e ja devolve uma sessao
+      description: |
+        Email normalizado (trim + lowercase). 400 se o email for invalido
+        (precisa de `@` e ponto no dominio), senha com menos de 8 caracteres ou
+        `displayName` vazio apos trim. Limite: 10 tentativas por IP por hora,
+        com sucesso ou nao.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Conta criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: Email ja cadastrado (qualquer caixa).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/login:
+    post:
+      tags: [conta]
+      operationId: login
+      summary: Abre uma sessao nova
+      description: |
+        Cada login abre uma sessao nova (o app pode estar logado em mais de um
+        aparelho). Email inexistente e senha errada respondem 401 com a mesma
+        mensagem. Limites: 5 falhas por email e 20 falhas por IP em 15 minutos;
+        bloqueado, responde 429 antes de conferir a senha.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Sessao aberta.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Credenciais invalidas (mesma mensagem para email inexistente e senha errada).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/logout:
+    post:
+      tags: [conta]
+      operationId: logout
+      summary: Revoga so o token usado
+      responses:
+        '204': { description: Sessao revogada. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout-all:
+    post:
+      tags: [conta]
+      operationId: logoutAll
+      summary: Revoga todas as sessoes do usuario, inclusive a atual
+      responses:
+        '204': { description: Todas as sessoes revogadas. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/password/change:
+    post:
+      tags: [conta]
+      operationId: changePassword
+      summary: Troca a senha (sabendo a atual)
+      description: Revoga as OUTRAS sessoes; a sessao atual continua valida.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '204': { description: Senha trocada. }
+        '400':
+          description: Nova senha com menos de 8 caracteres ou corpo invalido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongPassword' }
+
+  /auth/password/forgot:
+    post:
+      tags: [conta]
+      operationId: forgotPassword
+      summary: Pede um codigo de recuperacao por e-mail
+      description: |
+        Responde 202 sempre (nao revela se o email existe). Se existe, gera um
+        codigo de 6 digitos valido por 15 minutos e envia pelo Mailer.
+        Limites: 3 pedidos por email por hora e 10 por IP por hora.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ForgotPasswordRequest' }
+      responses:
+        '202': { description: Pedido aceito (com ou sem conta para o email). }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/password/reset:
+    post:
+      tags: [conta]
+      operationId: resetPassword
+      summary: Define nova senha com o codigo recebido e ja entra
+      description: |
+        Revoga todas as sessoes anteriores e devolve uma sessao nova. Cada
+        codigo aceita no maximo 5 tentativas erradas; depois fica invalido.
+        Codigo errado, expirado ou esgotado responde 400 com a mensagem
+        generica `codigo invalido ou expirado`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResetPasswordRequest' }
+      responses:
+        '200':
+          description: Senha redefinida; sessao nova aberta.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        '400':
+          description: Codigo invalido ou expirado, ou nova senha com menos de 8 caracteres.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                codigo:
+                  value: { error: codigo invalido ou expirado }
+
+  /me:
+    get:
+      tags: [conta]
+      operationId: getMe
+      summary: Usuario logado e estatisticas
+      responses:
+        '200':
+          description: Perfil e estatisticas.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MeResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [conta]
+      operationId: updateMe
+      summary: Altera o nome de exibicao
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMeRequest' }
+      responses:
+        '200':
+          description: Usuario atualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: { $ref: '#/components/schemas/User' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [conta]
+      operationId: deleteMe
+      summary: Apaga a conta
+      description: Apaga usuario, sessoes, codigos de recuperacao e TODAS as atividades dele.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeleteMeRequest' }
+      responses:
+        '204': { description: Conta apagada. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/WrongPassword' }
+
+  /uploads:
+    post:
+      tags: [atividades]
+      operationId: uploadFit
+      summary: Envia o arquivo FIT de uma atividade
+      description: |
+        Idempotente por (usuario, `x-activity-guid`): reenvio da mesma atividade
+        pelo mesmo usuario nao grava de novo e responde 200 com o upload
+        existente. Sem guid nao ha deduplicacao. Os headers de metadados sao
+        opcionais; valor invalido ou negativo e ignorado (nao e erro).
+      parameters:
+        - $ref: '#/components/parameters/ActivityGuidHeader'
+        - $ref: '#/components/parameters/ActivityTypeHeader'
+        - $ref: '#/components/parameters/StartTimeHeader'
+        - $ref: '#/components/parameters/TimerTimeHeader'
+        - $ref: '#/components/parameters/DistanceHeader'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              contentMediaType: application/octet-stream
+              description: Bytes do arquivo FIT.
+      responses:
+        '201':
+          description: Upload novo gravado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Activity' }
+        '200':
+          description: Reenvio do mesmo guid pelo mesmo usuario; devolve o existente.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Activity' }
+        '400':
+          description: Corpo vazio.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413':
+          description: Corpo acima de 25 MB (recusado pelo proxy HTTPS, sem corpo JSON garantido).
+
+  /uploads/{id}:
+    get:
+      tags: [atividades]
+      operationId: getUpload
+      summary: Atividade por id (alias de GET /activities/{id})
+      parameters: [ { $ref: '#/components/parameters/ActivityId' } ]
+      responses:
+        '200':
+          description: Atividade.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Activity' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /uploads/{id}/route:
+    get:
+      tags: [atividades]
+      operationId: getUploadRoute
+      summary: Rota da atividade (alias de GET /activities/{id}/route)
+      parameters: [ { $ref: '#/components/parameters/ActivityId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/Route' }
+        '204': { $ref: '#/components/responses/NoRoute' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /activities:
+    get:
+      tags: [atividades]
+      operationId: listActivities
+      summary: Lista paginada das atividades do usuario
+      description: |
+        Mais recente primeiro por `startTime` (na falta, `receivedAt`), desempate
+        por id. Para a proxima pagina, repita a chamada com `before=nextCursor`.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Itens por pagina (1 a 100). Fora disso responde 400.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: before
+          in: query
+          required: false
+          description: Cursor opaco devolvido em `nextCursor` da pagina anterior.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Uma pagina de atividades.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivityPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /activities/{id}:
+    parameters: [ { $ref: '#/components/parameters/ActivityId' } ]
+    get:
+      tags: [atividades]
+      operationId: getActivity
+      summary: Atividade por id
+      responses:
+        '200':
+          description: Atividade.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Activity' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [atividades]
+      operationId: renameActivity
+      summary: Da nome a atividade (ou remove o nome)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateActivityRequest' }
+      responses:
+        '200':
+          description: Atividade atualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Activity' }
+        '400':
+          description: Nome com mais de 120 caracteres ou corpo invalido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [atividades]
+      operationId: deleteActivity
+      summary: Apaga a atividade
+      description: Depois de apagar, reenviar o mesmo guid cria a atividade de novo (201).
+      responses:
+        '204': { description: Atividade apagada. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /activities/{id}/route:
+    get:
+      tags: [atividades]
+      operationId: getActivityRoute
+      summary: Rota da atividade como Feature GeoJSON
+      parameters: [ { $ref: '#/components/parameters/ActivityId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/Route' }
+        '204': { $ref: '#/components/responses/NoRoute' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /activities/{id}/fit:
+    get:
+      tags: [atividades]
+      operationId: downloadActivityFit
+      summary: Baixa o arquivo FIT original
+      parameters: [ { $ref: '#/components/parameters/ActivityId' } ]
+      responses:
+        '200':
+          description: Bytes do FIT exatamente como foram enviados.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="<guid ou id>.fit"`'
+              schema: { type: string }
+          content:
+            application/vnd.ant.fit:
+              schema:
+                type: string
+                contentMediaType: application/vnd.ant.fit
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: Token opaco devolvido por register, login ou reset (180 dias).
+
+  parameters:
+    ActivityId:
+      name: id
+      in: path
+      required: true
+      description: Id da atividade (o mesmo que `uploadId`, prefixo `up_`).
+      schema: { type: string, examples: [up_abc123] }
+    ActivityGuidHeader:
+      name: x-activity-guid
+      in: header
+      required: false
+      description: Id da atividade gerado no app; chave de idempotencia por usuario.
+      schema: { type: string, examples: [act_abc123] }
+    ActivityTypeHeader:
+      name: x-activity-type
+      in: header
+      required: false
+      description: Tipo da atividade. Outro valor e ignorado.
+      schema: { type: string, enum: [run, ride, walk] }
+    StartTimeHeader:
+      name: x-start-time
+      in: header
+      required: false
+      description: Inicio da atividade em epoch ms.
+      schema: { type: integer, format: int64, minimum: 0 }
+    TimerTimeHeader:
+      name: x-timer-time-ms
+      in: header
+      required: false
+      description: Tempo em movimento em ms.
+      schema: { type: integer, format: int64, minimum: 0 }
+    DistanceHeader:
+      name: x-distance-meters
+      in: header
+      required: false
+      description: Distancia calculada no app, em metros.
+      schema: { type: number, format: double, minimum: 0 }
+
+  headers:
+    Retry-After:
+      description: Segundos inteiros (>= 1) ate poder tentar de novo.
+      required: true
+      schema: { type: integer, minimum: 1 }
+
+  responses:
+    BadRequest:
+      description: Corpo ou parametro invalido.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Sessao ausente, desconhecida, revogada ou expirada (o app desloga).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    WrongPassword:
+      description: Senha atual errada (rota protegida; nao e 401).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Nao existe ou pertence a outro usuario (mesma resposta).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    TooManyRequests:
+      description: Excesso de tentativas.
+      headers:
+        Retry-After: { $ref: '#/components/headers/Retry-After' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: muitas tentativas }
+    Route:
+      description: Rota como Feature GeoJSON (SRID 4326, coordenadas [longitude, latitude]).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/RouteFeature' }
+    NoRoute:
+      description: |
+        A atividade existe mas nao tem rota (FIT ilegivel ou com menos de 2
+        pontos validos). Sem corpo.
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+
+    Health:
+      type: object
+      required: [status, db]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        db: { type: string, enum: [ok, erro] }
+
+    User:
+      type: object
+      required: [id, email, displayName, createdAt]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        createdAt: { type: integer, format: int64, description: epoch ms }
+
+    TypeStats:
+      type: object
+      required: [count, distanceMeters]
+      properties:
+        count: { type: integer, minimum: 0 }
+        distanceMeters: { type: number, format: double }
+
+    Stats:
+      type: object
+      required: [activityCount, totalDistanceMeters, totalTimerTimeMs, byType]
+      properties:
+        activityCount: { type: integer, minimum: 0 }
+        totalDistanceMeters:
+          type: number
+          format: double
+          description: |
+            Soma de `distanceMeters` de cada atividade; na falta, o comprimento
+            da rota (0 sem rota).
+        totalTimerTimeMs: { type: integer, format: int64, minimum: 0 }
+        byType:
+          type: object
+          description: So tipos com atividade; atividades sem tipo nao entram.
+          properties:
+            run: { $ref: '#/components/schemas/TypeStats' }
+            ride: { $ref: '#/components/schemas/TypeStats' }
+            walk: { $ref: '#/components/schemas/TypeStats' }
+          additionalProperties: false
+
+    AuthResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string, description: Token opaco (base64url). }
+        user: { $ref: '#/components/schemas/User' }
+
+    MeResponse:
+      type: object
+      required: [user, stats]
+      properties:
+        user: { $ref: '#/components/schemas/User' }
+        stats: { $ref: '#/components/schemas/Stats' }
+
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8, format: password }
+        displayName: { type: string, minLength: 1 }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string, format: password }
+
+    ChangePasswordRequest:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, format: password }
+        newPassword: { type: string, minLength: 8, format: password }
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string }
+
+    ResetPasswordRequest:
+      type: object
+      required: [email, code, newPassword]
+      properties:
+        email: { type: string }
+        code: { type: string, pattern: '^[0-9]{6}$' }
+        newPassword: { type: string, minLength: 8, format: password }
+
+    UpdateMeRequest:
+      type: object
+      required: [displayName]
+      properties:
+        displayName: { type: string, minLength: 1 }
+
+    DeleteMeRequest:
+      type: object
+      required: [password]
+      properties:
+        password: { type: string, format: password }
+
+    UpdateActivityRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: [string, 'null']
+          maxLength: 120
+          description: Vazio ou null remove o nome.
+
+    Activity:
+      type: object
+      description: Campos sem valor vem null, mas estao sempre presentes.
+      required:
+        - id
+        - uploadId
+        - status
+        - receivedAt
+        - sizeBytes
+        - activityGuid
+        - activityType
+        - name
+        - startTime
+        - elapsedTimeMs
+        - timerTimeMs
+        - distanceMeters
+        - pointCount
+        - lengthMeters
+      properties:
+        id: { type: string, examples: [up_abc123] }
+        uploadId: { type: string, description: Igual a `id`. }
+        status: { type: string, examples: [received] }
+        receivedAt: { type: integer, format: int64, description: epoch ms }
+        sizeBytes: { type: integer, minimum: 0 }
+        activityGuid: { type: [string, 'null'] }
+        activityType:
+          type: [string, 'null']
+          enum: [run, ride, walk, null]
+        name: { type: [string, 'null'], maxLength: 120 }
+        startTime:
+          type: [integer, 'null']
+          format: int64
+          description: Header `x-start-time`, senao timestamp do 1o record do FIT, senao null.
+        elapsedTimeMs:
+          type: [integer, 'null']
+          format: int64
+          description: Ultimo menos primeiro timestamp dos records do FIT.
+        timerTimeMs:
+          type: [integer, 'null']
+          format: int64
+          description: Tempo em movimento (header `x-timer-time-ms`).
+        distanceMeters:
+          type: [number, 'null']
+          format: double
+          description: Distancia informada pelo app (header `x-distance-meters`).
+        pointCount:
+          type: [integer, 'null']
+          description: Pontos com posicao valida no FIT; null se a decodificacao falhou.
+        lengthMeters:
+          type: [number, 'null']
+          format: double
+          description: Comprimento da rota; null sem rota.
+
+    ActivityPage:
+      type: object
+      required: [activities, nextCursor]
+      properties:
+        activities:
+          type: array
+          items: { $ref: '#/components/schemas/Activity' }
+        nextCursor:
+          type: [string, 'null']
+          description: Cursor opaco para `before`; null na ultima pagina.
+
+    RouteFeature:
+      type: object
+      required: [type, geometry, properties]
+      properties:
+        type: { const: Feature }
+        geometry:
+          type: object
+          required: [type, coordinates]
+          properties:
+            type: { const: LineString }
+            coordinates:
+              type: array
+              minItems: 2
+              items:
+                type: array
+                description: '[longitude, latitude]'
+                minItems: 2
+                maxItems: 2
+                items: { type: number }
+        properties:
+          type: object
+          required: [pointCount, lengthMeters]
+          properties:
+            pointCount: { type: integer }
+            lengthMeters: { type: number, format: double }
+      example:
+        type: Feature
+        geometry:
+          type: LineString
+          coordinates: [[-46.656, -23.561], [-46.657, -23.562]]
+        properties: { pointCount: 60, lengthMeters: 1115.07 }

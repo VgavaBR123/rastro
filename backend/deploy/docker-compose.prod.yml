@@ -1,0 +1,12 @@
+# Override de producao: tira do host as portas do banco e da API.
+# So o Caddy (80/443) fica exposto; ele fala com a API pela rede interna do
+# compose. Uso (a partir de backend/):
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
+#     --profile app --profile https up -d
+# Requer Docker Compose >= 2.24 (tag !reset).
+services:
+  db:
+    ports: !reset []
+    restart: unless-stopped
+  api:
+    ports: !reset []

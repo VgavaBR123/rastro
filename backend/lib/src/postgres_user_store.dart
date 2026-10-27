@@ -108,6 +108,94 @@ class PostgresUserStore implements UserStore {
     );
   }
 
+  @override
+  Future<void> deleteSessionsForUser(String userId,
+      {String? exceptTokenHash}) async {
+    await _conn.execute(
+      Sql.named(
+        'DELETE FROM sessions WHERE user_id = @user_id '
+        'AND (@keep::text IS NULL OR token_hash <> @keep::text)',
+      ),
+      parameters: {'user_id': userId, 'keep': exceptTokenHash},
+    );
+  }
+
+  @override
+  Future<UserRecord?> updatePasswordHash(String id, String passwordHash) async {
+    final result = await _conn.execute(
+      Sql.named(
+        'UPDATE users SET password_hash = @hash WHERE id = @id '
+        'RETURNING id, email, password_hash, display_name, created_at',
+      ),
+      parameters: {'id': id, 'hash': passwordHash},
+    );
+    return result.isEmpty ? null : _fromRow(result.first.toColumnMap());
+  }
+
+  @override
+  Future<void> deleteUser(String id) async {
+    // Um comando so: sessions, password_resets e uploads tem FK com
+    // ON DELETE CASCADE para users, entao tudo sai na mesma transacao.
+    await _conn.execute(
+      Sql.named('DELETE FROM users WHERE id = @id'),
+      parameters: {'id': id},
+    );
+  }
+
+  @override
+  Future<void> savePasswordReset(PasswordResetRecord reset) async {
+    // Um pedido por usuario: o novo substitui o anterior (que deixa de valer).
+    await _conn.execute(
+      Sql.named(
+        'INSERT INTO password_resets '
+        '(user_id, code_hash, created_at, expires_at, attempts) '
+        'VALUES (@user_id, @hash, @created, @expires, @attempts) '
+        'ON CONFLICT (user_id) DO UPDATE SET code_hash = EXCLUDED.code_hash, '
+        'created_at = EXCLUDED.created_at, expires_at = EXCLUDED.expires_at, '
+        'attempts = EXCLUDED.attempts',
+      ),
+      parameters: {
+        'user_id': reset.userId,
+        'hash': reset.codeHash,
+        'created': reset.createdAtMs,
+        'expires': reset.expiresAtMs,
+        'attempts': reset.attempts,
+      },
+    );
+  }
+
+  @override
+  Future<PasswordResetRecord?> consumePasswordResetAttempt(String userId,
+      {required int nowMs, required int maxAttempts}) async {
+    // UPDATE ... RETURNING e atomico: duas tentativas simultaneas nao leem o
+    // mesmo contador.
+    final result = await _conn.execute(
+      Sql.named(
+        'UPDATE password_resets SET attempts = attempts + 1 '
+        'WHERE user_id = @user_id AND expires_at > @now AND attempts < @max '
+        'RETURNING user_id, code_hash, created_at, expires_at, attempts',
+      ),
+      parameters: {'user_id': userId, 'now': nowMs, 'max': maxAttempts},
+    );
+    if (result.isEmpty) return null;
+    final m = result.first.toColumnMap();
+    return PasswordResetRecord(
+      userId: m['user_id'] as String,
+      codeHash: m['code_hash'] as String,
+      createdAtMs: m['created_at'] as int,
+      expiresAtMs: m['expires_at'] as int,
+      attempts: m['attempts'] as int,
+    );
+  }
+
+  @override
+  Future<void> deletePasswordReset(String userId) async {
+    await _conn.execute(
+      Sql.named('DELETE FROM password_resets WHERE user_id = @user_id'),
+      parameters: {'user_id': userId},
+    );
+  }
+
   UserRecord _fromRow(Map<String, dynamic> m) => UserRecord(
         id: m['id'] as String,
         email: m['email'] as String,

@@ -1,0 +1,42 @@
+# Proxy reverso HTTPS na frente da API.
+# DOMAIN e ACME_EMAIL vem do .env (repassados pelo docker-compose).
+# Com DOMAIN apontando (registro A/AAAA) para a VPS e as portas 80/443 abertas,
+# o Caddy emite e renova o certificado Let's Encrypt sozinho.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	# Upload de FIT: arquivos de atividade costumam ter poucos MB; 25 MB da
+	# folga para atividades longas sem deixar o corpo crescer sem limite.
+	# Acima disso o Caddy responde 413 antes de chegar na API.
+	request_body {
+		max_size 25MB
+	}
+
+	header {
+		# So HTTPS por 1 ano (o app nunca deve cair para HTTP).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		# API so devolve JSON/GeoJSON/FIT: nenhum conteudo ativo.
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		# Nao anunciar a pilha (Caddy/Dart/shelf).
+		-Server
+		-Via
+		-X-Powered-By
+	}
+
+	# Compressao para JSON/GeoJSON (listas e rotas).
+	encode zstd gzip
+
+	# O Caddy substitui o X-Forwarded-For recebido do cliente pelo IP real da
+	# conexao (nao confia em cabecalho vindo de fora por padrao).
+	reverse_proxy api:8080
+
+	log {
+		output stdout
+		format console
+	}
+}
