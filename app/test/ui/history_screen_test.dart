@@ -6,13 +6,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/persistence/recording_repository.dart';
+import 'package:strava_estudo_app/platform/activity_sharer.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/domain/waypoint.dart' as dom;
 import 'package:strava_estudo_app/ui/activity_detail_screen.dart';
 import 'package:strava_estudo_app/ui/components/activity_card.dart';
 import 'package:strava_estudo_app/ui/history_screen.dart';
+import 'package:strava_estudo_app/ui/share/share_activity_screen.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
+
+import '../fixtures/fake_sharer.dart';
 
 dom.Waypoint acc(double lat, double dist) => dom.Waypoint(
       position: GeoPoint(latitude: lat, longitude: 0, altitudeMeters: 100),
@@ -95,6 +99,36 @@ void main() {
     expect(find.text('Nenhuma atividade ainda'), findsOneWidget);
     expect(find.text('Atividade excluida'), findsOneWidget);
     expect(await RecordingRepository(db).recent(), isEmpty);
+  });
+
+  testWidgets('Compartilhar no menu abre a tela Compartilhar', (tester) async {
+    final db = await seededDb();
+    addTearDown(db.close);
+    final sharer = FakeActivitySharer();
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        recordingDatabaseProvider.overrideWithValue(db),
+        activitySharerProvider.overrideWithValue(sharer),
+      ],
+      child: MaterialApp(theme: AppTheme.dark, home: const HistoryScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('menu-a')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('share-a')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ShareActivityScreen), findsOneWidget);
+    await tester.tap(find.byKey(const Key('share_text_only')));
+    await tester.pump();
+    expect(sharer.texts.single, startsWith('Corrida'));
+
+    await tester.tap(find.byKey(const Key('share_back')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ShareActivityScreen), findsNothing);
+    expect(find.byType(ActivityCard), findsOneWidget);
   });
 
   testWidgets('Cancelar no dialogo mantem a atividade', (tester) async {

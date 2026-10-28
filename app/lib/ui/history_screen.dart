@@ -14,6 +14,7 @@ import '../sync/background/background_sync_provider.dart';
 import '../sync/sync_controller.dart' show kSignInToSyncMessage;
 import 'components/activity_card.dart';
 import 'components/app_nav_bar.dart';
+import 'share_activity.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
@@ -181,9 +182,15 @@ class _ActivityTile extends ConsumerWidget {
         tooltip: 'Acoes da atividade',
         icon: Icon(Icons.more_horiz_rounded, color: AppColors.of(context).textMuted),
         onSelected: (value) {
+          if (value == 'share') shareActivity(context, activity);
           if (value == 'delete') _confirmAndDelete(context, ref);
         },
         itemBuilder: (_) => [
+          PopupMenuItem(
+            key: Key('share-${activity.guid}'),
+            value: 'share',
+            child: const Text('Compartilhar'),
+          ),
           PopupMenuItem(
             key: Key('delete-${activity.guid}'),
             value: 'delete',
