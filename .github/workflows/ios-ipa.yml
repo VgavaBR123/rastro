@@ -1,0 +1,68 @@
+# Gera um .ipa SEM assinatura do app Flutter para instalar no iPhone a partir
+# do Windows (Sideloadly/AltStore assinam com o Apple ID na hora de instalar).
+# Roda num macOS da nuvem do GitHub, porque so o Xcode compila para iOS.
+#
+# Para baixar: aba Actions > execucao "iOS IPA" > Artifacts > rastro-ios-ipa.
+name: iOS IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_base_url:
+        description: "SYNC_BASE_URL do backend (vazio = sem sincronizacao)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/ios-ipa.yml"
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Flutter (mesma versao do ambiente local)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.8
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Compilar iOS (release, sem assinatura)
+        env:
+          SYNC_BASE_URL: ${{ inputs.sync_base_url }}
+        run: |
+          DEFINES=""
+          if [ -n "$SYNC_BASE_URL" ]; then
+            DEFINES="--dart-define=SYNC_BASE_URL=$SYNC_BASE_URL"
+          fi
+          flutter build ios --release --no-codesign $DEFINES
+
+      - name: Empacotar .ipa
+        run: |
+          mkdir -p build/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa
+          zip -qr rastro-unsigned.ipa Payload
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: rastro-ios-ipa
+          path: app/build/ipa/rastro-unsigned.ipa
+          retention-days: 14
