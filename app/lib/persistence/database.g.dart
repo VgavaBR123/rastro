@@ -2358,6 +2358,17 @@ class $SettingsRowsTable extends SettingsRows
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _chapterMonthSeenMeta = const VerificationMeta(
+    'chapterMonthSeen',
+  );
+  @override
+  late final GeneratedColumn<int> chapterMonthSeen = GeneratedColumn<int>(
+    'chapter_month_seen',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2368,6 +2379,7 @@ class $SettingsRowsTable extends SettingsRows
     hideOnServer,
     narratorPrefs,
     gentleMode,
+    chapterMonthSeen,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2438,6 +2450,15 @@ class $SettingsRowsTable extends SettingsRows
         gentleMode.isAcceptableOrUnknown(data['gentle_mode']!, _gentleModeMeta),
       );
     }
+    if (data.containsKey('chapter_month_seen')) {
+      context.handle(
+        _chapterMonthSeenMeta,
+        chapterMonthSeen.isAcceptableOrUnknown(
+          data['chapter_month_seen']!,
+          _chapterMonthSeenMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2479,6 +2500,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.bool,
         data['${effectivePrefix}gentle_mode'],
       )!,
+      chapterMonthSeen: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chapter_month_seen'],
+      ),
     );
   }
 
@@ -2510,6 +2535,11 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// Modo Gentil (F04): esconde pace e velocidade (gravacao, detalhe, imagem
   /// compartilhada e Narrador).
   final bool gentleMode;
+
+  /// Capitulos (F05): `yyyymm` do ultimo mes cujo capitulo foi aberto ou
+  /// dispensado. O cartao do Inicio so oferece meses depois deste. Null =
+  /// nenhum ainda.
+  final int? chapterMonthSeen;
   const SettingsRow({
     required this.id,
     required this.useMetric,
@@ -2519,6 +2549,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.hideOnServer,
     this.narratorPrefs,
     required this.gentleMode,
+    this.chapterMonthSeen,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2537,6 +2568,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       map['narrator_prefs'] = Variable<String>(narratorPrefs);
     }
     map['gentle_mode'] = Variable<bool>(gentleMode);
+    if (!nullToAbsent || chapterMonthSeen != null) {
+      map['chapter_month_seen'] = Variable<int>(chapterMonthSeen);
+    }
     return map;
   }
 
@@ -2554,6 +2588,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ? const Value.absent()
           : Value(narratorPrefs),
       gentleMode: Value(gentleMode),
+      chapterMonthSeen: chapterMonthSeen == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chapterMonthSeen),
     );
   }
 
@@ -2573,6 +2610,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       hideOnServer: serializer.fromJson<bool>(json['hideOnServer']),
       narratorPrefs: serializer.fromJson<String?>(json['narratorPrefs']),
       gentleMode: serializer.fromJson<bool>(json['gentleMode']),
+      chapterMonthSeen: serializer.fromJson<int?>(json['chapterMonthSeen']),
     );
   }
   @override
@@ -2589,6 +2627,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'hideOnServer': serializer.toJson<bool>(hideOnServer),
       'narratorPrefs': serializer.toJson<String?>(narratorPrefs),
       'gentleMode': serializer.toJson<bool>(gentleMode),
+      'chapterMonthSeen': serializer.toJson<int?>(chapterMonthSeen),
     };
   }
 
@@ -2601,6 +2640,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     bool? hideOnServer,
     Value<String?> narratorPrefs = const Value.absent(),
     bool? gentleMode,
+    Value<int?> chapterMonthSeen = const Value.absent(),
   }) => SettingsRow(
     id: id ?? this.id,
     useMetric: useMetric ?? this.useMetric,
@@ -2613,6 +2653,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         ? narratorPrefs.value
         : this.narratorPrefs,
     gentleMode: gentleMode ?? this.gentleMode,
+    chapterMonthSeen: chapterMonthSeen.present
+        ? chapterMonthSeen.value
+        : this.chapterMonthSeen,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2634,6 +2677,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       gentleMode: data.gentleMode.present
           ? data.gentleMode.value
           : this.gentleMode,
+      chapterMonthSeen: data.chapterMonthSeen.present
+          ? data.chapterMonthSeen.value
+          : this.chapterMonthSeen,
     );
   }
 
@@ -2647,7 +2693,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
           ..write('hideOnServer: $hideOnServer, ')
           ..write('narratorPrefs: $narratorPrefs, ')
-          ..write('gentleMode: $gentleMode')
+          ..write('gentleMode: $gentleMode, ')
+          ..write('chapterMonthSeen: $chapterMonthSeen')
           ..write(')'))
         .toString();
   }
@@ -2662,6 +2709,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     hideOnServer,
     narratorPrefs,
     gentleMode,
+    chapterMonthSeen,
   );
   @override
   bool operator ==(Object other) =>
@@ -2674,7 +2722,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.reliabilityChecklistSeen == this.reliabilityChecklistSeen &&
           other.hideOnServer == this.hideOnServer &&
           other.narratorPrefs == this.narratorPrefs &&
-          other.gentleMode == this.gentleMode);
+          other.gentleMode == this.gentleMode &&
+          other.chapterMonthSeen == this.chapterMonthSeen);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2686,6 +2735,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<bool> hideOnServer;
   final Value<String?> narratorPrefs;
   final Value<bool> gentleMode;
+  final Value<int?> chapterMonthSeen;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
@@ -2695,6 +2745,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.hideOnServer = const Value.absent(),
     this.narratorPrefs = const Value.absent(),
     this.gentleMode = const Value.absent(),
+    this.chapterMonthSeen = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2705,6 +2756,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.hideOnServer = const Value.absent(),
     this.narratorPrefs = const Value.absent(),
     this.gentleMode = const Value.absent(),
+    this.chapterMonthSeen = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
@@ -2715,6 +2767,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<bool>? hideOnServer,
     Expression<String>? narratorPrefs,
     Expression<bool>? gentleMode,
+    Expression<int>? chapterMonthSeen,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2726,6 +2779,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       if (hideOnServer != null) 'hide_on_server': hideOnServer,
       if (narratorPrefs != null) 'narrator_prefs': narratorPrefs,
       if (gentleMode != null) 'gentle_mode': gentleMode,
+      if (chapterMonthSeen != null) 'chapter_month_seen': chapterMonthSeen,
     });
   }
 
@@ -2738,6 +2792,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<bool>? hideOnServer,
     Value<String?>? narratorPrefs,
     Value<bool>? gentleMode,
+    Value<int?>? chapterMonthSeen,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
@@ -2749,6 +2804,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       hideOnServer: hideOnServer ?? this.hideOnServer,
       narratorPrefs: narratorPrefs ?? this.narratorPrefs,
       gentleMode: gentleMode ?? this.gentleMode,
+      chapterMonthSeen: chapterMonthSeen ?? this.chapterMonthSeen,
     );
   }
 
@@ -2781,6 +2837,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (gentleMode.present) {
       map['gentle_mode'] = Variable<bool>(gentleMode.value);
     }
+    if (chapterMonthSeen.present) {
+      map['chapter_month_seen'] = Variable<int>(chapterMonthSeen.value);
+    }
     return map;
   }
 
@@ -2794,7 +2853,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
           ..write('hideOnServer: $hideOnServer, ')
           ..write('narratorPrefs: $narratorPrefs, ')
-          ..write('gentleMode: $gentleMode')
+          ..write('gentleMode: $gentleMode, ')
+          ..write('chapterMonthSeen: $chapterMonthSeen')
           ..write(')'))
         .toString();
   }
@@ -6089,6 +6149,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<bool> hideOnServer,
       Value<String?> narratorPrefs,
       Value<bool> gentleMode,
+      Value<int?> chapterMonthSeen,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -6100,6 +6161,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<bool> hideOnServer,
       Value<String?> narratorPrefs,
       Value<bool> gentleMode,
+      Value<int?> chapterMonthSeen,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -6148,6 +6210,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<bool> get gentleMode => $composableBuilder(
     column: $table.gentleMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get chapterMonthSeen => $composableBuilder(
+    column: $table.chapterMonthSeen,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6200,6 +6267,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.gentleMode,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get chapterMonthSeen => $composableBuilder(
+    column: $table.chapterMonthSeen,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -6242,6 +6314,11 @@ class $$SettingsRowsTableAnnotationComposer
 
   GeneratedColumn<bool> get gentleMode => $composableBuilder(
     column: $table.gentleMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get chapterMonthSeen => $composableBuilder(
+    column: $table.chapterMonthSeen,
     builder: (column) => column,
   );
 }
@@ -6291,6 +6368,7 @@ class $$SettingsRowsTableTableManager
                 Value<bool> hideOnServer = const Value.absent(),
                 Value<String?> narratorPrefs = const Value.absent(),
                 Value<bool> gentleMode = const Value.absent(),
+                Value<int?> chapterMonthSeen = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 useMetric: useMetric,
@@ -6300,6 +6378,7 @@ class $$SettingsRowsTableTableManager
                 hideOnServer: hideOnServer,
                 narratorPrefs: narratorPrefs,
                 gentleMode: gentleMode,
+                chapterMonthSeen: chapterMonthSeen,
               ),
           createCompanionCallback:
               ({
@@ -6311,6 +6390,7 @@ class $$SettingsRowsTableTableManager
                 Value<bool> hideOnServer = const Value.absent(),
                 Value<String?> narratorPrefs = const Value.absent(),
                 Value<bool> gentleMode = const Value.absent(),
+                Value<int?> chapterMonthSeen = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 useMetric: useMetric,
@@ -6320,6 +6400,7 @@ class $$SettingsRowsTableTableManager
                 hideOnServer: hideOnServer,
                 narratorPrefs: narratorPrefs,
                 gentleMode: gentleMode,
+                chapterMonthSeen: chapterMonthSeen,
               ),
           withReferenceMapper: (p0) => p0
               .map(

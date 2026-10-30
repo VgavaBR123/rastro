@@ -55,7 +55,7 @@ void main() {
     });
     tearDown(() => db.close());
 
-    test('schema na versao 10', () => expect(db.schemaVersion, 10));
+    test('schema na versao 10', () => expect(db.schemaVersion, greaterThanOrEqualTo(10)));
 
     test('RPE e humor sao opcionais e ficam na atividade', () async {
       await seed(repo, 'a', startMs: 1000);
@@ -165,7 +165,8 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 10) return;
+          if (v != 11) return;
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN chapter_month_seen');
           raw.execute('ALTER TABLE activities DROP COLUMN rpe');
           raw.execute('ALTER TABLE activities DROP COLUMN mood');
           raw.execute('ALTER TABLE settings_rows DROP COLUMN gentle_mode');

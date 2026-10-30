@@ -195,6 +195,11 @@ class SettingsRows extends Table {
   /// compartilhada e Narrador).
   BoolColumn get gentleMode => boolean().withDefault(const Constant(false))();
 
+  /// Capitulos (F05): `yyyymm` do ultimo mes cujo capitulo foi aberto ou
+  /// dispensado. O cartao do Inicio so oferece meses depois deste. Null =
+  /// nenhum ainda.
+  IntColumn get chapterMonthSeen => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -214,7 +219,7 @@ class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -262,6 +267,9 @@ class RecordingDatabase extends _$RecordingDatabase {
             await m.addColumn(activities, activities.rpe);
             await m.addColumn(activities, activities.mood);
             await m.addColumn(settingsRows, settingsRows.gentleMode);
+          }
+          if (from < 11) {
+            await m.addColumn(settingsRows, settingsRows.chapterMonthSeen);
           }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
@@ -319,6 +327,32 @@ class RecordingDatabase extends _$RecordingDatabase {
       ),
     );
   }
+
+  // --- Capitulos (F05) ---
+
+  /// `yyyymm` do ultimo capitulo mensal aberto ou dispensado; null = nenhum.
+  Future<int?> chapterMonthSeen() async =>
+      (await loadSettings()).chapterMonthSeen;
+
+  /// Guarda [code] (`yyyymm`) como visto. So avanca: abrir pela lista um
+  /// capitulo mais antigo nao faz o cartao do Inicio voltar.
+  Future<void> markChapterMonthSeen(int code) async {
+    await loadSettings(); // garante a linha
+    await customUpdate(
+      'UPDATE settings_rows SET chapter_month_seen = ? '
+      'WHERE id = 0 AND (chapter_month_seen IS NULL OR chapter_month_seen < ?)',
+      variables: [Variable.withInt(code), Variable.withInt(code)],
+      updates: {settingsRows},
+    );
+  }
+
+  /// Todas as atividades finalizadas, da mais antiga para a mais recente
+  /// (historico inteiro, para os marcos e a sequencia dos capitulos).
+  Future<List<Activity>> finishedActivitiesAscending() =>
+      (select(activities)
+            ..where((t) => t.isFinished.equals(true))
+            ..orderBy([(t) => OrderingTerm.asc(t.startTimestampMs)]))
+          .get();
 
   // --- Privacidade (F02) ---
 

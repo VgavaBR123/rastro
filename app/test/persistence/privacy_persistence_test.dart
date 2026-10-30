@@ -258,7 +258,8 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 10) return;
+          if (v != 11) return;
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN chapter_month_seen');
           // F04 (schema 10) veio depois: tira o que e dele.
           raw.execute('ALTER TABLE activities DROP COLUMN rpe');
           raw.execute('ALTER TABLE activities DROP COLUMN mood');
@@ -315,7 +316,8 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 10) return;
+          if (v != 11) return;
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN chapter_month_seen');
           // F04 (schema 10) veio depois: tira o que e dele.
           raw.execute('ALTER TABLE activities DROP COLUMN rpe');
           raw.execute('ALTER TABLE activities DROP COLUMN mood');
