@@ -22,6 +22,10 @@ class AppSettings {
   /// Modo Gentil (F04): esconde pace e velocidade. Padrao desligado.
   final bool gentleMode;
 
+  /// Plano 5 km (F06): "Voz do plano", independente do Narrador. Padrao
+  /// ligada.
+  final bool plan5kVoice;
+
   const AppSettings({
     this.useMetric = true,
     this.autoPauseEnabled = true,
@@ -30,6 +34,7 @@ class AppSettings {
     this.hideOnServer = true,
     this.narrator = const NarratorSettings(),
     this.gentleMode = false,
+    this.plan5kVoice = true,
   });
 
   AppSettings copyWith({
@@ -39,6 +44,7 @@ class AppSettings {
     bool? hideOnServer,
     NarratorSettings? narrator,
     bool? gentleMode,
+    bool? plan5kVoice,
   }) => AppSettings(
     useMetric: useMetric ?? this.useMetric,
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
@@ -48,6 +54,7 @@ class AppSettings {
     hideOnServer: hideOnServer ?? this.hideOnServer,
     narrator: narrator ?? this.narrator,
     gentleMode: gentleMode ?? this.gentleMode,
+    plan5kVoice: plan5kVoice ?? this.plan5kVoice,
   );
 
   /// Troca o peso (null apaga).
@@ -59,5 +66,6 @@ class AppSettings {
     hideOnServer: hideOnServer,
     narrator: narrator,
     gentleMode: gentleMode,
+    plan5kVoice: plan5kVoice,
   );
 }

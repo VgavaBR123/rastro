@@ -197,6 +197,25 @@ void main() {
       },
     );
 
+    test('aviso do plano 5 km entra no texto na hora e sai quando limpo', () async {
+      await ctrl.start(ActivityType.run, autoPauseEnabled: false);
+      await feed([0, 1]);
+      final before = service.updates.length;
+      ctrl.setGuidedNotice('Plano: Correr 1 min 30 s');
+      expect(service.updates, hasLength(before + 1));
+      expect(service.updates.last.text, contains('Plano: Correr 1 min 30 s'));
+      // As atualizacoes seguintes mantem o aviso.
+      await feed([2, 3, 4, 5]);
+      expect(service.updates.last.text, contains('Plano: Correr'));
+      ctrl.setGuidedNotice(null);
+      expect(service.updates.last.text, isNot(contains('Plano')));
+      // Repetir o mesmo aviso nao atualiza de novo.
+      final n = service.updates.length;
+      ctrl.setGuidedNotice(null);
+      expect(service.updates, hasLength(n));
+      await ctrl.stop();
+    });
+
     test('unidade imperial no texto', () async {
       ctrl.dispose();
       ctrl = build(metric: false);

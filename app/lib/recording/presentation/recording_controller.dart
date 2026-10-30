@@ -215,6 +215,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     _beatPaused = null;
     _gapNotice = null;
     _gpsLost = false;
+    _guidedNotice = null;
     final session = RecordingSession(
       activityType: type,
       autoPauseEnabled: autoPauseEnabled,
@@ -318,6 +319,16 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     _gapNotice = gap;
     await _repo.recordGap(guid, gap);
   }
+
+  /// Plano 5 km (F06): linha extra no texto da notificacao com o bloco atual
+  /// da sessao guiada (null tira). Atualiza a notificacao na hora.
+  void setGuidedNotice(String? text) {
+    if (text == _guidedNotice) return;
+    _guidedNotice = text;
+    _maybeNotify(force: true);
+  }
+
+  String? _guidedNotice;
 
   /// Fecha o aviso de lacuna (banner e texto da notificacao).
   void dismissGapNotice() {
@@ -495,7 +506,9 @@ class RecordingController extends StateNotifier<RecordingUiState> {
         st.state == RecordingState.autoPaused;
     final label = activityTypeLabel(session.activityType);
     final notice = _gapNotice;
+    final guided = _guidedNotice;
     final extra = [
+      ?guided,
       if (_gpsLost) 'Sem sinal de GPS',
       if (notice != null)
         'Lacuna de ${formatGapDuration(notice.durationMs)} registrada',

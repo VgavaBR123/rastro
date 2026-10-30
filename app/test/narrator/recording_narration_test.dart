@@ -118,6 +118,43 @@ void main() {
     expect(voice.spoken, ['Volta um. Um minuto e vinte segundos.']);
   });
 
+  test('sessao guiada do plano 5 km: as voltas automaticas dos blocos nao sao faladas', () async {
+    var guided = true;
+    bridge = RecordingNarration(
+      narrator: narrator,
+      settings: () => settings,
+      useMetric: () => metric,
+      skipLaps: () => guided,
+    );
+    settings = settings.copyWith(statusAnnouncements: false, essentialOnly: true);
+    const lap = LapRecord(
+      number: 1,
+      startTimerMs: 0,
+      endTimerMs: 80000,
+      endElapsedMs: 80000,
+      startDistanceMeters: 0,
+      endDistanceMeters: 400,
+    );
+    await feed(ui());
+    await feed(ui(distance: 400, timerMs: 80000, laps: const [lap]));
+    expect(voice.spoken, isEmpty);
+    // Fora do plano, volta a falar as voltas.
+    guided = false;
+    await feed(ui(distance: 800, timerMs: 160000, laps: const [
+      lap,
+      LapRecord(
+        number: 2,
+        startTimerMs: 80000,
+        endTimerMs: 160000,
+        endElapsedMs: 160000,
+        startDistanceMeters: 400,
+        endDistanceMeters: 800,
+      ),
+    ]));
+    expect(voice.spoken, hasLength(1));
+    expect(voice.spoken.single, startsWith('Volta dois'));
+  });
+
   test('pedal diz iniciado', () async {
     await feed(ui(type: ActivityType.ride));
     expect(voice.spoken, ['Pedal iniciado.']);

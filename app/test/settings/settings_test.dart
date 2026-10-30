@@ -85,4 +85,20 @@ void main() {
     await c2.load();
     expect(c2.state.hideOnServer, isFalse);
   });
+
+  test('voz do plano 5 km: padrao ligada, desliga e persiste (F06)', () async {
+    final c1 = SettingsController(db);
+    await c1.load();
+    expect(c1.state.plan5kVoice, isTrue);
+    await c1.setPlan5kVoice(false);
+    expect(c1.state.plan5kVoice, isFalse);
+    // Independente do Narrador geral e mantida pelas outras alteracoes.
+    await c1.setNarratorEnabled(true);
+    await c1.setWeightKg(70);
+    expect(c1.state.plan5kVoice, isFalse);
+    final c2 = SettingsController(db);
+    await c2.load();
+    expect(c2.state.plan5kVoice, isFalse);
+    expect(c2.state.narrator.enabled, isTrue);
+  });
 }

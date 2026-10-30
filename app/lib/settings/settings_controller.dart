@@ -32,6 +32,7 @@ class SettingsController extends StateNotifier<AppSettings> {
       hideOnServer: row.hideOnServer,
       narrator: NarratorSettings.fromJsonString(row.narratorPrefs),
       gentleMode: row.gentleMode,
+      plan5kVoice: row.plan5kVoice,
     );
   }
 
@@ -88,5 +89,12 @@ class SettingsController extends StateNotifier<AppSettings> {
   Future<void> setGentleMode(bool value) async {
     state = state.copyWith(gentleMode: value);
     await _db.saveSettings(gentleMode: value);
+  }
+
+  /// Plano 5 km (F06): liga e desliga a "Voz do plano".
+  Future<void> setPlan5kVoice(bool value) async {
+    await ensureLoaded();
+    state = state.copyWith(plan5kVoice: value);
+    await _db.saveSettings(plan5kVoice: value);
   }
 }
