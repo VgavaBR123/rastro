@@ -186,7 +186,16 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save_activity')));
     await tester.pumpAndSettle();
-    // Fechamento gentil (F04): Concluir fecha a tela de gravacao.
+    // Fechamento gentil (F04): Concluir fecha a tela de gravacao. O fechamento
+    // so aparece depois das consultas ao banco (I/O de verdade, que o
+    // pumpAndSettle nao espera).
+    for (
+      int i = 0;
+      i < 40 && find.byKey(const Key('closing_done')).evaluate().isEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
     await tester.tap(find.byKey(const Key('closing_done')));
     await tester.pumpAndSettle();
 
@@ -222,17 +231,18 @@ void main() {
     );
 
     // 6) O perfil (vindo do servidor) conta a atividade da conta nova.
+    // A aba Perfil fica viva no shell e ainda mostra o total de antes do
+    // sync ate a releitura do servidor: espera o valor, nao so o widget.
     await tester.tap(find.byKey(const Key('nav_profile')));
-    for (
-      int i = 0;
-      i < 40 && find.byKey(const Key('profile_count')).evaluate().isEmpty;
-      i++
-    ) {
+    String? total;
+    for (int i = 0; i < 40; i++) {
       await tester.pump(const Duration(milliseconds: 250));
+      final f = find.byKey(const Key('profile_count'));
+      if (f.evaluate().isNotEmpty) {
+        total = tester.widget<Text>(f).data;
+        if (total == '1') break;
+      }
     }
-    final total = tester
-        .widget<Text>(find.byKey(const Key('profile_count')))
-        .data;
     debugPrint('[e2e] atividades no perfil: $total');
     expect(total, '1');
     expect(finalizada.remoteId, isNotNull, reason: 'id do servidor guardado');
