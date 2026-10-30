@@ -48,13 +48,20 @@ class _ChapterScreenState extends ConsumerState<ChapterScreen> {
   void initState() {
     super.initState();
     // Abrir o capitulo do mes (pelo cartao ou pela lista) conta como visto:
-    // o cartao do Inicio some. So avanca, entao um mes antigo nao atrapalha.
+    // o cartao do Inicio some. So depois que o capitulo chega de fato: se
+    // falhar ao montar, o cartao continua. So avanca, entao um mes antigo
+    // nao atrapalha.
     final s = widget.source;
     if (s is MonthChapterSource) {
-      final marker = ref.read(chapterSeenMarkerProvider);
-      Future.microtask(() => marker.markSeen(s.month));
+      ref.listenManual(monthChapterProvider(s.month), (_, next) {
+        if (_marked || next is! AsyncData) return;
+        _marked = true;
+        ref.read(chapterSeenMarkerProvider).markSeen(s.month);
+      }, fireImmediately: true);
     }
   }
+
+  bool _marked = false;
 
   @override
   Widget build(BuildContext context) {

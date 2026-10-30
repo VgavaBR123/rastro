@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/auth/session_store.dart';
@@ -84,6 +85,7 @@ Future<void> pumpChapter(
   FakeActivitySharer sharer, {
   ChapterSource source = const ChapterSource.month(MonthKey(2026, 10)),
   ThemeData? theme,
+  List<Override> extra = const [],
 }) async {
   await tester.binding.setSurfaceSize(const Size(420, 900));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -96,6 +98,7 @@ Future<void> pumpChapter(
       chapterClockProvider.overrideWithValue(() => now),
       activitySharerProvider.overrideWithValue(sharer),
       shareImageDirectoryProvider.overrideWithValue(() async => dir),
+      ...extra,
     ],
     child: MaterialApp(
       theme: theme ?? AppTheme.dark,
@@ -300,4 +303,14 @@ void main() {
       handle.dispose();
     });
   }
+
+  testWidgets('capitulo que falha ao montar nao conta como visto', (tester) async {
+    final s = await setUpDb(tester);
+    await pumpChapter(tester, s.db, s.sharer, extra: [
+      monthChapterProvider.overrideWith((ref, month) async => throw StateError('falhou')),
+    ]);
+    expect(find.byKey(const Key('chapter_error')), findsOneWidget);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    expect(await tester.runAsync(() => s.db.chapterMonthSeen()), isNull);
+  });
 }
