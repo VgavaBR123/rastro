@@ -160,4 +160,30 @@ void main() {
     expect(sw.elapsedMilliseconds, lessThan(1000));
     expect(s.longest, greaterThan(500));
   });
+
+  test('maior sequencia do ano conta so as semanas cuja segunda cai no ano', () {
+    // 30 semanas seguidas vindas de 2025, a ultima comecando em 5/1/2026.
+    final ms = mondays(DateTime(2025, 6, 16), 30);
+    expect(ms.last, DateTime(2026, 1, 5));
+    final s = weeklyStreak(onWeeks(ms), now: DateTime(2026, 3, 1));
+    expect(s.longestInYear(2026), 1);
+    // Em 2025: de 16/6 a 29/12 (29 semanas).
+    expect(s.longestInYear(2025), 29);
+  });
+
+  test('maior sequencia do ano: coringa mantem, quebra recomeca, so dentro do ano', () {
+    // 2026: 5/1 e 12/1 ativas, 19/1 coberta, 26/1 ativa, fevereiro vazio
+    // ate quebrar, depois 3 semanas em marco.
+    final s = weeklyStreak(
+      onWeeks([
+        DateTime(2026, 1, 5),
+        DateTime(2026, 1, 12),
+        DateTime(2026, 1, 26),
+        DateTime(2026, 3, 2),
+        DateTime(2026, 3, 9),
+      ]),
+      now: DateTime(2026, 3, 12),
+    );
+    expect(s.longestInYear(2026), 3);
+  });
 }

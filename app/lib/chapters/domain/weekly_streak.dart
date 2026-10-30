@@ -81,10 +81,28 @@ class WeeklyStreak {
   bool jokerAvailable(MonthKey month) =>
       !coveredMondays.any((m) => month.contains(m));
 
-  /// Maior sequencia ao fim de semanas cuja segunda cai em [year].
-  int longestInYear(int year) => weeks
-      .where((w) => w.monday.year == year)
-      .fold(0, (m, w) => w.streakAfter > m ? w.streakAfter : m);
+  /// Maior sequencia contando so as semanas cuja segunda-feira cai em
+  /// [year]: semanas ativas somam, cobertas mantem, quebra recomeca. Uma
+  /// sequencia que vem do ano anterior entra so com a parte deste ano.
+  int longestInYear(int year) {
+    var count = 0;
+    var best = 0;
+    for (final w in weeks) {
+      if (w.monday.year != year) continue;
+      switch (w.status) {
+        case WeekStatus.active:
+          count++;
+        case WeekStatus.broken:
+        case WeekStatus.idle:
+          count = 0;
+        case WeekStatus.covered:
+        case WeekStatus.open:
+          break;
+      }
+      if (count > best) best = count;
+    }
+    return best;
+  }
 }
 
 /// Sequencia de [all] vista em [now].
