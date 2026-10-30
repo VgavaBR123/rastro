@@ -66,9 +66,10 @@ void main() {
     // Rotulos das metricas e controles presentes.
     expect(find.text('Distancia'), findsOneWidget);
     expect(find.text('Tempo'), findsOneWidget);
-    expect(find.text('Pace atual'), findsOneWidget);
     expect(find.text('Pace medio'), findsOneWidget);
-    expect(find.text('Subida'), findsOneWidget);
+    // Pace atual e subida sairam da tela de gravacao (3 numeros grandes).
+    expect(find.text('Pace atual'), findsNothing);
+    expect(find.text('Subida'), findsNothing);
     expect(find.byKey(const Key('pause')), findsOneWidget);
     expect(find.byKey(const Key('lap')), findsOneWidget);
     // Encerrar so aparece pausado.

@@ -156,7 +156,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     // A distancia tem que ter saido do zero.
-    // _Metric mostra dois Texts: rotulo e valor (nessa ordem).
+    // _BigMetric mostra dois Texts: rotulo e valor com unidade (nessa ordem).
     final textos = tester
         .widgetList<Text>(
           find.descendant(
@@ -165,7 +165,8 @@ void main() {
           ),
         )
         .toList();
-    final String? distancia = textos.last.data;
+    final last = textos.last;
+    final String? distancia = last.data ?? last.textSpan?.toPlainText();
     debugPrint('[e2e] distancia na tela: $distancia');
     expect(distancia, isNot('0 m'));
 

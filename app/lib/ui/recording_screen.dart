@@ -345,9 +345,8 @@ class _MetricsPage extends StatelessWidget {
     final c = AppColors.of(context);
     final s = state;
     final split = s.split(metric: metric);
-    final (curPace, curPaceUnit) = splitMeasure(formatPace(split.paceSecondsPerMeter, metric: metric));
     final (avgPace, avgPaceUnit) = splitMeasure(formatPace(s.avgPaceSecondsPerMeter, metric: metric));
-    final (ascent, ascentUnit) = splitMeasure(formatElevation(s.ascentMeters, metric: metric));
+    final (dist, distUnit) = splitMeasure(formatDistance(s.distanceMeters, metric: metric));
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: AppShape.gutter),
       child: AnimatedOpacity(
@@ -357,59 +356,31 @@ class _MetricsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 8),
+            // Tempo, pace medio e distancia empilhados, todos grandes e com o
+            // mesmo peso, separados por linhas.
             _BigMetric(
               key: const Key('duration'),
               label: 'Tempo',
               value: formatDuration(s.timerMs),
               role: c.tempo,
             ),
-            const SizedBox(height: 16),
+            _MetricDivider(color: c.line),
+            _BigMetric(
+              key: const Key('pace'),
+              label: 'Pace medio',
+              value: avgPace,
+              unit: avgPaceUnit,
+              role: c.pace,
+            ),
+            _MetricDivider(color: c.line),
             _BigMetric(
               key: const Key('distance'),
               label: 'Distancia',
-              value: formatDistance(s.distanceMeters, metric: metric),
+              value: dist,
+              unit: distUnit,
               role: c.dist,
             ),
             const SizedBox(height: 20),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: MetricTile(
-                    key: const Key('current_pace'),
-                    label: 'Pace atual',
-                    value: curPace,
-                    unit: curPaceUnit,
-                    role: c.pace,
-                    block: true,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: MetricTile(
-                    key: const Key('pace'),
-                    label: 'Pace medio',
-                    value: avgPace,
-                    unit: avgPaceUnit,
-                    role: c.pace,
-                    block: true,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: MetricTile(
-                    key: const Key('elevation'),
-                    label: 'Subida',
-                    value: ascent,
-                    unit: ascentUnit,
-                    role: c.subida,
-                    block: true,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
             _LiveRow(
               key: const Key('current_split'),
               label: '${metric ? 'Km' : 'Milha'} ${split.number}',
@@ -430,28 +401,60 @@ class _MetricsPage extends StatelessWidget {
   }
 }
 
-/// Tempo ou distancia em metricXL. O valor e um Text unico (o teste de ponta a
-/// ponta le o ultimo Text debaixo da Key).
+/// Metrica grande em metricXL, com a unidade menor ao lado. O valor com a
+/// unidade e um Text unico (o teste de ponta a ponta le o ultimo Text debaixo
+/// da Key).
 class _BigMetric extends StatelessWidget {
   final String label;
   final String value;
+  final String? unit;
   final RoleColors role;
-  const _BigMetric({required this.label, required this.value, required this.role, super.key});
+  const _BigMetric({
+    required this.label,
+    required this.value,
+    required this.role,
+    this.unit,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
+    final style = AppText.metricXL.copyWith(color: role.fg);
     return Column(
       children: [
         Text(label, style: AppText.label.copyWith(color: c.textMuted)),
-        const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
-          child: Text(value, maxLines: 1, style: AppText.metricXL.copyWith(color: role.fg)),
+          child: Text.rich(
+            TextSpan(
+              text: value,
+              children: [
+                if (unit != null)
+                  TextSpan(
+                    text: ' $unit',
+                    style: AppText.metricM.copyWith(color: c.textMuted),
+                  ),
+              ],
+            ),
+            maxLines: 1,
+            style: style,
+          ),
         ),
       ],
     );
   }
+}
+
+class _MetricDivider extends StatelessWidget {
+  final Color color;
+  const _MetricDivider({required this.color});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Divider(height: 1, thickness: 1, color: color),
+      );
 }
 
 /// Linha compacta do split ou da volta corrente.
