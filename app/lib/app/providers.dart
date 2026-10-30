@@ -27,11 +27,14 @@ import '../recording/presentation/recording_controller.dart';
 import '../recording/presentation/recording_ui_state.dart';
 import '../platform/msl_altitude.dart';
 import '../platform/msl_altitude_provider.dart';
+import '../platform/platform_reliability_probe.dart';
+import '../platform/reliability_probe.dart';
 import '../recording/service/foreground_task_recording_service.dart';
 import '../recording/service/recording_service.dart';
 import '../recording/source/accelerometer_source.dart';
 import '../recording/source/battery_level_source.dart';
 import '../recording/source/geolocator_location_source.dart';
+import '../recording/source/heartbeat_ticker.dart';
 import '../recording/source/location_source.dart';
 import '../recording/source/monotonic_clock.dart';
 import '../settings/app_settings.dart';
@@ -112,6 +115,21 @@ final batteryLevelSourceProvider = Provider<BatteryLevelSource>((ref) {
       : BatteryPlusLevelSource();
 });
 
+/// Relogio do heartbeat da gravacao (F01). Nos testes de widget nao bate
+/// (sem Timer pendente); os testes do controller injetam um fake.
+final heartbeatTickerProvider = Provider<HeartbeatTicker>((ref) {
+  return _underFlutterTest
+      ? const NoHeartbeatTicker()
+      : const PeriodicHeartbeatTicker();
+});
+
+/// Estado do aparelho para o checklist "Gravacao confiavel" (F01).
+final reliabilityProbeProvider = Provider<ReliabilityProbe>((ref) {
+  return _underFlutterTest || kIsWeb
+      ? const NoopReliabilityProbe()
+      : const PlatformReliabilityProbe();
+});
+
 final recordingControllerProvider =
     StateNotifierProvider<RecordingController, RecordingUiState>((ref) {
       return RecordingController(
@@ -120,6 +138,7 @@ final recordingControllerProvider =
         service: ref.watch(recordingServiceProvider),
         accelerometer: ref.watch(accelerometerSourceProvider),
         battery: ref.watch(batteryLevelSourceProvider),
+        heartbeat: ref.watch(heartbeatTickerProvider),
         currentUserId: () => ref.read(authControllerProvider).user?.id,
         weightKg: () => ref.read(settingsProvider).weightKg,
         useMetric: () => ref.read(settingsProvider).useMetric,

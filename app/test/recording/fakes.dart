@@ -9,6 +9,7 @@ import 'package:strava_estudo_app/recording/domain/location_sample.dart';
 import 'package:strava_estudo_app/recording/service/recording_service.dart';
 import 'package:strava_estudo_app/recording/source/accelerometer_source.dart';
 import 'package:strava_estudo_app/recording/source/battery_level_source.dart';
+import 'package:strava_estudo_app/recording/source/heartbeat_ticker.dart';
 import 'package:strava_estudo_app/recording/source/location_source.dart';
 
 class FakeLocationSource implements LocationSource {
@@ -98,5 +99,20 @@ class FakeMslConverter implements MslAltitudeConverter {
     calls++;
     final o = offset;
     return o == null ? null : ellipsoidAltitudeMeters - o;
+  }
+}
+
+/// Relogio do heartbeat controlado pelo teste: cada [tick] e um batimento.
+class FakeHeartbeatTicker implements HeartbeatTicker {
+  final _controller = StreamController<void>.broadcast();
+  final List<Duration> intervals = [];
+  bool get hasListener => _controller.hasListener;
+
+  void tick() => _controller.add(null);
+
+  @override
+  Stream<void> ticks(Duration interval) {
+    intervals.add(interval);
+    return _controller.stream;
   }
 }

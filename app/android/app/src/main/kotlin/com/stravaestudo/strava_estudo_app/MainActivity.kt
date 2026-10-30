@@ -10,5 +10,7 @@ class MainActivity : FlutterActivity() {
         MslAltitudeChannel.register(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
         // Compartilhar atividade (folha nativa do sistema).
         ShareChannel.register(this, flutterEngine.dartExecutor.binaryMessenger)
+        // Checklist "Gravacao confiavel": fabricante e telas de ajuste dele.
+        DeviceSettingsChannel.register(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 }

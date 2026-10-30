@@ -214,6 +214,43 @@ class $ActivitiesTable extends Activities
     requiredDuringInsert: false,
     defaultValue: const Constant('everyone'),
   );
+  static const VerificationMeta _lastHeartbeatMsMeta = const VerificationMeta(
+    'lastHeartbeatMs',
+  );
+  @override
+  late final GeneratedColumn<int> lastHeartbeatMs = GeneratedColumn<int>(
+    'last_heartbeat_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _heartbeatPausedMeta = const VerificationMeta(
+    'heartbeatPaused',
+  );
+  @override
+  late final GeneratedColumn<bool> heartbeatPaused = GeneratedColumn<bool>(
+    'heartbeat_paused',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("heartbeat_paused" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _discardedPointCountMeta =
+      const VerificationMeta('discardedPointCount');
+  @override
+  late final GeneratedColumn<int> discardedPointCount = GeneratedColumn<int>(
+    'discarded_point_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     guid,
@@ -234,6 +271,9 @@ class $ActivitiesTable extends Activities
     title,
     description,
     visibility,
+    lastHeartbeatMs,
+    heartbeatPaused,
+    discardedPointCount,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -374,6 +414,33 @@ class $ActivitiesTable extends Activities
         visibility.isAcceptableOrUnknown(data['visibility']!, _visibilityMeta),
       );
     }
+    if (data.containsKey('last_heartbeat_ms')) {
+      context.handle(
+        _lastHeartbeatMsMeta,
+        lastHeartbeatMs.isAcceptableOrUnknown(
+          data['last_heartbeat_ms']!,
+          _lastHeartbeatMsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('heartbeat_paused')) {
+      context.handle(
+        _heartbeatPausedMeta,
+        heartbeatPaused.isAcceptableOrUnknown(
+          data['heartbeat_paused']!,
+          _heartbeatPausedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('discarded_point_count')) {
+      context.handle(
+        _discardedPointCountMeta,
+        discardedPointCount.isAcceptableOrUnknown(
+          data['discarded_point_count']!,
+          _discardedPointCountMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -459,6 +526,18 @@ class $ActivitiesTable extends Activities
         DriftSqlType.string,
         data['${effectivePrefix}visibility'],
       )!,
+      lastHeartbeatMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_heartbeat_ms'],
+      ),
+      heartbeatPaused: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}heartbeat_paused'],
+      )!,
+      discardedPointCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}discarded_point_count'],
+      )!,
     );
   }
 
@@ -509,6 +588,18 @@ class Activity extends DataClass implements Insertable<Activity> {
   /// [ActivityVisibility]). Padrao 'everyone', o mesmo da tela Salvar; as
   /// atividades antigas ganham esse valor na migracao. Por enquanto so local.
   final String visibility;
+
+  /// Gravacao blindada (F01): instante (epoch ms) do ultimo batimento salvo
+  /// durante a gravacao. Na recuperacao pos-crash, o intervalo dele ate a
+  /// retomada vira lacuna. Null = sem batimento (atividades antigas).
+  final int? lastHeartbeatMs;
+
+  /// True se o ultimo batimento foi salvo com a gravacao pausada (o tempo
+  /// parado depois dele nao e lacuna).
+  final bool heartbeatPaused;
+
+  /// Pontos descartados pelo filtro de ruido (nao conta os de pausa).
+  final int discardedPointCount;
   const Activity({
     required this.guid,
     required this.activityType,
@@ -528,6 +619,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     this.title,
     this.description,
     required this.visibility,
+    this.lastHeartbeatMs,
+    required this.heartbeatPaused,
+    required this.discardedPointCount,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -574,6 +668,11 @@ class Activity extends DataClass implements Insertable<Activity> {
       map['description'] = Variable<String>(description);
     }
     map['visibility'] = Variable<String>(visibility);
+    if (!nullToAbsent || lastHeartbeatMs != null) {
+      map['last_heartbeat_ms'] = Variable<int>(lastHeartbeatMs);
+    }
+    map['heartbeat_paused'] = Variable<bool>(heartbeatPaused);
+    map['discarded_point_count'] = Variable<int>(discardedPointCount);
     return map;
   }
 
@@ -613,6 +712,11 @@ class Activity extends DataClass implements Insertable<Activity> {
           ? const Value.absent()
           : Value(description),
       visibility: Value(visibility),
+      lastHeartbeatMs: lastHeartbeatMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastHeartbeatMs),
+      heartbeatPaused: Value(heartbeatPaused),
+      discardedPointCount: Value(discardedPointCount),
     );
   }
 
@@ -644,6 +748,11 @@ class Activity extends DataClass implements Insertable<Activity> {
       title: serializer.fromJson<String?>(json['title']),
       description: serializer.fromJson<String?>(json['description']),
       visibility: serializer.fromJson<String>(json['visibility']),
+      lastHeartbeatMs: serializer.fromJson<int?>(json['lastHeartbeatMs']),
+      heartbeatPaused: serializer.fromJson<bool>(json['heartbeatPaused']),
+      discardedPointCount: serializer.fromJson<int>(
+        json['discardedPointCount'],
+      ),
     );
   }
   @override
@@ -672,6 +781,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       'title': serializer.toJson<String?>(title),
       'description': serializer.toJson<String?>(description),
       'visibility': serializer.toJson<String>(visibility),
+      'lastHeartbeatMs': serializer.toJson<int?>(lastHeartbeatMs),
+      'heartbeatPaused': serializer.toJson<bool>(heartbeatPaused),
+      'discardedPointCount': serializer.toJson<int>(discardedPointCount),
     };
   }
 
@@ -694,6 +806,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     Value<String?> title = const Value.absent(),
     Value<String?> description = const Value.absent(),
     String? visibility,
+    Value<int?> lastHeartbeatMs = const Value.absent(),
+    bool? heartbeatPaused,
+    int? discardedPointCount,
   }) => Activity(
     guid: guid ?? this.guid,
     activityType: activityType ?? this.activityType,
@@ -719,6 +834,11 @@ class Activity extends DataClass implements Insertable<Activity> {
     title: title.present ? title.value : this.title,
     description: description.present ? description.value : this.description,
     visibility: visibility ?? this.visibility,
+    lastHeartbeatMs: lastHeartbeatMs.present
+        ? lastHeartbeatMs.value
+        : this.lastHeartbeatMs,
+    heartbeatPaused: heartbeatPaused ?? this.heartbeatPaused,
+    discardedPointCount: discardedPointCount ?? this.discardedPointCount,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
     return Activity(
@@ -764,6 +884,15 @@ class Activity extends DataClass implements Insertable<Activity> {
       visibility: data.visibility.present
           ? data.visibility.value
           : this.visibility,
+      lastHeartbeatMs: data.lastHeartbeatMs.present
+          ? data.lastHeartbeatMs.value
+          : this.lastHeartbeatMs,
+      heartbeatPaused: data.heartbeatPaused.present
+          ? data.heartbeatPaused.value
+          : this.heartbeatPaused,
+      discardedPointCount: data.discardedPointCount.present
+          ? data.discardedPointCount.value
+          : this.discardedPointCount,
     );
   }
 
@@ -787,13 +916,16 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('remoteId: $remoteId, ')
           ..write('title: $title, ')
           ..write('description: $description, ')
-          ..write('visibility: $visibility')
+          ..write('visibility: $visibility, ')
+          ..write('lastHeartbeatMs: $lastHeartbeatMs, ')
+          ..write('heartbeatPaused: $heartbeatPaused, ')
+          ..write('discardedPointCount: $discardedPointCount')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     guid,
     activityType,
     startTimestampMs,
@@ -812,7 +944,10 @@ class Activity extends DataClass implements Insertable<Activity> {
     title,
     description,
     visibility,
-  );
+    lastHeartbeatMs,
+    heartbeatPaused,
+    discardedPointCount,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -834,7 +969,10 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.remoteId == this.remoteId &&
           other.title == this.title &&
           other.description == this.description &&
-          other.visibility == this.visibility);
+          other.visibility == this.visibility &&
+          other.lastHeartbeatMs == this.lastHeartbeatMs &&
+          other.heartbeatPaused == this.heartbeatPaused &&
+          other.discardedPointCount == this.discardedPointCount);
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
@@ -856,6 +994,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<String?> title;
   final Value<String?> description;
   final Value<String> visibility;
+  final Value<int?> lastHeartbeatMs;
+  final Value<bool> heartbeatPaused;
+  final Value<int> discardedPointCount;
   final Value<int> rowid;
   const ActivitiesCompanion({
     this.guid = const Value.absent(),
@@ -876,6 +1017,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.title = const Value.absent(),
     this.description = const Value.absent(),
     this.visibility = const Value.absent(),
+    this.lastHeartbeatMs = const Value.absent(),
+    this.heartbeatPaused = const Value.absent(),
+    this.discardedPointCount = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ActivitiesCompanion.insert({
@@ -897,6 +1041,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.title = const Value.absent(),
     this.description = const Value.absent(),
     this.visibility = const Value.absent(),
+    this.lastHeartbeatMs = const Value.absent(),
+    this.heartbeatPaused = const Value.absent(),
+    this.discardedPointCount = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : guid = Value(guid),
        activityType = Value(activityType),
@@ -921,6 +1068,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<String>? title,
     Expression<String>? description,
     Expression<String>? visibility,
+    Expression<int>? lastHeartbeatMs,
+    Expression<bool>? heartbeatPaused,
+    Expression<int>? discardedPointCount,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -942,6 +1092,10 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (title != null) 'title': title,
       if (description != null) 'description': description,
       if (visibility != null) 'visibility': visibility,
+      if (lastHeartbeatMs != null) 'last_heartbeat_ms': lastHeartbeatMs,
+      if (heartbeatPaused != null) 'heartbeat_paused': heartbeatPaused,
+      if (discardedPointCount != null)
+        'discarded_point_count': discardedPointCount,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -965,6 +1119,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<String?>? title,
     Value<String?>? description,
     Value<String>? visibility,
+    Value<int?>? lastHeartbeatMs,
+    Value<bool>? heartbeatPaused,
+    Value<int>? discardedPointCount,
     Value<int>? rowid,
   }) {
     return ActivitiesCompanion(
@@ -986,6 +1143,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       title: title ?? this.title,
       description: description ?? this.description,
       visibility: visibility ?? this.visibility,
+      lastHeartbeatMs: lastHeartbeatMs ?? this.lastHeartbeatMs,
+      heartbeatPaused: heartbeatPaused ?? this.heartbeatPaused,
+      discardedPointCount: discardedPointCount ?? this.discardedPointCount,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1051,6 +1211,15 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (visibility.present) {
       map['visibility'] = Variable<String>(visibility.value);
     }
+    if (lastHeartbeatMs.present) {
+      map['last_heartbeat_ms'] = Variable<int>(lastHeartbeatMs.value);
+    }
+    if (heartbeatPaused.present) {
+      map['heartbeat_paused'] = Variable<bool>(heartbeatPaused.value);
+    }
+    if (discardedPointCount.present) {
+      map['discarded_point_count'] = Variable<int>(discardedPointCount.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1078,6 +1247,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('title: $title, ')
           ..write('description: $description, ')
           ..write('visibility: $visibility, ')
+          ..write('lastHeartbeatMs: $lastHeartbeatMs, ')
+          ..write('heartbeatPaused: $heartbeatPaused, ')
+          ..write('discardedPointCount: $discardedPointCount, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1977,12 +2149,28 @@ class $SettingsRowsTable extends SettingsRows
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reliabilityChecklistSeenMeta =
+      const VerificationMeta('reliabilityChecklistSeen');
+  @override
+  late final GeneratedColumn<bool> reliabilityChecklistSeen =
+      GeneratedColumn<bool>(
+        'reliability_checklist_seen',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("reliability_checklist_seen" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     useMetric,
     autoPauseEnabled,
     weightKg,
+    reliabilityChecklistSeen,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2020,6 +2208,15 @@ class $SettingsRowsTable extends SettingsRows
         weightKg.isAcceptableOrUnknown(data['weight_kg']!, _weightKgMeta),
       );
     }
+    if (data.containsKey('reliability_checklist_seen')) {
+      context.handle(
+        _reliabilityChecklistSeenMeta,
+        reliabilityChecklistSeen.isAcceptableOrUnknown(
+          data['reliability_checklist_seen']!,
+          _reliabilityChecklistSeenMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2045,6 +2242,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.double,
         data['${effectivePrefix}weight_kg'],
       ),
+      reliabilityChecklistSeen: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}reliability_checklist_seen'],
+      )!,
     );
   }
 
@@ -2062,11 +2263,15 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// Peso do usuario em kg, para estimar calorias. Null = nao informado (sem
   /// calorias).
   final double? weightKg;
+
+  /// Checklist "Gravacao confiavel" ja mostrado antes da primeira gravacao.
+  final bool reliabilityChecklistSeen;
   const SettingsRow({
     required this.id,
     required this.useMetric,
     required this.autoPauseEnabled,
     this.weightKg,
+    required this.reliabilityChecklistSeen,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2077,6 +2282,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     if (!nullToAbsent || weightKg != null) {
       map['weight_kg'] = Variable<double>(weightKg);
     }
+    map['reliability_checklist_seen'] = Variable<bool>(
+      reliabilityChecklistSeen,
+    );
     return map;
   }
 
@@ -2088,6 +2296,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       weightKg: weightKg == null && nullToAbsent
           ? const Value.absent()
           : Value(weightKg),
+      reliabilityChecklistSeen: Value(reliabilityChecklistSeen),
     );
   }
 
@@ -2101,6 +2310,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       useMetric: serializer.fromJson<bool>(json['useMetric']),
       autoPauseEnabled: serializer.fromJson<bool>(json['autoPauseEnabled']),
       weightKg: serializer.fromJson<double?>(json['weightKg']),
+      reliabilityChecklistSeen: serializer.fromJson<bool>(
+        json['reliabilityChecklistSeen'],
+      ),
     );
   }
   @override
@@ -2111,6 +2323,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'useMetric': serializer.toJson<bool>(useMetric),
       'autoPauseEnabled': serializer.toJson<bool>(autoPauseEnabled),
       'weightKg': serializer.toJson<double?>(weightKg),
+      'reliabilityChecklistSeen': serializer.toJson<bool>(
+        reliabilityChecklistSeen,
+      ),
     };
   }
 
@@ -2119,11 +2334,14 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     bool? useMetric,
     bool? autoPauseEnabled,
     Value<double?> weightKg = const Value.absent(),
+    bool? reliabilityChecklistSeen,
   }) => SettingsRow(
     id: id ?? this.id,
     useMetric: useMetric ?? this.useMetric,
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
     weightKg: weightKg.present ? weightKg.value : this.weightKg,
+    reliabilityChecklistSeen:
+        reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2133,6 +2351,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ? data.autoPauseEnabled.value
           : this.autoPauseEnabled,
       weightKg: data.weightKg.present ? data.weightKg.value : this.weightKg,
+      reliabilityChecklistSeen: data.reliabilityChecklistSeen.present
+          ? data.reliabilityChecklistSeen.value
+          : this.reliabilityChecklistSeen,
     );
   }
 
@@ -2142,13 +2363,20 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('id: $id, ')
           ..write('useMetric: $useMetric, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
-          ..write('weightKg: $weightKg')
+          ..write('weightKg: $weightKg, ')
+          ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, useMetric, autoPauseEnabled, weightKg);
+  int get hashCode => Object.hash(
+    id,
+    useMetric,
+    autoPauseEnabled,
+    weightKg,
+    reliabilityChecklistSeen,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2156,7 +2384,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.id == this.id &&
           other.useMetric == this.useMetric &&
           other.autoPauseEnabled == this.autoPauseEnabled &&
-          other.weightKg == this.weightKg);
+          other.weightKg == this.weightKg &&
+          other.reliabilityChecklistSeen == this.reliabilityChecklistSeen);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2164,29 +2393,35 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<bool> useMetric;
   final Value<bool> autoPauseEnabled;
   final Value<double?> weightKg;
+  final Value<bool> reliabilityChecklistSeen;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
     this.weightKg = const Value.absent(),
+    this.reliabilityChecklistSeen = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
     this.weightKg = const Value.absent(),
+    this.reliabilityChecklistSeen = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
     Expression<bool>? useMetric,
     Expression<bool>? autoPauseEnabled,
     Expression<double>? weightKg,
+    Expression<bool>? reliabilityChecklistSeen,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (useMetric != null) 'use_metric': useMetric,
       if (autoPauseEnabled != null) 'auto_pause_enabled': autoPauseEnabled,
       if (weightKg != null) 'weight_kg': weightKg,
+      if (reliabilityChecklistSeen != null)
+        'reliability_checklist_seen': reliabilityChecklistSeen,
     });
   }
 
@@ -2195,12 +2430,15 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<bool>? useMetric,
     Value<bool>? autoPauseEnabled,
     Value<double?>? weightKg,
+    Value<bool>? reliabilityChecklistSeen,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
       useMetric: useMetric ?? this.useMetric,
       autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
       weightKg: weightKg ?? this.weightKg,
+      reliabilityChecklistSeen:
+          reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
     );
   }
 
@@ -2219,6 +2457,11 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (weightKg.present) {
       map['weight_kg'] = Variable<double>(weightKg.value);
     }
+    if (reliabilityChecklistSeen.present) {
+      map['reliability_checklist_seen'] = Variable<bool>(
+        reliabilityChecklistSeen.value,
+      );
+    }
     return map;
   }
 
@@ -2228,7 +2471,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('id: $id, ')
           ..write('useMetric: $useMetric, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
-          ..write('weightKg: $weightKg')
+          ..write('weightKg: $weightKg, ')
+          ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen')
           ..write(')'))
         .toString();
   }
@@ -3019,6 +3263,362 @@ class LapsCompanion extends UpdateCompanion<Lap> {
   }
 }
 
+class $RecordingGapsTable extends RecordingGaps
+    with TableInfo<$RecordingGapsTable, RecordingGapRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecordingGapsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _activityGuidMeta = const VerificationMeta(
+    'activityGuid',
+  );
+  @override
+  late final GeneratedColumn<String> activityGuid = GeneratedColumn<String>(
+    'activity_guid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES activities (guid) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _startMsMeta = const VerificationMeta(
+    'startMs',
+  );
+  @override
+  late final GeneratedColumn<int> startMs = GeneratedColumn<int>(
+    'start_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endMsMeta = const VerificationMeta('endMs');
+  @override
+  late final GeneratedColumn<int> endMs = GeneratedColumn<int>(
+    'end_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<int> reason = GeneratedColumn<int>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    activityGuid,
+    startMs,
+    endMs,
+    reason,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recording_gaps';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecordingGapRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('activity_guid')) {
+      context.handle(
+        _activityGuidMeta,
+        activityGuid.isAcceptableOrUnknown(
+          data['activity_guid']!,
+          _activityGuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_activityGuidMeta);
+    }
+    if (data.containsKey('start_ms')) {
+      context.handle(
+        _startMsMeta,
+        startMs.isAcceptableOrUnknown(data['start_ms']!, _startMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMsMeta);
+    }
+    if (data.containsKey('end_ms')) {
+      context.handle(
+        _endMsMeta,
+        endMs.isAcceptableOrUnknown(data['end_ms']!, _endMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_endMsMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecordingGapRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecordingGapRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      activityGuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity_guid'],
+      )!,
+      startMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_ms'],
+      )!,
+      endMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}end_ms'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reason'],
+      )!,
+    );
+  }
+
+  @override
+  $RecordingGapsTable createAlias(String alias) {
+    return $RecordingGapsTable(attachedDatabase, alias);
+  }
+}
+
+class RecordingGapRow extends DataClass implements Insertable<RecordingGapRow> {
+  final int id;
+  final String activityGuid;
+  final int startMs;
+  final int endMs;
+  final int reason;
+  const RecordingGapRow({
+    required this.id,
+    required this.activityGuid,
+    required this.startMs,
+    required this.endMs,
+    required this.reason,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['activity_guid'] = Variable<String>(activityGuid);
+    map['start_ms'] = Variable<int>(startMs);
+    map['end_ms'] = Variable<int>(endMs);
+    map['reason'] = Variable<int>(reason);
+    return map;
+  }
+
+  RecordingGapsCompanion toCompanion(bool nullToAbsent) {
+    return RecordingGapsCompanion(
+      id: Value(id),
+      activityGuid: Value(activityGuid),
+      startMs: Value(startMs),
+      endMs: Value(endMs),
+      reason: Value(reason),
+    );
+  }
+
+  factory RecordingGapRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecordingGapRow(
+      id: serializer.fromJson<int>(json['id']),
+      activityGuid: serializer.fromJson<String>(json['activityGuid']),
+      startMs: serializer.fromJson<int>(json['startMs']),
+      endMs: serializer.fromJson<int>(json['endMs']),
+      reason: serializer.fromJson<int>(json['reason']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'activityGuid': serializer.toJson<String>(activityGuid),
+      'startMs': serializer.toJson<int>(startMs),
+      'endMs': serializer.toJson<int>(endMs),
+      'reason': serializer.toJson<int>(reason),
+    };
+  }
+
+  RecordingGapRow copyWith({
+    int? id,
+    String? activityGuid,
+    int? startMs,
+    int? endMs,
+    int? reason,
+  }) => RecordingGapRow(
+    id: id ?? this.id,
+    activityGuid: activityGuid ?? this.activityGuid,
+    startMs: startMs ?? this.startMs,
+    endMs: endMs ?? this.endMs,
+    reason: reason ?? this.reason,
+  );
+  RecordingGapRow copyWithCompanion(RecordingGapsCompanion data) {
+    return RecordingGapRow(
+      id: data.id.present ? data.id.value : this.id,
+      activityGuid: data.activityGuid.present
+          ? data.activityGuid.value
+          : this.activityGuid,
+      startMs: data.startMs.present ? data.startMs.value : this.startMs,
+      endMs: data.endMs.present ? data.endMs.value : this.endMs,
+      reason: data.reason.present ? data.reason.value : this.reason,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecordingGapRow(')
+          ..write('id: $id, ')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs, ')
+          ..write('reason: $reason')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, activityGuid, startMs, endMs, reason);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecordingGapRow &&
+          other.id == this.id &&
+          other.activityGuid == this.activityGuid &&
+          other.startMs == this.startMs &&
+          other.endMs == this.endMs &&
+          other.reason == this.reason);
+}
+
+class RecordingGapsCompanion extends UpdateCompanion<RecordingGapRow> {
+  final Value<int> id;
+  final Value<String> activityGuid;
+  final Value<int> startMs;
+  final Value<int> endMs;
+  final Value<int> reason;
+  const RecordingGapsCompanion({
+    this.id = const Value.absent(),
+    this.activityGuid = const Value.absent(),
+    this.startMs = const Value.absent(),
+    this.endMs = const Value.absent(),
+    this.reason = const Value.absent(),
+  });
+  RecordingGapsCompanion.insert({
+    this.id = const Value.absent(),
+    required String activityGuid,
+    required int startMs,
+    required int endMs,
+    required int reason,
+  }) : activityGuid = Value(activityGuid),
+       startMs = Value(startMs),
+       endMs = Value(endMs),
+       reason = Value(reason);
+  static Insertable<RecordingGapRow> custom({
+    Expression<int>? id,
+    Expression<String>? activityGuid,
+    Expression<int>? startMs,
+    Expression<int>? endMs,
+    Expression<int>? reason,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (activityGuid != null) 'activity_guid': activityGuid,
+      if (startMs != null) 'start_ms': startMs,
+      if (endMs != null) 'end_ms': endMs,
+      if (reason != null) 'reason': reason,
+    });
+  }
+
+  RecordingGapsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? activityGuid,
+    Value<int>? startMs,
+    Value<int>? endMs,
+    Value<int>? reason,
+  }) {
+    return RecordingGapsCompanion(
+      id: id ?? this.id,
+      activityGuid: activityGuid ?? this.activityGuid,
+      startMs: startMs ?? this.startMs,
+      endMs: endMs ?? this.endMs,
+      reason: reason ?? this.reason,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (activityGuid.present) {
+      map['activity_guid'] = Variable<String>(activityGuid.value);
+    }
+    if (startMs.present) {
+      map['start_ms'] = Variable<int>(startMs.value);
+    }
+    if (endMs.present) {
+      map['end_ms'] = Variable<int>(endMs.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<int>(reason.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecordingGapsCompanion(')
+          ..write('id: $id, ')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('startMs: $startMs, ')
+          ..write('endMs: $endMs, ')
+          ..write('reason: $reason')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RecordingDatabase extends GeneratedDatabase {
   _$RecordingDatabase(QueryExecutor e) : super(e);
   $RecordingDatabaseManager get managers => $RecordingDatabaseManager(this);
@@ -3029,6 +3629,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     this,
   );
   late final $LapsTable laps = $LapsTable(this);
+  late final $RecordingGapsTable recordingGaps = $RecordingGapsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3039,6 +3640,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     settingsRows,
     remoteDeletions,
     laps,
+    recordingGaps,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3055,6 +3657,13 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('laps', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'activities',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('recording_gaps', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -3078,6 +3687,9 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<String?> title,
   Value<String?> description,
   Value<String> visibility,
+  Value<int?> lastHeartbeatMs,
+  Value<bool> heartbeatPaused,
+  Value<int> discardedPointCount,
   Value<int> rowid,
 });
 typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
@@ -3099,6 +3711,9 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<String?> title,
   Value<String?> description,
   Value<String> visibility,
+  Value<int?> lastHeartbeatMs,
+  Value<bool> heartbeatPaused,
+  Value<int> discardedPointCount,
   Value<int> rowid,
 });
 
@@ -3136,6 +3751,25 @@ final class $$ActivitiesTableReferences
     );
 
     final cache = $_typedResult.readTableOrNull(_lapsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$RecordingGapsTable, List<RecordingGapRow>>
+  _recordingGapsRefsTable(_$RecordingDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.recordingGaps,
+        aliasName: 'activities__guid__recording_gaps__activity_guid',
+      );
+
+  $$RecordingGapsTableProcessedTableManager get recordingGapsRefs {
+    final manager = $$RecordingGapsTableTableManager($_db, $_db.recordingGaps)
+        .filter(
+          (f) => f.activityGuid.guid.sqlEquals($_itemColumn<String>('guid')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(_recordingGapsRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -3243,6 +3877,21 @@ class $$ActivitiesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get lastHeartbeatMs => $composableBuilder(
+    column: $table.lastHeartbeatMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get heartbeatPaused => $composableBuilder(
+    column: $table.heartbeatPaused,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get discardedPointCount => $composableBuilder(
+    column: $table.discardedPointCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> waypointsRefs(
     Expression<bool> Function($$WaypointsTableFilterComposer f) f,
   ) {
@@ -3284,6 +3933,31 @@ class $$ActivitiesTableFilterComposer
           }) => $$LapsTableFilterComposer(
             $db: $db,
             $table: $db.laps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> recordingGapsRefs(
+    Expression<bool> Function($$RecordingGapsTableFilterComposer f) f,
+  ) {
+    final $$RecordingGapsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.guid,
+      referencedTable: $db.recordingGaps,
+      getReferencedColumn: (t) => t.activityGuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RecordingGapsTableFilterComposer(
+            $db: $db,
+            $table: $db.recordingGaps,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3392,6 +4066,21 @@ class $$ActivitiesTableOrderingComposer
     column: $table.visibility,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get lastHeartbeatMs => $composableBuilder(
+    column: $table.lastHeartbeatMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get heartbeatPaused => $composableBuilder(
+    column: $table.heartbeatPaused,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get discardedPointCount => $composableBuilder(
+    column: $table.discardedPointCount,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -3482,6 +4171,21 @@ class $$ActivitiesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get lastHeartbeatMs => $composableBuilder(
+    column: $table.lastHeartbeatMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get heartbeatPaused => $composableBuilder(
+    column: $table.heartbeatPaused,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get discardedPointCount => $composableBuilder(
+    column: $table.discardedPointCount,
+    builder: (column) => column,
+  );
+
   Expression<T> waypointsRefs<T extends Object>(
     Expression<T> Function($$WaypointsTableAnnotationComposer a) f,
   ) {
@@ -3531,6 +4235,31 @@ class $$ActivitiesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> recordingGapsRefs<T extends Object>(
+    Expression<T> Function($$RecordingGapsTableAnnotationComposer a) f,
+  ) {
+    final $$RecordingGapsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.guid,
+      referencedTable: $db.recordingGaps,
+      getReferencedColumn: (t) => t.activityGuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$RecordingGapsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.recordingGaps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ActivitiesTableTableManager
@@ -3546,7 +4275,11 @@ class $$ActivitiesTableTableManager
           $$ActivitiesTableUpdateCompanionBuilder,
           (Activity, $$ActivitiesTableReferences),
           Activity,
-          PrefetchHooks Function({bool waypointsRefs, bool lapsRefs})
+          PrefetchHooks Function({
+            bool waypointsRefs,
+            bool lapsRefs,
+            bool recordingGapsRefs,
+          })
         > {
   $$ActivitiesTableTableManager(_$RecordingDatabase db, $ActivitiesTable table)
     : super(
@@ -3579,6 +4312,9 @@ class $$ActivitiesTableTableManager
                 Value<String?> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String> visibility = const Value.absent(),
+                Value<int?> lastHeartbeatMs = const Value.absent(),
+                Value<bool> heartbeatPaused = const Value.absent(),
+                Value<int> discardedPointCount = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion(
                 guid: guid,
@@ -3599,6 +4335,9 @@ class $$ActivitiesTableTableManager
                 title: title,
                 description: description,
                 visibility: visibility,
+                lastHeartbeatMs: lastHeartbeatMs,
+                heartbeatPaused: heartbeatPaused,
+                discardedPointCount: discardedPointCount,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3621,6 +4360,9 @@ class $$ActivitiesTableTableManager
                 Value<String?> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String> visibility = const Value.absent(),
+                Value<int?> lastHeartbeatMs = const Value.absent(),
+                Value<bool> heartbeatPaused = const Value.absent(),
+                Value<int> discardedPointCount = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion.insert(
                 guid: guid,
@@ -3641,6 +4383,9 @@ class $$ActivitiesTableTableManager
                 title: title,
                 description: description,
                 visibility: visibility,
+                lastHeartbeatMs: lastHeartbeatMs,
+                heartbeatPaused: heartbeatPaused,
+                discardedPointCount: discardedPointCount,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3651,56 +4396,86 @@ class $$ActivitiesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({waypointsRefs = false, lapsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (waypointsRefs) db.waypoints,
-                if (lapsRefs) db.laps,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (waypointsRefs)
-                    await $_getPrefetchedDataByColumns<
-                      Activity,
-                      $ActivitiesTable,
-                      Waypoint,
-                      $WaypointsTable
-                    >(
-                      currentTable: table,
-                      referencedTable: $$ActivitiesTableReferences
-                          ._waypointsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$ActivitiesTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).waypointsRefs,
-                      currentColumn: 'guid',
-                      referencedColumn: 'activity_guid',
-                      typedResults: items,
-                    ),
-                  if (lapsRefs)
-                    await $_getPrefetchedDataByColumns<
-                      Activity,
-                      $ActivitiesTable,
-                      Lap,
-                      $LapsTable
-                    >(
-                      currentTable: table,
-                      referencedTable: $$ActivitiesTableReferences
-                          ._lapsRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$ActivitiesTableReferences(db, table, p0).lapsRefs,
-                      currentColumn: 'guid',
-                      referencedColumn: 'activity_guid',
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({
+                waypointsRefs = false,
+                lapsRefs = false,
+                recordingGapsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (waypointsRefs) db.waypoints,
+                    if (lapsRefs) db.laps,
+                    if (recordingGapsRefs) db.recordingGaps,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (waypointsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Activity,
+                          $ActivitiesTable,
+                          Waypoint,
+                          $WaypointsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ActivitiesTableReferences
+                              ._waypointsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ActivitiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).waypointsRefs,
+                          currentColumn: 'guid',
+                          referencedColumn: 'activity_guid',
+                          typedResults: items,
+                        ),
+                      if (lapsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Activity,
+                          $ActivitiesTable,
+                          Lap,
+                          $LapsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ActivitiesTableReferences
+                              ._lapsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ActivitiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).lapsRefs,
+                          currentColumn: 'guid',
+                          referencedColumn: 'activity_guid',
+                          typedResults: items,
+                        ),
+                      if (recordingGapsRefs)
+                        await $_getPrefetchedDataByColumns<
+                          Activity,
+                          $ActivitiesTable,
+                          RecordingGapRow,
+                          $RecordingGapsTable
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ActivitiesTableReferences
+                              ._recordingGapsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ActivitiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).recordingGapsRefs,
+                          currentColumn: 'guid',
+                          referencedColumn: 'activity_guid',
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -3717,7 +4492,11 @@ typedef $$ActivitiesTableProcessedTableManager =
       $$ActivitiesTableUpdateCompanionBuilder,
       (Activity, $$ActivitiesTableReferences),
       Activity,
-      PrefetchHooks Function({bool waypointsRefs, bool lapsRefs})
+      PrefetchHooks Function({
+        bool waypointsRefs,
+        bool lapsRefs,
+        bool recordingGapsRefs,
+      })
     >;
 typedef $$WaypointsTableCreateCompanionBuilder = WaypointsCompanion Function({
   Value<int> id,
@@ -4200,6 +4979,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<bool> useMetric,
       Value<bool> autoPauseEnabled,
       Value<double?> weightKg,
+      Value<bool> reliabilityChecklistSeen,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -4207,6 +4987,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<bool> useMetric,
       Value<bool> autoPauseEnabled,
       Value<double?> weightKg,
+      Value<bool> reliabilityChecklistSeen,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -4235,6 +5016,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<double> get weightKg => $composableBuilder(
     column: $table.weightKg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get reliabilityChecklistSeen => $composableBuilder(
+    column: $table.reliabilityChecklistSeen,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4267,6 +5053,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.weightKg,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get reliabilityChecklistSeen => $composableBuilder(
+    column: $table.reliabilityChecklistSeen,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -4291,6 +5082,11 @@ class $$SettingsRowsTableAnnotationComposer
 
   GeneratedColumn<double> get weightKg =>
       $composableBuilder(column: $table.weightKg, builder: (column) => column);
+
+  GeneratedColumn<bool> get reliabilityChecklistSeen => $composableBuilder(
+    column: $table.reliabilityChecklistSeen,
+    builder: (column) => column,
+  );
 }
 
 class $$SettingsRowsTableTableManager
@@ -4334,11 +5130,13 @@ class $$SettingsRowsTableTableManager
                 Value<bool> useMetric = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<double?> weightKg = const Value.absent(),
+                Value<bool> reliabilityChecklistSeen = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 useMetric: useMetric,
                 autoPauseEnabled: autoPauseEnabled,
                 weightKg: weightKg,
+                reliabilityChecklistSeen: reliabilityChecklistSeen,
               ),
           createCompanionCallback:
               ({
@@ -4346,11 +5144,13 @@ class $$SettingsRowsTableTableManager
                 Value<bool> useMetric = const Value.absent(),
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<double?> weightKg = const Value.absent(),
+                Value<bool> reliabilityChecklistSeen = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 useMetric: useMetric,
                 autoPauseEnabled: autoPauseEnabled,
                 weightKg: weightKg,
+                reliabilityChecklistSeen: reliabilityChecklistSeen,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -4932,6 +5732,327 @@ typedef $$LapsTableProcessedTableManager =
       Lap,
       PrefetchHooks Function({bool activityGuid})
     >;
+typedef $$RecordingGapsTableCreateCompanionBuilder =
+    RecordingGapsCompanion Function({
+      Value<int> id,
+      required String activityGuid,
+      required int startMs,
+      required int endMs,
+      required int reason,
+    });
+typedef $$RecordingGapsTableUpdateCompanionBuilder =
+    RecordingGapsCompanion Function({
+      Value<int> id,
+      Value<String> activityGuid,
+      Value<int> startMs,
+      Value<int> endMs,
+      Value<int> reason,
+    });
+
+final class $$RecordingGapsTableReferences
+    extends
+        BaseReferences<
+          _$RecordingDatabase,
+          $RecordingGapsTable,
+          RecordingGapRow
+        > {
+  $$RecordingGapsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ActivitiesTable _activityGuidTable(_$RecordingDatabase db) => db
+      .activities
+      .createAlias('recording_gaps__activity_guid__activities__guid');
+
+  $$ActivitiesTableProcessedTableManager get activityGuid {
+    final $_column = $_itemColumn<String>('activity_guid')!;
+
+    final manager = $$ActivitiesTableTableManager(
+      $_db,
+      $_db.activities,
+    ).filter((f) => f.guid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_activityGuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$RecordingGapsTableFilterComposer
+    extends Composer<_$RecordingDatabase, $RecordingGapsTable> {
+  $$RecordingGapsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endMs => $composableBuilder(
+    column: $table.endMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ActivitiesTableFilterComposer get activityGuid {
+    final $$ActivitiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityGuid,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.guid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableFilterComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RecordingGapsTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $RecordingGapsTable> {
+  $$RecordingGapsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startMs => $composableBuilder(
+    column: $table.startMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endMs => $composableBuilder(
+    column: $table.endMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ActivitiesTableOrderingComposer get activityGuid {
+    final $$ActivitiesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityGuid,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.guid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableOrderingComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RecordingGapsTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $RecordingGapsTable> {
+  $$RecordingGapsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get startMs =>
+      $composableBuilder(column: $table.startMs, builder: (column) => column);
+
+  GeneratedColumn<int> get endMs =>
+      $composableBuilder(column: $table.endMs, builder: (column) => column);
+
+  GeneratedColumn<int> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  $$ActivitiesTableAnnotationComposer get activityGuid {
+    final $$ActivitiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityGuid,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.guid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActivitiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$RecordingGapsTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $RecordingGapsTable,
+          RecordingGapRow,
+          $$RecordingGapsTableFilterComposer,
+          $$RecordingGapsTableOrderingComposer,
+          $$RecordingGapsTableAnnotationComposer,
+          $$RecordingGapsTableCreateCompanionBuilder,
+          $$RecordingGapsTableUpdateCompanionBuilder,
+          (RecordingGapRow, $$RecordingGapsTableReferences),
+          RecordingGapRow,
+          PrefetchHooks Function({bool activityGuid})
+        > {
+  $$RecordingGapsTableTableManager(
+    _$RecordingDatabase db,
+    $RecordingGapsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecordingGapsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecordingGapsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecordingGapsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> activityGuid = const Value.absent(),
+                Value<int> startMs = const Value.absent(),
+                Value<int> endMs = const Value.absent(),
+                Value<int> reason = const Value.absent(),
+              }) => RecordingGapsCompanion(
+                id: id,
+                activityGuid: activityGuid,
+                startMs: startMs,
+                endMs: endMs,
+                reason: reason,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String activityGuid,
+                required int startMs,
+                required int endMs,
+                required int reason,
+              }) => RecordingGapsCompanion.insert(
+                id: id,
+                activityGuid: activityGuid,
+                startMs: startMs,
+                endMs: endMs,
+                reason: reason,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$RecordingGapsTable, RecordingGapRow>(table),
+                  $$RecordingGapsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({activityGuid = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (activityGuid) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.activityGuid,
+                        referencedTable: $$RecordingGapsTableReferences
+                            ._activityGuidTable(db),
+                        referencedColumn: $$RecordingGapsTableReferences
+                            ._activityGuidTable(db)
+                            .guid,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$RecordingGapsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $RecordingGapsTable,
+      RecordingGapRow,
+      $$RecordingGapsTableFilterComposer,
+      $$RecordingGapsTableOrderingComposer,
+      $$RecordingGapsTableAnnotationComposer,
+      $$RecordingGapsTableCreateCompanionBuilder,
+      $$RecordingGapsTableUpdateCompanionBuilder,
+      (RecordingGapRow, $$RecordingGapsTableReferences),
+      RecordingGapRow,
+      PrefetchHooks Function({bool activityGuid})
+    >;
 
 class $RecordingDatabaseManager {
   final _$RecordingDatabase _db;
@@ -4945,4 +6066,6 @@ class $RecordingDatabaseManager {
   $$RemoteDeletionsTableTableManager get remoteDeletions =>
       $$RemoteDeletionsTableTableManager(_db, _db.remoteDeletions);
   $$LapsTableTableManager get laps => $$LapsTableTableManager(_db, _db.laps);
+  $$RecordingGapsTableTableManager get recordingGaps =>
+      $$RecordingGapsTableTableManager(_db, _db.recordingGaps);
 }

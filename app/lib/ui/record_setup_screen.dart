@@ -89,6 +89,18 @@ class _RecordSetupScreenState extends ConsumerState<RecordSetupScreen> {
     });
   }
 
+  /// Iniciar: antes da primeira gravacao passa pelo checklist "Gravacao
+  /// confiavel" (F01); so grava se a pessoa tocar em Continuar.
+  Future<void> _start(ActivityType type) async {
+    await ref.read(settingsProvider.notifier).ensureLoaded();
+    if (!mounted) return;
+    if (!ref.read(settingsProvider).reliabilityChecklistSeen) {
+      final go = await context.push<bool>(AppRoutes.reliabilityBeforeRecording);
+      if (go != true || !mounted) return;
+    }
+    context.push(AppRoutes.record(type));
+  }
+
   void _onGpsTap() {
     switch (_gps) {
       case GpsStatus.ready:
@@ -172,7 +184,7 @@ class _RecordSetupScreenState extends ConsumerState<RecordSetupScreen> {
               type: type,
               lastUsed: last,
               onPicked: (t) => setState(() => _picked = t),
-              onStart: () => context.push(AppRoutes.record(type)),
+              onStart: () => _start(type),
             ),
           ),
         ],

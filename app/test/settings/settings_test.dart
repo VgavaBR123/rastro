@@ -47,4 +47,28 @@ void main() {
     await a;
     expect(c.state.autoPauseEnabled, false);
   });
+
+  test('checklist de confiabilidade: marca visto e persiste (F01)', () async {
+    final c1 = SettingsController(db);
+    await c1.load();
+    expect(c1.state.reliabilityChecklistSeen, isFalse);
+    await c1.markReliabilityChecklistSeen();
+    expect(c1.state.reliabilityChecklistSeen, isTrue);
+    // Trocar outra configuracao nao apaga a marca.
+    await c1.setUseMetric(false);
+    expect(c1.state.reliabilityChecklistSeen, isTrue);
+
+    final c2 = SettingsController(db);
+    await c2.load();
+    expect(c2.state.reliabilityChecklistSeen, isTrue);
+  });
+
+  test('leituras e gravacoes simultaneas nao estouram a linha unica', () async {
+    await Future.wait([
+      db.loadSettings(),
+      db.saveSettings(reliabilityChecklistSeen: true),
+      db.loadSettings(),
+    ]);
+    expect((await db.loadSettings()).reliabilityChecklistSeen, isTrue);
+  });
 }

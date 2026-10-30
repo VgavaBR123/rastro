@@ -58,8 +58,34 @@ class Activities extends Table {
   TextColumn get visibility =>
       text().withDefault(const Constant('everyone'))();
 
+  /// Gravacao blindada (F01): instante (epoch ms) do ultimo batimento salvo
+  /// durante a gravacao. Na recuperacao pos-crash, o intervalo dele ate a
+  /// retomada vira lacuna. Null = sem batimento (atividades antigas).
+  IntColumn get lastHeartbeatMs => integer().nullable()();
+
+  /// True se o ultimo batimento foi salvo com a gravacao pausada (o tempo
+  /// parado depois dele nao e lacuna).
+  BoolColumn get heartbeatPaused =>
+      boolean().withDefault(const Constant(false))();
+
+  /// Pontos descartados pelo filtro de ruido (nao conta os de pausa).
+  IntColumn get discardedPointCount =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {guid};
+}
+
+/// Lacunas da gravacao (F01): trechos com mais de 30 s sem batimento ou sem
+/// ponto de GPS, gravando e sem pausa. [reason] e o indice de GapReason.
+@DataClassName('RecordingGapRow')
+class RecordingGaps extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get activityGuid =>
+      text().references(Activities, #guid, onDelete: KeyAction.cascade)();
+  IntColumn get startMs => integer()();
+  IntColumn get endMs => integer()();
+  IntColumn get reason => integer()();
 }
 
 /// Exclusoes que ainda precisam chegar ao servidor (apagou no aparelho sem
@@ -117,17 +143,28 @@ class SettingsRows extends Table {
   /// calorias).
   RealColumn get weightKg => real().nullable()();
 
+  /// Checklist "Gravacao confiavel" ja mostrado antes da primeira gravacao.
+  BoolColumn get reliabilityChecklistSeen =>
+      boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
 
 @DriftDatabase(
-    tables: [Activities, Waypoints, SettingsRows, RemoteDeletions, Laps])
+    tables: [
+      Activities,
+      Waypoints,
+      SettingsRows,
+      RemoteDeletions,
+      Laps,
+      RecordingGaps,
+    ])
 class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -148,6 +185,16 @@ class RecordingDatabase extends _$RecordingDatabase {
             await m.addColumn(activities, activities.description);
             await m.addColumn(activities, activities.visibility);
           }
+          if (from < 7) {
+            await m.addColumn(activities, activities.lastHeartbeatMs);
+            await m.addColumn(activities, activities.heartbeatPaused);
+            await m.addColumn(activities, activities.discardedPointCount);
+            await m.addColumn(
+              settingsRows,
+              settingsRows.reliabilityChecklistSeen,
+            );
+            await m.createTable(recordingGaps);
+          }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
         // isso por conta propria. Sem este pragma, o `onDelete: cascade`
@@ -166,7 +213,12 @@ class RecordingDatabase extends _$RecordingDatabase {
     final row =
         await (select(settingsRows)..where((t) => t.id.equals(0))).getSingleOrNull();
     if (row != null) return row;
-    await into(settingsRows).insert(const SettingsRowsCompanion(id: Value(0)));
+    // insertOrIgnore: duas leituras ao mesmo tempo (ex.: o provider carregando
+    // e um save) nao podem estourar a chave unica.
+    await into(settingsRows).insert(
+      const SettingsRowsCompanion(id: Value(0)),
+      mode: InsertMode.insertOrIgnore,
+    );
     return (select(settingsRows)..where((t) => t.id.equals(0))).getSingle();
   }
 
@@ -175,6 +227,7 @@ class RecordingDatabase extends _$RecordingDatabase {
     bool? useMetric,
     bool? autoPauseEnabled,
     Value<double?> weightKg = const Value.absent(),
+    bool? reliabilityChecklistSeen,
   }) async {
     await loadSettings(); // garante a linha
     await (update(settingsRows)..where((t) => t.id.equals(0))).write(
@@ -184,9 +237,39 @@ class RecordingDatabase extends _$RecordingDatabase {
             ? const Value.absent()
             : Value(autoPauseEnabled),
         weightKg: weightKg,
+        reliabilityChecklistSeen: reliabilityChecklistSeen == null
+            ? const Value.absent()
+            : Value(reliabilityChecklistSeen),
       ),
     );
   }
+
+  // --- Gravacao blindada (F01) ---
+
+  /// Batimento da gravacao: instante, se estava pausada e os descartes ate
+  /// agora.
+  Future<void> writeHeartbeat(
+    String guid, {
+    required int nowMs,
+    required bool paused,
+    required int discardedPoints,
+  }) =>
+      (update(activities)..where((t) => t.guid.equals(guid))).write(
+        ActivitiesCompanion(
+          lastHeartbeatMs: Value(nowMs),
+          heartbeatPaused: Value(paused),
+          discardedPointCount: Value(discardedPoints),
+        ),
+      );
+
+  Future<void> insertGap(RecordingGapsCompanion gap) =>
+      into(recordingGaps).insert(gap);
+
+  Future<List<RecordingGapRow>> gapsForActivity(String guid) =>
+      (select(recordingGaps)
+            ..where((t) => t.activityGuid.equals(guid))
+            ..orderBy([(t) => OrderingTerm(expression: t.startMs)]))
+          .get();
 
   // --- Voltas ---
 

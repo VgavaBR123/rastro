@@ -31,8 +31,8 @@ class MethodChannelActivitySharer implements ActivitySharer {
       channel.invokeMethod<void>('shareText', {'text': text});
 
   @override
-  Future<void> shareImage(String path, {String? text}) => channel
-      .invokeMethod<void>('shareImage', {'path': path, 'text': ?text});
+  Future<void> shareImage(String path, {String? text}) =>
+      channel.invokeMethod<void>('shareImage', {'path': path, 'text': ?text});
 }
 
 final activitySharerProvider = Provider<ActivitySharer>(

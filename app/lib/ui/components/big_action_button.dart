@@ -36,6 +36,9 @@ class BigActionButton extends StatefulWidget {
   /// Quanto tempo segurar na variante hold.
   final Duration holdDuration;
 
+  /// Subtitulo da variante hold.
+  final String holdHint;
+
   const BigActionButton({
     super.key,
     required this.label,
@@ -45,6 +48,7 @@ class BigActionButton extends StatefulWidget {
     this.role,
     this.height = 64,
     this.holdDuration = const Duration(milliseconds: 1200),
+    this.holdHint = 'Segure para confirmar',
   }) : assert(variant != BigActionVariant.role || role != null);
 
   @override
@@ -93,7 +97,7 @@ class _BigActionButtonState extends State<BigActionButton> with SingleTickerProv
             children: [
               Text(widget.label, style: AppText.action.copyWith(color: fg), maxLines: 1),
               if (isHold)
-                Text('Segure para confirmar', style: AppText.label.copyWith(color: c.textMuted)),
+                Text(widget.holdHint, style: AppText.label.copyWith(color: c.textMuted)),
             ],
           ),
         ),
@@ -138,7 +142,7 @@ class _BigActionButtonState extends State<BigActionButton> with SingleTickerProv
     button = Semantics(
       button: true,
       enabled: enabled,
-      label: isHold ? '${widget.label}, segure para confirmar' : widget.label,
+      label: isHold ? '${widget.label}, ${widget.holdHint.toLowerCase()}' : widget.label,
       excludeSemantics: true,
       onTap: enabled ? widget.onPressed : null,
       child: SizedBox(height: widget.height, width: double.infinity, child: button),

@@ -1,9 +1,11 @@
-// Providers do detalhe da atividade: voltas e perfil de elevacao.
+// Providers do detalhe da atividade: voltas, perfil de elevacao e saude da
+// gravacao.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import '../recording/domain/recording_health.dart';
 import 'elevation_profile.dart';
 import 'lap_summary.dart';
 
@@ -20,4 +22,11 @@ final activityElevationProfileProvider = FutureProvider.autoDispose
     .family<ElevationProfile?, String>((ref, guid) async {
       final rows = await ref.watch(recordingRepositoryProvider).waypoints(guid);
       return buildElevationProfile(rows);
+    });
+
+/// Saude da gravacao (F01): lacunas, precisao, descartes e bateria; null se a
+/// atividade nao existe.
+final activityHealthProvider = FutureProvider.autoDispose
+    .family<RecordingHealth?, String>((ref, guid) {
+      return ref.watch(recordingRepositoryProvider).health(guid);
     });

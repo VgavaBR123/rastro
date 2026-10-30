@@ -18,6 +18,7 @@ import '../ui/home_screen.dart';
 import '../ui/password_reset_screen.dart';
 import '../ui/profile_screen.dart';
 import '../ui/record_setup_screen.dart';
+import '../ui/reliability_checklist_screen.dart';
 import '../ui/recording_screen.dart';
 import '../ui/settings_screen.dart';
 import '../ui/stats_screen.dart';
@@ -36,6 +37,13 @@ abstract final class AppRoutes {
   static const String recordSetup = '/record';
 
   static const String settings = '/settings';
+
+  /// Checklist "Gravacao confiavel" (F01), pelas Configuracoes.
+  static const String reliability = '/reliability';
+
+  /// O mesmo checklist antes da primeira gravacao: com "Continuar para
+  /// gravar", que devolve true no pop.
+  static const String reliabilityBeforeRecording = '/reliability?first=1';
   static const String auth = '/auth';
 
   /// Gravacao de [type]. Para retomar uma interrompida, passe-a em `extra`.
@@ -112,6 +120,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
         ],
       ),
       GoRoute(path: AppRoutes.settings, builder: (_, _) => const SettingsScreen()),
+      reliabilityRoute(),
       GoRoute(
         path: AppRoutes.auth,
         builder: (_, _) => const AuthScreen(),
@@ -127,6 +136,14 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
     ],
   );
 }
+
+/// Rota do checklist "Gravacao confiavel" (por cima do shell).
+GoRoute reliabilityRoute() => GoRoute(
+  path: AppRoutes.reliability,
+  builder: (_, state) => ReliabilityChecklistScreen(
+    beforeFirstRecording: state.uri.queryParameters['first'] == '1',
+  ),
+);
 
 /// Moldura das abas: o conteudo do ramo com a AppNavBar flutuando por cima.
 /// As telas deixam `AppNavBar.reservedHeight` livre no fim da rolagem.

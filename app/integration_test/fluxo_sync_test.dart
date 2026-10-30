@@ -92,6 +92,9 @@ void main() {
     // Banco limpo: o teste roda no aparelho e o arquivo sobrevive entre runs.
     await db.delete(db.waypoints).go();
     await db.delete(db.activities).go();
+    // O checklist "Gravacao confiavel" (F01) tem teste proprio; aqui o
+    // Iniciar vai direto para a gravacao.
+    await db.saveSettings(reliabilityChecklistSeen: true);
 
     await tester.pumpWidget(
       ProviderScope(

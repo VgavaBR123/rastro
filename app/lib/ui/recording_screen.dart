@@ -3,6 +3,10 @@
 // volta correntes, e o mapa a um deslize. Pausar/Retomar/Volta pela tela ou
 // pela notificacao. Encerrar exige segurar e abre a tela Salvar; encerrar pela
 // notificacao salva direto e fecha esta tela.
+//
+// Gravacao blindada (F01): faixa de aviso quando o GPS fica mudo e quando uma
+// lacuna e registrada; cadeado que bloqueia os toques (desbloquear exige
+// segurar), para o braco ou o bolso nao pausarem a gravacao sem querer.
 library;
 
 import 'package:flutter/material.dart';
@@ -11,13 +15,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/providers.dart';
 import '../core/format/measures.dart';
 import '../persistence/recording_repository.dart';
+import '../recording/domain/gap_monitor.dart';
 import '../recording/domain/geo.dart';
+import '../recording/domain/recording_health.dart';
 import '../recording/domain/recording_models.dart';
 import '../recording/presentation/recording_ui_state.dart';
 import '../sync/background/background_sync_provider.dart';
 import 'components/big_action_button.dart';
 import 'components/floating_map_button.dart';
 import 'components/metric_tile.dart';
+import 'components/notice_banner.dart';
 import 'components/sport_chip.dart';
 import 'route_map.dart';
 import 'save_activity_view.dart';
@@ -55,6 +62,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   bool _finishing = false;
 
   bool _closed = false;
+
+  /// Bloqueio contra toques ligado.
+  bool _locked = false;
 
   @override
   void initState() {
@@ -106,6 +116,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     if (s.isRecording) ref.read(recordingControllerProvider.notifier).pause();
     setState(() {
       _saving = true;
+      _locked = false;
       _page = 0;
       _startedAt = DateTime.now().subtract(Duration(milliseconds: s.elapsedMs));
     });
@@ -193,6 +204,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         onLap: ctrl.lap,
         onStop: _openSave,
         onClose: () => Navigator.of(context).pop(),
+        locked: _locked && s.isActive,
+        onLock: () => setState(() => _locked = true),
+        onUnlock: () => setState(() => _locked = false),
+        onDismissGap: ctrl.dismissGapNotice,
       );
     }
 
@@ -222,6 +237,10 @@ class _RecordingBody extends StatelessWidget {
   final Future<Object?> Function() onLap;
   final VoidCallback onStop;
   final VoidCallback onClose;
+  final bool locked;
+  final VoidCallback onLock;
+  final VoidCallback onUnlock;
+  final VoidCallback onDismissGap;
 
   const _RecordingBody({
     required this.type,
@@ -237,12 +256,17 @@ class _RecordingBody extends StatelessWidget {
     required this.onLap,
     required this.onStop,
     required this.onClose,
+    required this.locked,
+    required this.onLock,
+    required this.onUnlock,
+    required this.onDismissGap,
   });
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final s = state;
+    final gap = s.gapNotice;
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -270,11 +294,50 @@ class _RecordingBody extends StatelessWidget {
                   icon: page == 0 ? Icons.map_rounded : Icons.speed_rounded,
                   tooltip: page == 0 ? 'Ver o mapa' : 'Ver as metricas',
                   label: page == 0 ? 'Mapa' : 'Metricas',
-                  onPressed: onTogglePage,
+                  onPressed: locked ? null : onTogglePage,
                 ),
+                if (s.isActive) ...[
+                  const SizedBox(width: 8),
+                  _LockButton(locked: locked, onPressed: locked ? null : onLock),
+                ],
               ],
             ),
           ),
+          if (s.gpsSignalLost)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 8),
+              child: NoticeBanner(
+                key: const Key('gps_lost_banner'),
+                icon: Icons.gps_off_rounded,
+                title: 'Sem sinal de GPS',
+                message: 'A gravacao continua. Se o sinal demorar, o trecho fica registrado como lacuna.',
+                accent: c.danger,
+              ),
+            ),
+          if (gap != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 8),
+              child: AbsorbPointer(
+                absorbing: locked,
+                child: NoticeBanner(
+                  key: const Key('gap_banner'),
+                  icon: gap.reason == GapReason.noGpsSignal
+                      ? Icons.gps_fixed_rounded
+                      : Icons.restore_rounded,
+                  title: gap.reason == GapReason.noGpsSignal
+                      ? 'Sinal de GPS de volta'
+                      : 'Gravacao retomada',
+                  message: 'Lacuna de ${formatGapDuration(gap.durationMs)} '
+                      '(${gapReasonLabel(gap.reason)}). O trecho ficou '
+                      'registrado no relatorio da atividade.',
+                  accent: c.extra.fill,
+                  background: c.extra.tint,
+                  actionLabel: 'Entendi',
+                  actionKey: const Key('gap_banner_dismiss'),
+                  onAction: onDismissGap,
+                ),
+              ),
+            ),
           if (s.error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 8),
@@ -289,26 +352,39 @@ class _RecordingBody extends StatelessWidget {
               ),
             ),
           Expanded(
-            child: PageView(
-              controller: pages,
-              onPageChanged: onPageChanged,
-              children: [
-                _MetricsPage(state: s, metric: metric),
-                _MapPage(type: type, state: s, route: route, metric: metric),
-              ],
+            child: AbsorbPointer(
+              absorbing: locked,
+              child: PageView(
+                controller: pages,
+                onPageChanged: onPageChanged,
+                children: [
+                  _MetricsPage(state: s, metric: metric),
+                  _MapPage(type: type, state: s, route: route, metric: metric),
+                ],
+              ),
             ),
           ),
           _PageDots(page: page),
           Padding(
             padding: const EdgeInsets.fromLTRB(AppShape.gutter, 12, AppShape.gutter, 16),
-            child: _Controls(
-              state: s,
-              onPause: onPause,
-              onResume: onResume,
-              onLap: onLap,
-              onStop: onStop,
-              onClose: onClose,
-            ),
+            child: locked
+                ? BigActionButton(
+                    key: const Key('recording_unlock'),
+                    label: 'Desbloquear',
+                    icon: Icons.lock_open_rounded,
+                    variant: BigActionVariant.hold,
+                    holdHint: 'Segure para desbloquear',
+                    height: _Controls._height,
+                    onPressed: onUnlock,
+                  )
+                : _Controls(
+                    state: s,
+                    onPause: onPause,
+                    onResume: onResume,
+                    onLap: onLap,
+                    onStop: onStop,
+                    onClose: onClose,
+                  ),
           ),
         ],
       ),
@@ -694,6 +770,52 @@ class _LapButton extends StatelessWidget {
               const SizedBox(height: 4),
               Text('Volta', style: AppText.label.copyWith(color: fg)),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Cadeado: bloqueia os toques da tela de gravacao (64 dp, cor extra do
+/// bloqueio de tela).
+class _LockButton extends StatelessWidget {
+  final bool locked;
+  final VoidCallback? onPressed;
+  const _LockButton({required this.locked, required this.onPressed});
+
+  static const double _size = 64;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppShape.panel),
+      side: BorderSide(color: locked ? c.extra.fill : c.line),
+    );
+    return Semantics(
+      button: true,
+      label: locked ? 'Tela bloqueada' : 'Bloquear a tela',
+      excludeSemantics: true,
+      onTap: onPressed,
+      child: Tooltip(
+        message: locked ? 'Tela bloqueada' : 'Bloquear a tela',
+        child: SizedBox(
+          width: _size,
+          height: _size,
+          child: Material(
+            color: locked ? c.extra.tint : c.surface2,
+            shape: shape,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: const Key('recording_lock'),
+              onTap: onPressed,
+              child: Icon(
+                locked ? Icons.lock_rounded : Icons.lock_open_rounded,
+                color: locked ? c.extra.fg : c.text,
+                size: 28,
+              ),
+            ),
           ),
         ),
       ),

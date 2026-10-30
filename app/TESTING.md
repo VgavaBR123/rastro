@@ -36,6 +36,23 @@ Com `integration_test`:
   com o plugin de localizacao, validando que o stream chega ao pipeline com a
   tela apagada. Este e o maior risco tecnico (etapa 99).
 
+## Gravacao blindada (F01)
+- Unit: `recording/domain/gap_monitor_test.dart` (lacuna de processo x de GPS,
+  pausa, retomada apos crash), `recording_health_test.dart` (resumo do cartao)
+  e `reliability_checklist_test.dart` (itens por estado real e por fabricante).
+- Persistencia: `persistence/recording_health_persistence_test.dart`
+  (batimento, lacunas, saude e migracao 6 -> 7 sobre arquivo real).
+- Controller: `recording/presentation/recording_controller_heartbeat_test.dart`
+  com `FakeHeartbeatTicker` (o teste dispara cada batimento) e relogio injetado.
+- Widget: `ui/recording_screen_shield_test.dart` (banner, GPS mudo, cadeado),
+  `ui/reliability_checklist_screen_test.dart`, `ui/settings_reliability_test.dart`,
+  `ui/recording_health_section_test.dart` e o portao do checklist em
+  `ui/record_setup_screen_test.dart`.
+- Integracao: `integration/recording_shield_flow_test.dart` (GPS some, app
+  morre, recuperacao, saude final).
+- Em `flutter test` o heartbeat e o probe do checklist caem nas versoes Noop
+  (`heartbeatTickerProvider`, `reliabilityProbeProvider`).
+
 ## Fixtures
 Rotas gravadas (sequencias de `LocationSample`) viram fixtures versionadas em
 `test/fixtures/`, inclusive casos dificeis: tunel (perda de sinal), salto de GPS,

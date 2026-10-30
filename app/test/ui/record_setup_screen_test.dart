@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:strava_estudo_app/app/providers.dart';
+import 'package:strava_estudo_app/app/router.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/persistence/recording_repository.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
@@ -47,7 +48,13 @@ Future<ProviderContainer> pumpSetup(
   required RecordingDatabase db,
   ThemeData? theme,
   CurrentPositionSource? position,
+  bool checklistSeen = true,
 }) async {
+  // O checklist "Gravacao confiavel" (F01) aparece so antes da primeira
+  // gravacao; os testes que nao tratam dele partem de ja visto.
+  if (checklistSeen) {
+    await tester.runAsync(() => db.saveSettings(reliabilityChecklistSeen: true));
+  }
   final router = GoRouter(
     initialLocation: '/record',
     routes: [
@@ -61,6 +68,7 @@ Future<ProviderContainer> pumpSetup(
           ),
         ],
       ),
+      reliabilityRoute(),
     ],
   );
   addTearDown(router.dispose);
@@ -204,4 +212,39 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('primeira gravacao: Iniciar passa pelo checklist e Continuar grava (F01)', (
+    tester,
+  ) async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await pumpSetup(tester, db: db, checklistSeen: false);
+
+    await tester.tap(find.byKey(const Key('record_start')));
+    await tester.pumpAndSettle();
+    expect(find.text('Gravacao confiavel'), findsOneWidget);
+    expect(find.text('gravando run'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('reliability_continue')));
+    await tester.pumpAndSettle();
+    expect(find.text('gravando run'), findsOneWidget);
+    await tester.runAsync(() async {
+      expect((await db.loadSettings()).reliabilityChecklistSeen, isTrue);
+    });
+  });
+
+  testWidgets('voltar do checklist sem continuar nao inicia a gravacao (F01)', (
+    tester,
+  ) async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await pumpSetup(tester, db: db, checklistSeen: false);
+
+    await tester.tap(find.byKey(const Key('record_start')));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('gravando run'), findsNothing);
+    expect(find.byKey(const Key('record_start')), findsOneWidget);
+  });
 }

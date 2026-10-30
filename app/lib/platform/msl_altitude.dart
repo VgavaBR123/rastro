@@ -23,6 +23,5 @@ class NoMslAltitudeConverter implements MslAltitudeConverter {
     required double latitude,
     required double longitude,
     required double ellipsoidAltitudeMeters,
-  }) async =>
-      null;
+  }) async => null;
 }

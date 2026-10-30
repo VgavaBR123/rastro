@@ -5,7 +5,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:go_router/go_router.dart';
+
 import '../app/providers.dart';
+import '../app/router.dart';
 import 'components/segmented_selector.dart';
 import 'section_card.dart';
 import 'theme/app_colors.dart';
@@ -83,6 +86,20 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: const Text('Pausa sozinho quando voce para'),
                   value: s.autoPauseEnabled,
                   onChanged: ctrl.setAutoPauseEnabled,
+                ),
+                const SectionDivider(),
+                ListTile(
+                  key: const Key('reliability_checklist'),
+                  minTileHeight: 56,
+                  title: const Text('Gravacao confiavel'),
+                  subtitle: const Text(
+                    'Bateria, permissoes e ajustes do fabricante',
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: c.textMuted,
+                  ),
+                  onTap: () => context.push(AppRoutes.reliability),
                 ),
                 const SectionDivider(),
                 ListTile(

@@ -1,6 +1,7 @@
 // Estado de UI da gravacao, derivado de RecordingStats do dominio.
 library;
 
+import '../domain/gap_monitor.dart';
 import '../domain/recording_models.dart';
 import '../domain/recording_session.dart';
 import '../domain/splits.dart';
@@ -66,6 +67,13 @@ class RecordingUiState {
   final LiveLap currentLap;
   final int completedLaps;
 
+  /// Gravacao blindada (F01): ultima lacuna detectada, ate o usuario fechar o
+  /// aviso. Null = nenhum aviso.
+  final RecordingGap? gapNotice;
+
+  /// Gravando ha mais de 30 s sem ponto de GPS.
+  final bool gpsSignalLost;
+
   const RecordingUiState({
     this.state = RecordingState.idle,
     this.distanceMeters = 0,
@@ -79,6 +87,8 @@ class RecordingUiState {
     this.splitMile = const LiveSplit(number: 1, distanceMeters: 0),
     this.currentLap = const LiveLap(number: 1, distanceMeters: 0, timerMs: 0),
     this.completedLaps = 0,
+    this.gapNotice,
+    this.gpsSignalLost = false,
   });
 
   bool get isRecording => state == RecordingState.recording;
@@ -110,6 +120,8 @@ class RecordingUiState {
   factory RecordingUiState.fromSession(
     RecordingSession session, {
     String? error,
+    RecordingGap? gapNotice,
+    bool gpsSignalLost = false,
   }) {
     final s = session.stats;
     return RecordingUiState(
@@ -125,6 +137,8 @@ class RecordingUiState {
       splitMile: LiveSplit.of(session.splits.miles),
       currentLap: LiveLap.of(session.currentLap),
       completedLaps: session.laps.length,
+      gapNotice: gapNotice,
+      gpsSignalLost: gpsSignalLost,
     );
   }
 
@@ -142,5 +156,7 @@ class RecordingUiState {
         splitMile: splitMile,
         currentLap: currentLap,
         completedLaps: completedLaps,
+        gapNotice: gapNotice,
+        gpsSignalLost: gpsSignalLost,
       );
 }

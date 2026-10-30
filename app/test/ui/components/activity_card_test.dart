@@ -24,6 +24,8 @@ Activity activity(ActivityType t, {int hour = 7, String? title}) => Activity(
       syncState: SyncState.pending,
       autoPauseEnabled: true,
       visibility: 'everyone',
+      heartbeatPaused: false,
+      discardedPointCount: 0,
     );
 
 const route = [

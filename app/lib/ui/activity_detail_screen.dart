@@ -1,6 +1,6 @@
 // Detalhe de uma atividade (relatorio 11, tela Detalhe): mapa no topo com
 // botoes flutuantes, chip do esporte, titulo, grade 3 x 2 de metricas,
-// splits com SplitBar, perfil de elevacao e voltas.
+// splits com SplitBar, perfil de elevacao, voltas e saude da gravacao (F01).
 library;
 
 import 'package:flutter/material.dart';
@@ -20,6 +20,7 @@ import 'components/metric_tile.dart';
 import 'components/sport_chip.dart';
 import 'elevation_chart.dart';
 import 'laps_section.dart';
+import 'recording_health_section.dart';
 import 'route_map.dart';
 import 'section_card.dart';
 import 'share_activity.dart';
@@ -54,6 +55,7 @@ class ActivityDetailScreen extends ConsumerWidget {
     final profile = ref
         .watch(activityElevationProfileProvider(activity.guid))
         .value;
+    final health = ref.watch(activityHealthProvider(activity.guid)).value;
     final metric = ref.watch(settingsProvider).useMetric;
     final muted = AppText.body.copyWith(color: c.textMuted);
 
@@ -128,6 +130,10 @@ class ActivityDetailScreen extends ConsumerWidget {
                     _card(ElevationSection(profile: profile, metric: metric)),
                   if (laps.isNotEmpty)
                     _card(LapsSection(laps: laps, metric: metric)),
+                  if (health != null)
+                    _card(
+                      RecordingHealthSection(health: health, metric: metric),
+                    ),
                 ],
               ),
             ),

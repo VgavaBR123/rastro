@@ -5,13 +5,19 @@ library;
 
 import 'package:drift/drift.dart';
 
+import '../recording/domain/gap_monitor.dart';
 import '../recording/domain/geo.dart';
+import '../recording/domain/recording_health.dart';
 import '../recording/domain/recording_models.dart';
 import '../recording/domain/waypoint.dart' as dom;
 import 'database.dart';
 
 /// Converte um Waypoint de dominio em linha do banco.
-WaypointsCompanion waypointToCompanion(String activityGuid, int seq, dom.Waypoint w) {
+WaypointsCompanion waypointToCompanion(
+  String activityGuid,
+  int seq,
+  dom.Waypoint w,
+) {
   return WaypointsCompanion.insert(
     activityGuid: activityGuid,
     seq: seq,
@@ -58,8 +64,10 @@ class InterruptedActivity {
 
   double get distanceMeters =>
       acceptedPoints.isEmpty ? 0 : acceptedPoints.last.cumulativeDistanceMeters;
-  int get timerMs => acceptedPoints.isEmpty ? 0 : acceptedPoints.last.timerTimeMs;
-  int get elapsedMs => acceptedPoints.isEmpty ? 0 : acceptedPoints.last.elapsedTimeMs;
+  int get timerMs =>
+      acceptedPoints.isEmpty ? 0 : acceptedPoints.last.timerTimeMs;
+  int get elapsedMs =>
+      acceptedPoints.isEmpty ? 0 : acceptedPoints.last.elapsedTimeMs;
 }
 
 class RecordingRepository {
@@ -78,16 +86,18 @@ class RecordingRepository {
     String? ownerUserId,
   }) async {
     _seq[guid] = 0;
-    await db.upsertActivity(ActivitiesCompanion.insert(
-      guid: guid,
-      activityType: type,
-      startTimestampMs: startTimestampMs,
-      syncState: SyncState.recording,
-      isIndoor: Value(isIndoor),
-      autoPauseEnabled: Value(autoPauseEnabled),
-      startBatteryLevel: Value(startBatteryLevel),
-      ownerUserId: Value(ownerUserId),
-    ));
+    await db.upsertActivity(
+      ActivitiesCompanion.insert(
+        guid: guid,
+        activityType: type,
+        startTimestampMs: startTimestampMs,
+        syncState: SyncState.recording,
+        isIndoor: Value(isIndoor),
+        autoPauseEnabled: Value(autoPauseEnabled),
+        startBatteryLevel: Value(startBatteryLevel),
+        ownerUserId: Value(ownerUserId),
+      ),
+    );
   }
 
   /// Anexa um lote de pontos, mantendo a sequencia por atividade.
@@ -128,13 +138,12 @@ class RecordingRepository {
     String? title,
     String? description,
     ActivityVisibility visibility = ActivityVisibility.everyone,
-  }) =>
-      db.saveActivityDetails(
-        guid,
-        title: title,
-        description: description,
-        visibility: visibility,
-      );
+  }) => db.saveActivityDetails(
+    guid,
+    title: title,
+    description: description,
+    visibility: visibility,
+  );
 
   /// Guarda uma volta fechada.
   Future<void> saveLap(
@@ -145,18 +154,74 @@ class RecordingRepository {
     required int endElapsedMs,
     required double startDistanceMeters,
     required double endDistanceMeters,
-  }) =>
-      db.insertLap(LapsCompanion.insert(
-        activityGuid: guid,
-        number: number,
-        startTimerMs: startTimerMs,
-        endTimerMs: endTimerMs,
-        endElapsedMs: endElapsedMs,
-        startDistanceMeters: startDistanceMeters,
-        endDistanceMeters: endDistanceMeters,
-      ));
+  }) => db.insertLap(
+    LapsCompanion.insert(
+      activityGuid: guid,
+      number: number,
+      startTimerMs: startTimerMs,
+      endTimerMs: endTimerMs,
+      endElapsedMs: endElapsedMs,
+      startDistanceMeters: startDistanceMeters,
+      endDistanceMeters: endDistanceMeters,
+    ),
+  );
 
   Future<List<Lap>> laps(String guid) => db.lapsForActivity(guid);
+
+  // --- Gravacao blindada (F01) ---
+
+  /// Batimento da gravacao (a cada ~5 s gravando, e a cada pausa/retomada).
+  Future<void> heartbeat(
+    String guid, {
+    required int nowMs,
+    required bool paused,
+    required int discardedPoints,
+  }) => db.writeHeartbeat(
+    guid,
+    nowMs: nowMs,
+    paused: paused,
+    discardedPoints: discardedPoints,
+  );
+
+  Future<void> recordGap(String guid, RecordingGap gap) => db.insertGap(
+    RecordingGapsCompanion.insert(
+      activityGuid: guid,
+      startMs: gap.startMs,
+      endMs: gap.endMs,
+      reason: gap.reason.index,
+    ),
+  );
+
+  /// Lacunas de uma atividade, pela ordem de inicio.
+  Future<List<RecordingGap>> gaps(String guid) async => [
+    for (final r in await db.gapsForActivity(guid))
+      RecordingGap(
+        startMs: r.startMs,
+        endMs: r.endMs,
+        reason: r.reason >= 0 && r.reason < GapReason.values.length
+            ? GapReason.values[r.reason]
+            : GapReason.processStopped,
+      ),
+  ];
+
+  /// Saude da gravacao para o detalhe; null se a atividade nao existe.
+  Future<RecordingHealth?> health(String guid) async {
+    final a = await activity(guid);
+    if (a == null) return null;
+    final rows = await db.waypointsForActivity(guid);
+    return RecordingHealth.from(
+      gaps: await gaps(guid),
+      horizontalAccuracies: [
+        for (final r in rows)
+          if (r.classification == dom.WaypointClassification.accept.index)
+            r.horizontalAccuracyMeters,
+      ],
+      discardedPoints: a.discardedPointCount,
+      startBatteryLevel: a.startBatteryLevel,
+      endBatteryLevel: a.endBatteryLevel,
+      monitored: a.lastHeartbeatMs != null,
+    );
+  }
 
   /// Cabecalhos nao finalizados -- candidatos a recuperacao na subida do app.
   Future<List<Activity>> unfinished() => db.unfinishedActivities();
@@ -164,10 +229,11 @@ class RecordingRepository {
   /// Atividades interrompidas com os pontos ja salvos, mais recentes primeiro.
   /// [exceptGuid] exclui a gravacao em andamento neste processo, se houver.
   Future<List<InterruptedActivity>> interrupted({String? exceptGuid}) async {
-    final heads = (await db.unfinishedActivities())
-        .where((a) => a.guid != exceptGuid)
-        .toList()
-      ..sort((a, b) => b.startTimestampMs.compareTo(a.startTimestampMs));
+    final heads =
+        (await db.unfinishedActivities())
+            .where((a) => a.guid != exceptGuid)
+            .toList()
+          ..sort((a, b) => b.startTimestampMs.compareTo(a.startTimestampMs));
     return [
       for (final a in heads)
         InterruptedActivity(a, await _acceptedPoints(a.guid)),
@@ -203,12 +269,13 @@ class RecordingRepository {
   }
 
   /// Pontos persistidos de uma atividade, para o replay de reconstrucao.
-  Future<List<Waypoint>> waypoints(String guid) => db.waypointsForActivity(guid);
+  Future<List<Waypoint>> waypoints(String guid) =>
+      db.waypointsForActivity(guid);
 
   /// Cabecalho de uma atividade, ou null se nao existe.
-  Future<Activity?> activity(String guid) =>
-      (db.select(db.activities)..where((t) => t.guid.equals(guid)))
-          .getSingleOrNull();
+  Future<Activity?> activity(String guid) => (db.select(
+    db.activities,
+  )..where((t) => t.guid.equals(guid))).getSingleOrNull();
 
   /// Atividades finalizadas, mais recentes primeiro (historico).
   Future<List<Activity>> recent({int limit = 50}) =>

@@ -27,6 +27,7 @@ class SettingsController extends StateNotifier<AppSettings> {
       useMetric: row.useMetric,
       autoPauseEnabled: row.autoPauseEnabled,
       weightKg: row.weightKg,
+      reliabilityChecklistSeen: row.reliabilityChecklistSeen,
     );
   }
 
@@ -46,5 +47,11 @@ class SettingsController extends StateNotifier<AppSettings> {
   Future<void> setAutoPauseEnabled(bool value) async {
     state = state.copyWith(autoPauseEnabled: value);
     await _db.saveSettings(autoPauseEnabled: value);
+  }
+
+  /// O checklist "Gravacao confiavel" ja foi mostrado (F01).
+  Future<void> markReliabilityChecklistSeen() async {
+    state = state.copyWith(reliabilityChecklistSeen: true);
+    await _db.saveSettings(reliabilityChecklistSeen: true);
   }
 }
