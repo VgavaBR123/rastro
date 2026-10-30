@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../chapters/domain/period.dart';
 import '../persistence/database.dart';
 import '../persistence/recording_repository.dart';
 import '../recording/domain/geo.dart';
@@ -14,6 +15,7 @@ import '../recording/domain/recording_models.dart';
 import '../ui/activity_detail_screen.dart';
 import '../ui/components/app_nav_bar.dart';
 import '../ui/auth_screen.dart';
+import '../ui/chapters/chapter_screen.dart';
 import '../ui/history_screen.dart';
 import '../ui/home_screen.dart';
 import '../ui/narrator_settings_screen.dart';
@@ -58,6 +60,12 @@ abstract final class AppRoutes {
   /// Narrador por voz (F03), pelas Configuracoes.
   static const String narrator = '/narrator';
   static const String auth = '/auth';
+
+  /// Capitulo do mes (F05), por cima do shell.
+  static String monthChapter(MonthKey month) => '/chapter/month/${month.code}';
+
+  /// Capitulo do ano (F05); o ano corrente abre "ate agora".
+  static String yearChapter(int year) => '/chapter/year/$year';
 
   /// Gravacao de [type]. Para retomar uma interrompida, passe-a em `extra`.
   static String record(ActivityType type) => '/record/${type.name}';
@@ -136,6 +144,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
       reliabilityRoute(),
       ...privacyRoutes(),
       narratorRoute(),
+      ...chapterRoutes(),
       GoRoute(
         path: AppRoutes.auth,
         builder: (_, _) => const AuthScreen(),
@@ -159,6 +168,24 @@ GoRoute reliabilityRoute() => GoRoute(
     beforeFirstRecording: state.uri.queryParameters['first'] == '1',
   ),
 );
+
+/// Capitulos mensais e anuais (F05), por cima do shell.
+List<GoRoute> chapterRoutes() => [
+  GoRoute(
+    path: '/chapter/month/:code',
+    builder: (_, state) => ChapterScreen(
+      source: ChapterSource.month(
+        MonthKey.fromCode(int.parse(state.pathParameters['code']!)),
+      ),
+    ),
+  ),
+  GoRoute(
+    path: '/chapter/year/:year',
+    builder: (_, state) => ChapterScreen(
+      source: ChapterSource.year(int.parse(state.pathParameters['year']!)),
+    ),
+  ),
+];
 
 /// Configuracoes do Narrador por voz (F03), por cima do shell.
 GoRoute narratorRoute() => GoRoute(

@@ -13,6 +13,7 @@ import '../app/providers.dart';
 import '../app/router.dart';
 import '../persistence/database.dart';
 import '../sync/background/background_sync_provider.dart';
+import 'chapters/home_chapter_card.dart';
 import 'components/activity_card.dart';
 import 'components/app_nav_bar.dart';
 import 'components/week_summary_card.dart';
@@ -92,6 +93,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       const SizedBox(height: 16),
       // Privacidade automatica (F02): "parece que aqui e sua casa".
       const HomeZoneSuggestion(),
+      // Capitulos (F05): "Seu capitulo de <mes> esta pronto".
+      const HomeChapterCard(),
       if (week != null) ...[
         WeekSummaryCard(summary: week, useMetric: metric, todayIndex: today),
         const SizedBox(height: 24),

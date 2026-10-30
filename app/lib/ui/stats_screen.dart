@@ -1,6 +1,7 @@
 // Estatisticas (aba Estatisticas): totais do periodo em blocos tingidos,
 // tempo por semana nas ultimas 8 semanas empilhado por esporte e a
 // distribuicao do periodo por esporte. Carga do treino (F04): sRPE por semana.
+// Capitulos (F05): sequencia semanal e a lista de capitulos.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import '../app/providers.dart';
 import '../core/format/activity_labels.dart';
 import '../core/format/measures.dart';
 import '../recording/domain/recording_models.dart';
+import 'chapters/chapters_section.dart';
 import 'closing/training_load_section.dart';
 import 'components/app_nav_bar.dart';
 import 'components/metric_tile.dart';
@@ -104,6 +106,8 @@ class StatsScreen extends ConsumerWidget {
                 ),
               ],
             },
+            // Capitulos (F05): sequencia semanal e lista de capitulos.
+            const ChaptersSection(),
           ],
         ),
       ),
