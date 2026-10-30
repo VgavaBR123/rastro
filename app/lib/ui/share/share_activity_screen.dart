@@ -4,11 +4,8 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -28,6 +25,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import 'share_card.dart';
+import 'share_image.dart';
 
 /// Pasta onde a imagem e gravada antes de ir para a folha. No Android tem
 /// que ficar em `cache/share/` (res/xml/share_paths.xml). Os testes trocam
@@ -92,30 +90,12 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
 
   /// Desenha o cartao a [kShareCardPixelRatio] e grava o PNG. Uma imagem por
   /// vez na pasta: as anteriores sao apagadas.
-  Future<String> _writeImage() async {
-    final boundary =
-        _cardKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    final image = await boundary.toImage(pixelRatio: kShareCardPixelRatio);
-    final ByteData? bytes;
-    try {
-      bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-    } finally {
-      image.dispose();
-    }
-    if (bytes == null) throw StateError('falha ao codificar a imagem');
-
-    final dir = await ref.read(shareImageDirectoryProvider)();
-    if (await dir.exists()) {
-      await for (final old in dir.list()) {
-        if (old is File) await old.delete();
-      }
-    } else {
-      await dir.create(recursive: true);
-    }
-    final file = File('${dir.path}/rastro-${_a.guid}.png');
-    await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
-    return file.path;
-  }
+  Future<String> _writeImage() async => writeShareImage(
+    boundaryKey: _cardKey,
+    dir: await ref.read(shareImageDirectoryProvider)(),
+    fileName: 'rastro-${_a.guid}',
+    pixelRatio: kShareCardPixelRatio,
+  );
 
   Future<void> _share({required bool image}) async {
     if (_busy) return;
