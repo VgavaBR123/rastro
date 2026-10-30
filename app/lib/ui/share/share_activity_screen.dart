@@ -121,7 +121,12 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     final messenger = ScaffoldMessenger.of(context);
-    final text = shareTextFor(_a, metric: ref.read(settingsProvider).useMetric);
+    final settings = ref.read(settingsProvider);
+    final text = shareTextFor(
+      _a,
+      metric: settings.useMetric,
+      gentle: settings.gentleMode,
+    );
     final sharer = ref.read(activitySharerProvider);
     try {
       if (image) {
@@ -215,6 +220,8 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
       metric: ref.watch(settingsProvider).useMetric,
       showRoute: _mode == ShareRouteMode.trimmed,
       showHeader: _mode != ShareRouteMode.metricsOnly,
+      gentle: ref.watch(settingsProvider).gentleMode,
+      rpe: _a.rpe,
     );
 
     return Scaffold(

@@ -38,20 +38,58 @@ class NarrationComposer {
   const NarrationComposer();
 
   /// Fala do evento, ou null quando as preferencias mandam ficar quieto.
-  Announcement? compose(NarrationEvent e, NarratorSettings s) => switch (e) {
-    RecordingStarted() => _started(e, s),
-    SplitClosed() => _split(e, s),
-    LapClosed() => _lap(e, s),
-    TimeMark() => _time(e, s),
-    AutoPaused() => _status('Pausa automática.', s),
-    ManuallyPaused() => _status('Gravação pausada.', s),
-    Resumed() => _status('Gravação retomada.', s),
-    RecordingFinished() => _finished(e, s),
-  };
+  ///
+  /// [gentle] = Modo Gentil (F04): nada de pace, velocidade nem "mais
+  /// rapido"; ficam o tempo e a distancia.
+  Announcement? compose(
+    NarrationEvent e,
+    NarratorSettings s, {
+    bool gentle = false,
+  }) {
+    final p = gentle ? _gentlePrefs(s) : s;
+    return switch (e) {
+      RecordingStarted() => _started(e, p),
+      SplitClosed() =>
+        gentle && s.essentialOnly ? _gentleEssentialSplit(e, s) : _split(e, p),
+      LapClosed() => _lap(e, p),
+      TimeMark() => _time(e, p),
+      AutoPaused() => _status('Pausa automática.', p),
+      ManuallyPaused() => _status('Gravação pausada.', p),
+      Resumed() => _status('Gravação retomada.', p),
+      RecordingFinished() => _finished(e, gentle ? p.copyWith(sayTime: true) : p),
+    };
+  }
+
+  /// Preferencias sem nada de ritmo. "So o essencial" sai porque as frases
+  /// curtas dele sao montadas em volta do pace.
+  static NarratorSettings _gentlePrefs(NarratorSettings s) => s.copyWith(
+    sayAvgPace: false,
+    saySplitPace: false,
+    contextPhrases: false,
+    essentialOnly: false,
+  );
+
+  /// Split no modo so o essencial com o Modo Gentil: marca e tempo total.
+  Announcement? _gentleEssentialSplit(SplitClosed e, NarratorSettings s) {
+    if (!s.distanceTrigger || e.number % s.distanceEvery != 0) return null;
+    return _announce(
+      [
+        '${spokenSplitMark(e.number, metric: e.totals.metric)}.',
+        'Tempo ${spokenDuration(e.totals.timerMs)}.',
+      ],
+      AnnouncementPriority.normal,
+      NarrationKeys.split,
+      60000,
+    );
+  }
 
   /// Exemplo para "Ouvir exemplo": o segundo split de uma corrida, com as
   /// preferencias atuais (inclusive o modo so o essencial).
-  Announcement sample(NarratorSettings s, {required bool metric}) {
+  Announcement sample(
+    NarratorSettings s, {
+    required bool metric,
+    bool gentle = false,
+  }) {
     final unit = metric ? _metersPerKm : _metersPerMile;
     final perUnitMs = metric ? 332000 : 534000;
     final secondMs = perUnitMs - 12000;
@@ -66,7 +104,11 @@ class NarrationComposer {
         metric: metric,
       ),
     );
-    final a = _split(e, s.copyWith(distanceTrigger: true, distanceEvery: 1))!;
+    final a = compose(
+      e,
+      s.copyWith(distanceTrigger: true, distanceEvery: 1),
+      gentle: gentle,
+    )!;
     return Announcement(a.text, priority: a.priority, key: NarrationKeys.sample);
   }
 

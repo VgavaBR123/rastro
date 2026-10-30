@@ -118,4 +118,6 @@ Map<String, String> metadataHeaders(UploadMetadata? m) => {
       if (m?.startTimeMs != null) 'x-start-time': '${m!.startTimeMs}',
       if (m?.timerTimeMs != null) 'x-timer-time-ms': '${m!.timerTimeMs}',
       if (m?.distanceMeters != null) 'x-distance-meters': '${m!.distanceMeters}',
+      if (m?.rpe != null) 'x-rpe': '${m!.rpe}',
+      if (m?.mood != null) 'x-mood': m!.mood!,
     };

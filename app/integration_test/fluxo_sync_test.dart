@@ -186,6 +186,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('save_activity')));
     await tester.pumpAndSettle();
+    // Fechamento gentil (F04): Concluir fecha a tela de gravacao.
+    await tester.tap(find.byKey(const Key('closing_done')));
+    await tester.pumpAndSettle();
 
     final atividades = await db.recentActivities();
     expect(atividades, isNotEmpty);

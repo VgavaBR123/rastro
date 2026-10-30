@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import '../closing/closing_service.dart';
 import '../core/format/measures.dart';
 import '../narrator/narrator_providers.dart';
 import '../persistence/recording_repository.dart';
@@ -25,6 +26,7 @@ import '../recording/domain/recording_health.dart';
 import '../recording/domain/recording_models.dart';
 import '../recording/presentation/recording_ui_state.dart';
 import '../sync/background/background_sync_provider.dart';
+import 'closing/closing_view.dart';
 import 'components/big_action_button.dart';
 import 'components/floating_map_button.dart';
 import 'components/metric_tile.dart';
@@ -69,6 +71,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   bool _finishing = false;
 
   bool _closed = false;
+
+  /// Fechamento gentil (F04): depois de salvar, as frases e o que foi
+  /// escolhido no Salvar. Null = ainda nao salvou.
+  ({List<String> phrases, ActivityDraft draft, int timerMs})? _closing;
 
   /// Bloqueio contra toques ligado.
   bool _locked = false;
@@ -168,6 +174,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     // gravacao.
     final wasActive = ref.read(recordingControllerProvider).isActive;
     final guid = ctrl.activityGuid;
+    final timerMs = ref.read(recordingControllerProvider).timerMs;
     await ctrl.stop();
     if (wasActive && guid != null) {
       await repo.saveDetails(
@@ -176,10 +183,32 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         description: draft.description,
         visibility: draft.visibility,
         hideEdgesMeters: draft.hideEdgesMeters,
+        rpe: draft.rpe,
+        mood: draft.mood,
       );
     }
     if (!mounted) return;
-    _close(sync: true);
+    // A atividade ja esta salva: o upload nao espera o Concluir.
+    ref.read(backgroundSyncSchedulerProvider).scheduleSoon();
+    ref.invalidate(recentActivitiesProvider);
+    ref.invalidate(pendingCountProvider);
+    final phrases = guid == null ? const <String>[] : await _phrasesFor(guid);
+    if (!mounted) return;
+    setState(() => _closing = (phrases: phrases, draft: draft, timerMs: timerMs));
+  }
+
+  /// Frases do fechamento (F04). Sao um extra: se a consulta falhar, o
+  /// fechamento abre so com a confirmacao.
+  Future<List<String>> _phrasesFor(String guid) async {
+    final settings = ref.read(settingsProvider);
+    try {
+      return await ref
+          .read(closingServiceProvider)
+          .phrasesFor(guid, gentle: settings.gentleMode, metric: settings.useMetric);
+    } catch (e) {
+      debugPrint('Frases do fechamento indisponiveis: $e');
+      return const [];
+    }
   }
 
   Future<void> _discard() async {
@@ -213,9 +242,20 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     final s = ref.watch(recordingControllerProvider);
     final ctrl = ref.read(recordingControllerProvider.notifier);
     final metric = ref.watch(settingsProvider).useMetric;
+    final gentle = ref.watch(settingsProvider).gentleMode;
+    final closing = _closing;
 
     final Widget body;
-    if (_saving) {
+    if (closing != null) {
+      body = ClosingView(
+        type: _type,
+        phrases: closing.phrases,
+        rpe: closing.draft.rpe,
+        mood: closing.draft.mood,
+        timerMs: closing.timerMs,
+        onDone: () => _close(sync: false),
+      );
+    } else if (_saving) {
       body = SaveActivityView(
         type: _type,
         route: ctrl.route,
@@ -227,6 +267,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         startedAt: _startedAt ?? DateTime.now(),
         busy: _finishing,
         routineWarning: _routineWarning,
+        gentle: gentle,
         onBack: () => setState(() => _saving = false),
         onSave: _save,
         onDiscard: _discard,
@@ -237,6 +278,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         state: s,
         route: ctrl.route,
         metric: metric,
+        gentle: gentle,
         pages: _pages,
         page: _page,
         onPageChanged: (i) => setState(() => _page = i),
@@ -256,9 +298,15 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     // Sem navegacao durante a gravacao: o voltar do sistema nao sai da tela
     // (na tela Salvar, volta para a gravacao).
     return PopScope(
-      canPop: !s.isActive && !_saving,
+      canPop: !s.isActive && !_saving && closing == null,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && _saving && !_finishing) setState(() => _saving = false);
+        if (didPop) return;
+        // No fechamento, voltar e o mesmo que Concluir.
+        if (closing != null) {
+          if (!_closed) _close(sync: false);
+          return;
+        }
+        if (_saving && !_finishing) setState(() => _saving = false);
       },
       child: Scaffold(body: body),
     );
@@ -270,6 +318,9 @@ class _RecordingBody extends StatelessWidget {
   final RecordingUiState state;
   final List<GeoPoint> route;
   final bool metric;
+
+  /// Modo Gentil (F04): sem pace na tela.
+  final bool gentle;
   final PageController pages;
   final int page;
   final ValueChanged<int> onPageChanged;
@@ -289,6 +340,7 @@ class _RecordingBody extends StatelessWidget {
     required this.state,
     required this.route,
     required this.metric,
+    required this.gentle,
     required this.pages,
     required this.page,
     required this.onPageChanged,
@@ -400,7 +452,7 @@ class _RecordingBody extends StatelessWidget {
                 controller: pages,
                 onPageChanged: onPageChanged,
                 children: [
-                  _MetricsPage(state: s, metric: metric),
+                  _MetricsPage(state: s, metric: metric, gentle: gentle),
                   _MapPage(type: type, state: s, route: route, metric: metric),
                 ],
               ),
@@ -456,7 +508,18 @@ class _StateChip extends StatelessWidget {
 class _MetricsPage extends StatelessWidget {
   final RecordingUiState state;
   final bool metric;
-  const _MetricsPage({required this.state, required this.metric});
+
+  /// Modo Gentil (F04): sem o pace medio e, no split, o tempo no lugar do
+  /// pace.
+  final bool gentle;
+  const _MetricsPage({required this.state, required this.metric, required this.gentle});
+
+  /// Tempo do split corrente (pace x distancia); "--:--" sem pace.
+  static String _splitTime(LiveSplit split) {
+    final p = split.paceSecondsPerMeter;
+    if (p == null || !p.isFinite || split.distanceMeters <= 0) return '--:--';
+    return formatDuration((p * split.distanceMeters * 1000).round());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -483,14 +546,16 @@ class _MetricsPage extends StatelessWidget {
               role: c.tempo,
             ),
             _MetricDivider(color: c.line),
-            _BigMetric(
-              key: const Key('pace'),
-              label: 'Pace medio',
-              value: avgPace,
-              unit: avgPaceUnit,
-              role: c.pace,
-            ),
-            _MetricDivider(color: c.line),
+            if (!gentle) ...[
+              _BigMetric(
+                key: const Key('pace'),
+                label: 'Pace medio',
+                value: avgPace,
+                unit: avgPaceUnit,
+                role: c.pace,
+              ),
+              _MetricDivider(color: c.line),
+            ],
             _BigMetric(
               key: const Key('distance'),
               label: 'Distancia',
@@ -503,7 +568,9 @@ class _MetricsPage extends StatelessWidget {
               key: const Key('current_split'),
               label: '${metric ? 'Km' : 'Milha'} ${split.number}',
               distance: formatDistance(split.distanceMeters, metric: metric),
-              detail: formatPace(split.paceSecondsPerMeter, metric: metric),
+              detail: gentle
+                  ? _splitTime(split)
+                  : formatPace(split.paceSecondsPerMeter, metric: metric),
             ),
             _LiveRow(
               key: const Key('current_lap'),

@@ -13,6 +13,9 @@ String activityShareText({
   required double distanceMeters,
   required int timerMs,
   required bool metric,
+
+  /// Modo Gentil (F04): sem pace nem velocidade.
+  bool gentle = false,
 }) {
   final seconds = timerMs / 1000.0;
   final rate = type == ActivityType.ride
@@ -25,7 +28,7 @@ String activityShareText({
     activityTypeLabel(type),
     formatDistance(distanceMeters, metric: metric),
     formatDuration(timerMs),
-    rate,
+    if (!gentle) rate,
   ];
   return '$title\n${parts.join(' | ')}';
 }

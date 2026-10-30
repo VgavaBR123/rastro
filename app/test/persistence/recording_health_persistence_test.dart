@@ -178,7 +178,11 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 9) return;
+          if (v != 10) return;
+          // F04 (schema 10) veio depois: tira o que e dele.
+          raw.execute('ALTER TABLE activities DROP COLUMN rpe');
+          raw.execute('ALTER TABLE activities DROP COLUMN mood');
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN gentle_mode');
           // F02 e F03 vieram depois: o schema 6 tambem nao tem o que e deles.
           raw.execute('DROP TABLE privacy_zones');
           raw.execute('DROP TABLE dismissed_zone_suggestions');

@@ -263,6 +263,24 @@ class $ActivitiesTable extends Activities
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _rpeMeta = const VerificationMeta('rpe');
+  @override
+  late final GeneratedColumn<int> rpe = GeneratedColumn<int>(
+    'rpe',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _moodMeta = const VerificationMeta('mood');
+  @override
+  late final GeneratedColumn<String> mood = GeneratedColumn<String>(
+    'mood',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     guid,
@@ -287,6 +305,8 @@ class $ActivitiesTable extends Activities
     lastHeartbeatMs,
     heartbeatPaused,
     discardedPointCount,
+    rpe,
+    mood,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -463,6 +483,18 @@ class $ActivitiesTable extends Activities
         ),
       );
     }
+    if (data.containsKey('rpe')) {
+      context.handle(
+        _rpeMeta,
+        rpe.isAcceptableOrUnknown(data['rpe']!, _rpeMeta),
+      );
+    }
+    if (data.containsKey('mood')) {
+      context.handle(
+        _moodMeta,
+        mood.isAcceptableOrUnknown(data['mood']!, _moodMeta),
+      );
+    }
     return context;
   }
 
@@ -564,6 +596,14 @@ class $ActivitiesTable extends Activities
         DriftSqlType.int,
         data['${effectivePrefix}discarded_point_count'],
       )!,
+      rpe: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rpe'],
+      ),
+      mood: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mood'],
+      ),
     );
   }
 
@@ -633,6 +673,14 @@ class Activity extends DataClass implements Insertable<Activity> {
 
   /// Pontos descartados pelo filtro de ruido (nao conta os de pausa).
   final int discardedPointCount;
+
+  /// Fechamento gentil (F04): esforco percebido de 1 a 10. Null = nao
+  /// informado (e opcional).
+  final int? rpe;
+
+  /// Fechamento gentil (F04): humor ('great' | 'good' | 'ok' | 'tired' |
+  /// 'awful', ver Mood). Null = nao informado.
+  final String? mood;
   const Activity({
     required this.guid,
     required this.activityType,
@@ -656,6 +704,8 @@ class Activity extends DataClass implements Insertable<Activity> {
     this.lastHeartbeatMs,
     required this.heartbeatPaused,
     required this.discardedPointCount,
+    this.rpe,
+    this.mood,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -708,6 +758,12 @@ class Activity extends DataClass implements Insertable<Activity> {
     }
     map['heartbeat_paused'] = Variable<bool>(heartbeatPaused);
     map['discarded_point_count'] = Variable<int>(discardedPointCount);
+    if (!nullToAbsent || rpe != null) {
+      map['rpe'] = Variable<int>(rpe);
+    }
+    if (!nullToAbsent || mood != null) {
+      map['mood'] = Variable<String>(mood);
+    }
     return map;
   }
 
@@ -753,6 +809,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           : Value(lastHeartbeatMs),
       heartbeatPaused: Value(heartbeatPaused),
       discardedPointCount: Value(discardedPointCount),
+      rpe: rpe == null && nullToAbsent ? const Value.absent() : Value(rpe),
+      mood: mood == null && nullToAbsent ? const Value.absent() : Value(mood),
     );
   }
 
@@ -790,6 +848,8 @@ class Activity extends DataClass implements Insertable<Activity> {
       discardedPointCount: serializer.fromJson<int>(
         json['discardedPointCount'],
       ),
+      rpe: serializer.fromJson<int?>(json['rpe']),
+      mood: serializer.fromJson<String?>(json['mood']),
     );
   }
   @override
@@ -822,6 +882,8 @@ class Activity extends DataClass implements Insertable<Activity> {
       'lastHeartbeatMs': serializer.toJson<int?>(lastHeartbeatMs),
       'heartbeatPaused': serializer.toJson<bool>(heartbeatPaused),
       'discardedPointCount': serializer.toJson<int>(discardedPointCount),
+      'rpe': serializer.toJson<int?>(rpe),
+      'mood': serializer.toJson<String?>(mood),
     };
   }
 
@@ -848,6 +910,8 @@ class Activity extends DataClass implements Insertable<Activity> {
     Value<int?> lastHeartbeatMs = const Value.absent(),
     bool? heartbeatPaused,
     int? discardedPointCount,
+    Value<int?> rpe = const Value.absent(),
+    Value<String?> mood = const Value.absent(),
   }) => Activity(
     guid: guid ?? this.guid,
     activityType: activityType ?? this.activityType,
@@ -879,6 +943,8 @@ class Activity extends DataClass implements Insertable<Activity> {
         : this.lastHeartbeatMs,
     heartbeatPaused: heartbeatPaused ?? this.heartbeatPaused,
     discardedPointCount: discardedPointCount ?? this.discardedPointCount,
+    rpe: rpe.present ? rpe.value : this.rpe,
+    mood: mood.present ? mood.value : this.mood,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
     return Activity(
@@ -936,6 +1002,8 @@ class Activity extends DataClass implements Insertable<Activity> {
       discardedPointCount: data.discardedPointCount.present
           ? data.discardedPointCount.value
           : this.discardedPointCount,
+      rpe: data.rpe.present ? data.rpe.value : this.rpe,
+      mood: data.mood.present ? data.mood.value : this.mood,
     );
   }
 
@@ -963,7 +1031,9 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('hideEdgesMeters: $hideEdgesMeters, ')
           ..write('lastHeartbeatMs: $lastHeartbeatMs, ')
           ..write('heartbeatPaused: $heartbeatPaused, ')
-          ..write('discardedPointCount: $discardedPointCount')
+          ..write('discardedPointCount: $discardedPointCount, ')
+          ..write('rpe: $rpe, ')
+          ..write('mood: $mood')
           ..write(')'))
         .toString();
   }
@@ -992,6 +1062,8 @@ class Activity extends DataClass implements Insertable<Activity> {
     lastHeartbeatMs,
     heartbeatPaused,
     discardedPointCount,
+    rpe,
+    mood,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1018,7 +1090,9 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.hideEdgesMeters == this.hideEdgesMeters &&
           other.lastHeartbeatMs == this.lastHeartbeatMs &&
           other.heartbeatPaused == this.heartbeatPaused &&
-          other.discardedPointCount == this.discardedPointCount);
+          other.discardedPointCount == this.discardedPointCount &&
+          other.rpe == this.rpe &&
+          other.mood == this.mood);
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
@@ -1044,6 +1118,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<int?> lastHeartbeatMs;
   final Value<bool> heartbeatPaused;
   final Value<int> discardedPointCount;
+  final Value<int?> rpe;
+  final Value<String?> mood;
   final Value<int> rowid;
   const ActivitiesCompanion({
     this.guid = const Value.absent(),
@@ -1068,6 +1144,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.lastHeartbeatMs = const Value.absent(),
     this.heartbeatPaused = const Value.absent(),
     this.discardedPointCount = const Value.absent(),
+    this.rpe = const Value.absent(),
+    this.mood = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ActivitiesCompanion.insert({
@@ -1093,6 +1171,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.lastHeartbeatMs = const Value.absent(),
     this.heartbeatPaused = const Value.absent(),
     this.discardedPointCount = const Value.absent(),
+    this.rpe = const Value.absent(),
+    this.mood = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : guid = Value(guid),
        activityType = Value(activityType),
@@ -1121,6 +1201,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<int>? lastHeartbeatMs,
     Expression<bool>? heartbeatPaused,
     Expression<int>? discardedPointCount,
+    Expression<int>? rpe,
+    Expression<String>? mood,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1147,6 +1229,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (heartbeatPaused != null) 'heartbeat_paused': heartbeatPaused,
       if (discardedPointCount != null)
         'discarded_point_count': discardedPointCount,
+      if (rpe != null) 'rpe': rpe,
+      if (mood != null) 'mood': mood,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1174,6 +1258,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<int?>? lastHeartbeatMs,
     Value<bool>? heartbeatPaused,
     Value<int>? discardedPointCount,
+    Value<int?>? rpe,
+    Value<String?>? mood,
     Value<int>? rowid,
   }) {
     return ActivitiesCompanion(
@@ -1199,6 +1285,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       lastHeartbeatMs: lastHeartbeatMs ?? this.lastHeartbeatMs,
       heartbeatPaused: heartbeatPaused ?? this.heartbeatPaused,
       discardedPointCount: discardedPointCount ?? this.discardedPointCount,
+      rpe: rpe ?? this.rpe,
+      mood: mood ?? this.mood,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1276,6 +1364,12 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (discardedPointCount.present) {
       map['discarded_point_count'] = Variable<int>(discardedPointCount.value);
     }
+    if (rpe.present) {
+      map['rpe'] = Variable<int>(rpe.value);
+    }
+    if (mood.present) {
+      map['mood'] = Variable<String>(mood.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1307,6 +1401,8 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('lastHeartbeatMs: $lastHeartbeatMs, ')
           ..write('heartbeatPaused: $heartbeatPaused, ')
           ..write('discardedPointCount: $discardedPointCount, ')
+          ..write('rpe: $rpe, ')
+          ..write('mood: $mood, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2247,6 +2343,21 @@ class $SettingsRowsTable extends SettingsRows
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gentleModeMeta = const VerificationMeta(
+    'gentleMode',
+  );
+  @override
+  late final GeneratedColumn<bool> gentleMode = GeneratedColumn<bool>(
+    'gentle_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("gentle_mode" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2256,6 +2367,7 @@ class $SettingsRowsTable extends SettingsRows
     reliabilityChecklistSeen,
     hideOnServer,
     narratorPrefs,
+    gentleMode,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2320,6 +2432,12 @@ class $SettingsRowsTable extends SettingsRows
         ),
       );
     }
+    if (data.containsKey('gentle_mode')) {
+      context.handle(
+        _gentleModeMeta,
+        gentleMode.isAcceptableOrUnknown(data['gentle_mode']!, _gentleModeMeta),
+      );
+    }
     return context;
   }
 
@@ -2357,6 +2475,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.string,
         data['${effectivePrefix}narrator_prefs'],
       ),
+      gentleMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}gentle_mode'],
+      )!,
     );
   }
 
@@ -2384,6 +2506,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// Narrador por voz (F03): preferencias em JSON (NarratorSettings). Null =
   /// padrao (desligado). JSON para crescer sem nova migracao.
   final String? narratorPrefs;
+
+  /// Modo Gentil (F04): esconde pace e velocidade (gravacao, detalhe, imagem
+  /// compartilhada e Narrador).
+  final bool gentleMode;
   const SettingsRow({
     required this.id,
     required this.useMetric,
@@ -2392,6 +2518,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     required this.reliabilityChecklistSeen,
     required this.hideOnServer,
     this.narratorPrefs,
+    required this.gentleMode,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2409,6 +2536,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     if (!nullToAbsent || narratorPrefs != null) {
       map['narrator_prefs'] = Variable<String>(narratorPrefs);
     }
+    map['gentle_mode'] = Variable<bool>(gentleMode);
     return map;
   }
 
@@ -2425,6 +2553,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       narratorPrefs: narratorPrefs == null && nullToAbsent
           ? const Value.absent()
           : Value(narratorPrefs),
+      gentleMode: Value(gentleMode),
     );
   }
 
@@ -2443,6 +2572,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       ),
       hideOnServer: serializer.fromJson<bool>(json['hideOnServer']),
       narratorPrefs: serializer.fromJson<String?>(json['narratorPrefs']),
+      gentleMode: serializer.fromJson<bool>(json['gentleMode']),
     );
   }
   @override
@@ -2458,6 +2588,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       ),
       'hideOnServer': serializer.toJson<bool>(hideOnServer),
       'narratorPrefs': serializer.toJson<String?>(narratorPrefs),
+      'gentleMode': serializer.toJson<bool>(gentleMode),
     };
   }
 
@@ -2469,6 +2600,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     bool? reliabilityChecklistSeen,
     bool? hideOnServer,
     Value<String?> narratorPrefs = const Value.absent(),
+    bool? gentleMode,
   }) => SettingsRow(
     id: id ?? this.id,
     useMetric: useMetric ?? this.useMetric,
@@ -2480,6 +2612,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     narratorPrefs: narratorPrefs.present
         ? narratorPrefs.value
         : this.narratorPrefs,
+    gentleMode: gentleMode ?? this.gentleMode,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2498,6 +2631,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       narratorPrefs: data.narratorPrefs.present
           ? data.narratorPrefs.value
           : this.narratorPrefs,
+      gentleMode: data.gentleMode.present
+          ? data.gentleMode.value
+          : this.gentleMode,
     );
   }
 
@@ -2510,7 +2646,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('weightKg: $weightKg, ')
           ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
           ..write('hideOnServer: $hideOnServer, ')
-          ..write('narratorPrefs: $narratorPrefs')
+          ..write('narratorPrefs: $narratorPrefs, ')
+          ..write('gentleMode: $gentleMode')
           ..write(')'))
         .toString();
   }
@@ -2524,6 +2661,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     reliabilityChecklistSeen,
     hideOnServer,
     narratorPrefs,
+    gentleMode,
   );
   @override
   bool operator ==(Object other) =>
@@ -2535,7 +2673,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.weightKg == this.weightKg &&
           other.reliabilityChecklistSeen == this.reliabilityChecklistSeen &&
           other.hideOnServer == this.hideOnServer &&
-          other.narratorPrefs == this.narratorPrefs);
+          other.narratorPrefs == this.narratorPrefs &&
+          other.gentleMode == this.gentleMode);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2546,6 +2685,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<bool> reliabilityChecklistSeen;
   final Value<bool> hideOnServer;
   final Value<String?> narratorPrefs;
+  final Value<bool> gentleMode;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
@@ -2554,6 +2694,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.reliabilityChecklistSeen = const Value.absent(),
     this.hideOnServer = const Value.absent(),
     this.narratorPrefs = const Value.absent(),
+    this.gentleMode = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2563,6 +2704,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.reliabilityChecklistSeen = const Value.absent(),
     this.hideOnServer = const Value.absent(),
     this.narratorPrefs = const Value.absent(),
+    this.gentleMode = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
@@ -2572,6 +2714,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<bool>? reliabilityChecklistSeen,
     Expression<bool>? hideOnServer,
     Expression<String>? narratorPrefs,
+    Expression<bool>? gentleMode,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2582,6 +2725,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
         'reliability_checklist_seen': reliabilityChecklistSeen,
       if (hideOnServer != null) 'hide_on_server': hideOnServer,
       if (narratorPrefs != null) 'narrator_prefs': narratorPrefs,
+      if (gentleMode != null) 'gentle_mode': gentleMode,
     });
   }
 
@@ -2593,6 +2737,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<bool>? reliabilityChecklistSeen,
     Value<bool>? hideOnServer,
     Value<String?>? narratorPrefs,
+    Value<bool>? gentleMode,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
@@ -2603,6 +2748,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
       hideOnServer: hideOnServer ?? this.hideOnServer,
       narratorPrefs: narratorPrefs ?? this.narratorPrefs,
+      gentleMode: gentleMode ?? this.gentleMode,
     );
   }
 
@@ -2632,6 +2778,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (narratorPrefs.present) {
       map['narrator_prefs'] = Variable<String>(narratorPrefs.value);
     }
+    if (gentleMode.present) {
+      map['gentle_mode'] = Variable<bool>(gentleMode.value);
+    }
     return map;
   }
 
@@ -2644,7 +2793,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('weightKg: $weightKg, ')
           ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
           ..write('hideOnServer: $hideOnServer, ')
-          ..write('narratorPrefs: $narratorPrefs')
+          ..write('narratorPrefs: $narratorPrefs, ')
+          ..write('gentleMode: $gentleMode')
           ..write(')'))
         .toString();
   }
@@ -4588,6 +4738,8 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<int?> lastHeartbeatMs,
   Value<bool> heartbeatPaused,
   Value<int> discardedPointCount,
+  Value<int?> rpe,
+  Value<String?> mood,
   Value<int> rowid,
 });
 typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
@@ -4613,6 +4765,8 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<int?> lastHeartbeatMs,
   Value<bool> heartbeatPaused,
   Value<int> discardedPointCount,
+  Value<int?> rpe,
+  Value<String?> mood,
   Value<int> rowid,
 });
 
@@ -4793,6 +4947,16 @@ class $$ActivitiesTableFilterComposer
 
   ColumnFilters<int> get discardedPointCount => $composableBuilder(
     column: $table.discardedPointCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rpe => $composableBuilder(
+    column: $table.rpe,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mood => $composableBuilder(
+    column: $table.mood,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4990,6 +5154,16 @@ class $$ActivitiesTableOrderingComposer
     column: $table.discardedPointCount,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get rpe => $composableBuilder(
+    column: $table.rpe,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mood => $composableBuilder(
+    column: $table.mood,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -5099,6 +5273,12 @@ class $$ActivitiesTableAnnotationComposer
     column: $table.discardedPointCount,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get rpe =>
+      $composableBuilder(column: $table.rpe, builder: (column) => column);
+
+  GeneratedColumn<String> get mood =>
+      $composableBuilder(column: $table.mood, builder: (column) => column);
 
   Expression<T> waypointsRefs<T extends Object>(
     Expression<T> Function($$WaypointsTableAnnotationComposer a) f,
@@ -5230,6 +5410,8 @@ class $$ActivitiesTableTableManager
                 Value<int?> lastHeartbeatMs = const Value.absent(),
                 Value<bool> heartbeatPaused = const Value.absent(),
                 Value<int> discardedPointCount = const Value.absent(),
+                Value<int?> rpe = const Value.absent(),
+                Value<String?> mood = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion(
                 guid: guid,
@@ -5254,6 +5436,8 @@ class $$ActivitiesTableTableManager
                 lastHeartbeatMs: lastHeartbeatMs,
                 heartbeatPaused: heartbeatPaused,
                 discardedPointCount: discardedPointCount,
+                rpe: rpe,
+                mood: mood,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -5280,6 +5464,8 @@ class $$ActivitiesTableTableManager
                 Value<int?> lastHeartbeatMs = const Value.absent(),
                 Value<bool> heartbeatPaused = const Value.absent(),
                 Value<int> discardedPointCount = const Value.absent(),
+                Value<int?> rpe = const Value.absent(),
+                Value<String?> mood = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion.insert(
                 guid: guid,
@@ -5304,6 +5490,8 @@ class $$ActivitiesTableTableManager
                 lastHeartbeatMs: lastHeartbeatMs,
                 heartbeatPaused: heartbeatPaused,
                 discardedPointCount: discardedPointCount,
+                rpe: rpe,
+                mood: mood,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -5900,6 +6088,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<bool> reliabilityChecklistSeen,
       Value<bool> hideOnServer,
       Value<String?> narratorPrefs,
+      Value<bool> gentleMode,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -5910,6 +6099,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<bool> reliabilityChecklistSeen,
       Value<bool> hideOnServer,
       Value<String?> narratorPrefs,
+      Value<bool> gentleMode,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -5953,6 +6143,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<String> get narratorPrefs => $composableBuilder(
     column: $table.narratorPrefs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get gentleMode => $composableBuilder(
+    column: $table.gentleMode,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6000,6 +6195,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.narratorPrefs,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get gentleMode => $composableBuilder(
+    column: $table.gentleMode,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -6037,6 +6237,11 @@ class $$SettingsRowsTableAnnotationComposer
 
   GeneratedColumn<String> get narratorPrefs => $composableBuilder(
     column: $table.narratorPrefs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get gentleMode => $composableBuilder(
+    column: $table.gentleMode,
     builder: (column) => column,
   );
 }
@@ -6085,6 +6290,7 @@ class $$SettingsRowsTableTableManager
                 Value<bool> reliabilityChecklistSeen = const Value.absent(),
                 Value<bool> hideOnServer = const Value.absent(),
                 Value<String?> narratorPrefs = const Value.absent(),
+                Value<bool> gentleMode = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 useMetric: useMetric,
@@ -6093,6 +6299,7 @@ class $$SettingsRowsTableTableManager
                 reliabilityChecklistSeen: reliabilityChecklistSeen,
                 hideOnServer: hideOnServer,
                 narratorPrefs: narratorPrefs,
+                gentleMode: gentleMode,
               ),
           createCompanionCallback:
               ({
@@ -6103,6 +6310,7 @@ class $$SettingsRowsTableTableManager
                 Value<bool> reliabilityChecklistSeen = const Value.absent(),
                 Value<bool> hideOnServer = const Value.absent(),
                 Value<String?> narratorPrefs = const Value.absent(),
+                Value<bool> gentleMode = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 useMetric: useMetric,
@@ -6111,6 +6319,7 @@ class $$SettingsRowsTableTableManager
                 reliabilityChecklistSeen: reliabilityChecklistSeen,
                 hideOnServer: hideOnServer,
                 narratorPrefs: narratorPrefs,
+                gentleMode: gentleMode,
               ),
           withReferenceMapper: (p0) => p0
               .map(

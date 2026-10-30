@@ -1,5 +1,6 @@
 // Tela de configuracoes: unidades (metrico ou imperial), pausa automatica,
-// peso (para calorias) e privacidade (F02), em secoes de cartao.
+// peso (para calorias), Modo Gentil (F04) e privacidade (F02), em secoes de
+// cartao.
 library;
 
 import 'package:flutter/material.dart';
@@ -137,6 +138,19 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: Text(s.narrator.enabled ? 'Ligado' : 'Desligado'),
               trailing: Icon(Icons.chevron_right_rounded, color: c.textMuted),
               onTap: () => context.push(AppRoutes.narrator),
+            ),
+          ),
+          SectionCard(
+            title: 'Bem-estar',
+            child: SwitchListTile(
+              key: const Key('gentle_mode'),
+              secondary: Icon(Icons.spa_rounded, color: c.dist.fg),
+              title: const Text('Modo Gentil'),
+              subtitle: const Text(
+                'Esconde pace e velocidade. Mostra tempo, distancia e esforco.',
+              ),
+              value: s.gentleMode,
+              onChanged: ctrl.setGentleMode,
             ),
           ),
           SectionCard(

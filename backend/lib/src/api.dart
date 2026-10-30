@@ -202,6 +202,11 @@ ActivityMetadata _metadadosDoUpload(Request req, List<int> fit) {
   final String? tipoTxt = req.headers['x-activity-type']?.trim().toLowerCase();
   final String? tipo =
       (tipoTxt != null && tiposDeAtividade.contains(tipoTxt)) ? tipoTxt : null;
+  final int? rpeTxt = _headerInteiro(req, 'x-rpe');
+  final int? rpe = (rpeTxt != null && rpeTxt >= 1 && rpeTxt <= 10) ? rpeTxt : null;
+  final String? humorTxt = req.headers['x-mood']?.trim().toLowerCase();
+  final String? humor =
+      (humorTxt != null && humores.contains(humorTxt)) ? humorTxt : null;
   final List<FitTrackPoint>? pontos = decodificarPontos(fit);
   int? primeiro;
   int? elapsed;
@@ -216,6 +221,8 @@ ActivityMetadata _metadadosDoUpload(Request req, List<int> fit) {
     elapsedTimeMs: elapsed,
     timerTimeMs: _headerInteiro(req, 'x-timer-time-ms'),
     distanceMeters: _headerNumero(req, 'x-distance-meters'),
+    rpe: rpe,
+    mood: humor,
   );
 }
 

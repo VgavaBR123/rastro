@@ -201,7 +201,11 @@ class NarratorSettingsScreen extends ConsumerWidget {
               // em curso continuam na fila.
               ref
                   .read(narratorProvider)
-                  .replace(const NarrationComposer().sample(n, metric: metric));
+                  .replace(const NarrationComposer().sample(
+                    n,
+                    metric: metric,
+                    gentle: ref.read(settingsProvider).gentleMode,
+                  ));
             },
           ),
           hint('A voz e a do sistema do celular, em portugues'),

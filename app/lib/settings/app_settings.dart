@@ -19,6 +19,9 @@ class AppSettings {
   /// Narrador por voz (F03).
   final NarratorSettings narrator;
 
+  /// Modo Gentil (F04): esconde pace e velocidade. Padrao desligado.
+  final bool gentleMode;
+
   const AppSettings({
     this.useMetric = true,
     this.autoPauseEnabled = true,
@@ -26,6 +29,7 @@ class AppSettings {
     this.reliabilityChecklistSeen = false,
     this.hideOnServer = true,
     this.narrator = const NarratorSettings(),
+    this.gentleMode = false,
   });
 
   AppSettings copyWith({
@@ -34,6 +38,7 @@ class AppSettings {
     bool? reliabilityChecklistSeen,
     bool? hideOnServer,
     NarratorSettings? narrator,
+    bool? gentleMode,
   }) => AppSettings(
     useMetric: useMetric ?? this.useMetric,
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
@@ -42,6 +47,7 @@ class AppSettings {
         reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
     hideOnServer: hideOnServer ?? this.hideOnServer,
     narrator: narrator ?? this.narrator,
+    gentleMode: gentleMode ?? this.gentleMode,
   );
 
   /// Troca o peso (null apaga).
@@ -52,5 +58,6 @@ class AppSettings {
     reliabilityChecklistSeen: reliabilityChecklistSeen,
     hideOnServer: hideOnServer,
     narrator: narrator,
+    gentleMode: gentleMode,
   );
 }

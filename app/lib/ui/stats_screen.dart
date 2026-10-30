@@ -1,6 +1,6 @@
 // Estatisticas (aba Estatisticas): totais do periodo em blocos tingidos,
 // tempo por semana nas ultimas 8 semanas empilhado por esporte e a
-// distribuicao do periodo por esporte.
+// distribuicao do periodo por esporte. Carga do treino (F04): sRPE por semana.
 library;
 
 import 'package:flutter/material.dart';
@@ -12,6 +12,7 @@ import '../app/providers.dart';
 import '../core/format/activity_labels.dart';
 import '../core/format/measures.dart';
 import '../recording/domain/recording_models.dart';
+import 'closing/training_load_section.dart';
 import 'components/app_nav_bar.dart';
 import 'components/metric_tile.dart';
 import 'components/segmented_selector.dart';
@@ -123,6 +124,15 @@ class StatsScreen extends ConsumerWidget {
         title: 'Tempo por semana',
         padding: const EdgeInsets.all(16),
         child: WeeklyStackedChart(summary: s, highlightWeeks: period.weeks),
+      ),
+      SectionCard(
+        title: 'Carga do treino',
+        padding: const EdgeInsets.all(16),
+        child: TrainingLoadSection(
+          key: const Key('stats_load'),
+          summary: s,
+          period: period,
+        ),
       ),
       SectionCard(
         title: 'Por esporte',

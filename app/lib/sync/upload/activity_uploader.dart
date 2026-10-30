@@ -7,18 +7,26 @@ library;
 import 'dart:typed_data';
 
 /// Metadados calculados no aparelho que o FIT minimo nao carrega (contrato:
-/// headers x-activity-type, x-start-time, x-timer-time-ms, x-distance-meters).
+/// headers x-activity-type, x-start-time, x-timer-time-ms, x-distance-meters,
+/// x-rpe e x-mood).
 class UploadMetadata {
   final String? activityType; // run | ride | walk
   final int? startTimeMs;
   final int? timerTimeMs;
   final double? distanceMeters;
 
+  /// Fechamento gentil (F04): esforco percebido (1 a 10) e humor (great,
+  /// good, ok, tired, awful). Null = nao informado.
+  final int? rpe;
+  final String? mood;
+
   const UploadMetadata({
     this.activityType,
     this.startTimeMs,
     this.timerTimeMs,
     this.distanceMeters,
+    this.rpe,
+    this.mood,
   });
 }
 

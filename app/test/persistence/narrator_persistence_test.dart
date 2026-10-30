@@ -15,7 +15,7 @@ void main() {
     tearDown(() async => db.close());
 
     test('schema na versao 9', () {
-      expect(db.schemaVersion, 9);
+      expect(db.schemaVersion, greaterThanOrEqualTo(9));
     });
 
     test('padrao: sem preferencia salva vira o padrao (desligado)', () async {
@@ -96,7 +96,11 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 9) return;
+          if (v != 10) return;
+          // F04 (schema 10) veio depois: tira o que e dele.
+          raw.execute('ALTER TABLE activities DROP COLUMN rpe');
+          raw.execute('ALTER TABLE activities DROP COLUMN mood');
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN gentle_mode');
           raw.execute('ALTER TABLE settings_rows DROP COLUMN narrator_prefs');
           raw.execute('PRAGMA user_version = 8');
         },

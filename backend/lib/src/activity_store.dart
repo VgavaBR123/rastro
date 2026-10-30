@@ -7,6 +7,9 @@ import 'fit_decoder.dart';
 /// Tipos de atividade aceitos no header `x-activity-type`.
 const Set<String> tiposDeAtividade = <String>{'run', 'ride', 'walk'};
 
+/// Humores aceitos no header `x-mood` (Fechamento gentil, F04).
+const Set<String> humores = <String>{'great', 'good', 'ok', 'tired', 'awful'};
+
 /// Metadados de uma atividade que nao vem do FIT minimo: os opcionais
 /// informados pelo app nos headers do upload e os derivados dos timestamps
 /// dos records do FIT. Null = sem valor.
@@ -17,12 +20,20 @@ class ActivityMetadata {
   final int? timerTimeMs;
   final double? distanceMeters;
 
+  /// Esforco percebido de 1 a 10 (F04); null = nao informado.
+  final int? rpe;
+
+  /// Humor (F04): um de [humores]; null = nao informado.
+  final String? mood;
+
   const ActivityMetadata({
     this.activityType,
     this.startTimeMs,
     this.elapsedTimeMs,
     this.timerTimeMs,
     this.distanceMeters,
+    this.rpe,
+    this.mood,
   });
 }
 
@@ -62,6 +73,12 @@ class UploadRecord {
   /// Distancia informada pelo app (pode diferir do comprimento da rota).
   final double? distanceMeters;
 
+  /// Esforco percebido de 1 a 10 informado pelo app (F04).
+  final int? rpe;
+
+  /// Humor informado pelo app (F04).
+  final String? mood;
+
   const UploadRecord({
     required this.id,
     this.userId,
@@ -77,6 +94,8 @@ class UploadRecord {
     this.elapsedTimeMs,
     this.timerTimeMs,
     this.distanceMeters,
+    this.rpe,
+    this.mood,
   });
 
   /// Chave de ordenacao da listagem: startTime, senao receivedAt.
@@ -100,6 +119,8 @@ class UploadRecord {
         elapsedTimeMs: elapsedTimeMs,
         timerTimeMs: timerTimeMs,
         distanceMeters: distanceMeters,
+        rpe: rpe,
+        mood: mood,
       );
 
   /// Objeto `activity` do contrato. Todos os campos sempre presentes (podem
@@ -119,6 +140,8 @@ class UploadRecord {
         'distanceMeters': distanceMeters,
         'pointCount': pointCount,
         'lengthMeters': lengthMeters,
+        'rpe': rpe,
+        'mood': mood,
       };
 }
 
@@ -319,6 +342,8 @@ class InMemoryActivityStore implements ActivityStore {
       elapsedTimeMs: metadata.elapsedTimeMs,
       timerTimeMs: metadata.timerTimeMs,
       distanceMeters: metadata.distanceMeters,
+      rpe: metadata.rpe,
+      mood: metadata.mood,
     );
     _records[id] = rec;
     _blobs[id] = List<int>.of(fitBytes);

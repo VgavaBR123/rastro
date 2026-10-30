@@ -64,6 +64,9 @@ ALTER TABLE uploads ADD COLUMN IF NOT EXISTS start_time BIGINT NULL;
 ALTER TABLE uploads ADD COLUMN IF NOT EXISTS elapsed_time_ms BIGINT NULL;
 ALTER TABLE uploads ADD COLUMN IF NOT EXISTS timer_time_ms BIGINT NULL;
 ALTER TABLE uploads ADD COLUMN IF NOT EXISTS distance_meters DOUBLE PRECISION NULL;
+-- Fechamento gentil (F04): esforco percebido (1 a 10) e humor.
+ALTER TABLE uploads ADD COLUMN IF NOT EXISTS rpe SMALLINT NULL;
+ALTER TABLE uploads ADD COLUMN IF NOT EXISTS mood TEXT NULL;
 
 -- Paginacao por keyset de GET /activities: startTime (senao receivedAt) desc,
 -- desempate por id desc (collation "C" para a ordem ser por bytes).

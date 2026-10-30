@@ -10,7 +10,11 @@ import '../persistence/database.dart';
 import 'share/share_activity_screen.dart';
 
 /// Texto compartilhado para [a] na unidade das configuracoes.
-String shareTextFor(Activity a, {required bool metric}) => activityShareText(
+String shareTextFor(
+  Activity a, {
+  required bool metric,
+  bool gentle = false,
+}) => activityShareText(
   title: displayActivityTitle(
     a.title,
     a.activityType,
@@ -20,6 +24,7 @@ String shareTextFor(Activity a, {required bool metric}) => activityShareText(
   distanceMeters: a.distanceMeters,
   timerMs: a.timerTimeMs,
   metric: metric,
+  gentle: gentle,
 );
 
 /// Abre a tela Compartilhar no Navigator raiz (por cima das abas).

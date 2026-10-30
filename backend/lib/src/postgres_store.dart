@@ -75,6 +75,9 @@ WHERE encode(fit, 'escape') ~ '^\{[0-9]{1,3}(,[0-9]{1,3})*\}$'
   'ALTER TABLE uploads ADD COLUMN IF NOT EXISTS timer_time_ms BIGINT NULL',
   'ALTER TABLE uploads ADD COLUMN IF NOT EXISTS distance_meters '
       'DOUBLE PRECISION NULL',
+  // Fechamento gentil (F04): esforco percebido e humor.
+  'ALTER TABLE uploads ADD COLUMN IF NOT EXISTS rpe SMALLINT NULL',
+  'ALTER TABLE uploads ADD COLUMN IF NOT EXISTS mood TEXT NULL',
   // Paginacao por keyset na ordem da listagem.
   'CREATE INDEX IF NOT EXISTS idx_uploads_user_sort ON uploads '
       '(user_id, (COALESCE(start_time, received_at)) DESC, id COLLATE "C" DESC)',
@@ -163,6 +166,8 @@ class PostgresActivityStore implements ActivityStore {
       'elapsed': metadata.elapsedTimeMs,
       'timer': metadata.timerTimeMs,
       'distance': metadata.distanceMeters,
+      'rpe': metadata.rpe,
+      'mood': metadata.mood,
     };
 
     final String routeExpr;
@@ -181,9 +186,9 @@ class PostgresActivityStore implements ActivityStore {
       Sql.named(
         'INSERT INTO uploads '
         '(id, user_id, status, received_at, size_bytes, activity_guid, fit, route, point_count, '
-        'activity_type, start_time, elapsed_time_ms, timer_time_ms, distance_meters) '
+        'activity_type, start_time, elapsed_time_ms, timer_time_ms, distance_meters, rpe, mood) '
         'VALUES (@id, @user_id, @status, @received_at, @size, @guid, @fit, $routeExpr, @points, '
-        '@type, @start, @elapsed, @timer, @distance) '
+        '@type, @start, @elapsed, @timer, @distance, @rpe, @mood) '
         // Dois envios simultaneos da mesma atividade do mesmo usuario: o
         // segundo nao insere e devolvemos o registro do primeiro logo abaixo.
         'ON CONFLICT (user_id, activity_guid) WHERE activity_guid IS NOT NULL DO NOTHING '
@@ -213,6 +218,8 @@ class PostgresActivityStore implements ActivityStore {
       elapsedTimeMs: metadata.elapsedTimeMs,
       timerTimeMs: metadata.timerTimeMs,
       distanceMeters: metadata.distanceMeters,
+      rpe: metadata.rpe,
+      mood: metadata.mood,
     );
   }
 
@@ -378,7 +385,7 @@ class PostgresActivityStore implements ActivityStore {
 
   static const String _selectUploads =
       'SELECT id, user_id, status, received_at, size_bytes, activity_guid, point_count, '
-      'activity_type, name, start_time, elapsed_time_ms, timer_time_ms, distance_meters, '
+      'activity_type, name, start_time, elapsed_time_ms, timer_time_ms, distance_meters, rpe, mood, '
       'ST_Length(route::geography) AS length_meters FROM uploads ';
 
   UploadRecord _fromRow(Map<String, dynamic> m) => UploadRecord(
@@ -396,6 +403,8 @@ class PostgresActivityStore implements ActivityStore {
         elapsedTimeMs: _comoInt(m['elapsed_time_ms']),
         timerTimeMs: _comoInt(m['timer_time_ms']),
         distanceMeters: _comoDouble(m['distance_meters']),
+        rpe: _comoInt(m['rpe']),
+        mood: m['mood'] as String?,
       );
 
   /// SUM de BIGINT volta numeric; o driver pode entregar como string.

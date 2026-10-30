@@ -16,6 +16,9 @@ class RecordingNarration {
   final Narrator _narrator;
   final NarratorSettings Function() _settings;
   final bool Function() _useMetric;
+
+  /// Modo Gentil (F04): lido a cada estado, como as preferencias.
+  final bool Function() _gentle;
   final NarrationComposer _composer;
   final NarrationEventDetector _detector = NarrationEventDetector();
 
@@ -29,10 +32,12 @@ class RecordingNarration {
     required Narrator narrator,
     required NarratorSettings Function() settings,
     required bool Function() useMetric,
+    bool Function()? gentle,
     NarrationComposer composer = const NarrationComposer(),
   }) : _narrator = narrator,
        _settings = settings,
        _useMetric = useMetric,
+       _gentle = gentle ?? _never,
        _composer = composer;
 
   /// Novo estado da gravacao. Com o Narrador desligado o detector continua
@@ -66,10 +71,11 @@ class RecordingNarration {
     final suppressFinish = _suppressFinish;
     if (!s.isActive) _suppressFinish = false;
     if (!prefs.enabled) return;
+    final gentle = _gentle();
     for (final e in events) {
       if (e is ManuallyPaused && silencePause) continue;
       if (e is RecordingFinished && suppressFinish) continue;
-      final a = _composer.compose(e, prefs);
+      final a = _composer.compose(e, prefs, gentle: gentle);
       if (a != null) _narrator.enqueue(a);
     }
   }
@@ -88,3 +94,5 @@ class RecordingNarration {
     if (!enabled) await _narrator.stop();
   }
 }
+
+bool _never() => false;

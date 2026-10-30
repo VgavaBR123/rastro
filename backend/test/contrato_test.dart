@@ -427,8 +427,49 @@ void main() {
     const Set<String> campos = {
       'id', 'uploadId', 'status', 'receivedAt', 'sizeBytes', 'activityGuid', //
       'activityType', 'name', 'startTime', 'elapsedTimeMs', 'timerTimeMs',
-      'distanceMeters', 'pointCount', 'lengthMeters',
+      'distanceMeters', 'pointCount', 'lengthMeters', 'rpe', 'mood',
     };
+
+    // Fechamento gentil (F04): esforco percebido e humor opcionais.
+    test('x-rpe e x-mood validos voltam na activity (e no GET)', () async {
+      final r = await upload(fit(4), guid: 'g-rpe', headers: {
+        'x-rpe': '7',
+        'x-mood': 'Tired',
+      });
+      expect(r.statusCode, 201);
+      final body = await jsonOf(r);
+      expect(body.keys.toSet(), campos);
+      expect(body['rpe'], 7);
+      expect(body['mood'], 'tired');
+      final id = body['id'] as String;
+      expect(await jsonOf(await chamar('GET', '/activities/$id', token: tokenA)), body);
+      final lista = await jsonOf(await chamar('GET', '/activities', token: tokenA));
+      expect((lista['activities'] as List).single['rpe'], 7);
+    });
+
+    test('rpe e mood ausentes ou invalidos viram null (nao e erro)', () async {
+      final semNada = await jsonOf(await upload(fit(4)));
+      expect(semNada['rpe'], isNull);
+      expect(semNada['mood'], isNull);
+      for (final (rpe, mood) in [
+        ('0', 'feliz'),
+        ('11', ''),
+        ('7.5', 'great!'),
+        ('abc', 'GREAT ok'),
+        ('-3', 'swim'),
+      ]) {
+        final r = await upload([1, 2, 3], headers: {'x-rpe': rpe, 'x-mood': mood});
+        expect(r.statusCode, 201);
+        final b = await jsonOf(r);
+        expect(b['rpe'], isNull, reason: 'x-rpe=$rpe');
+        expect(b['mood'], isNull, reason: 'x-mood=$mood');
+      }
+      for (final m in ['great', 'good', 'ok', 'tired', 'awful']) {
+        final b = await jsonOf(await upload([1], headers: {'x-mood': m, 'x-rpe': '10'}));
+        expect(b['mood'], m);
+        expect(b['rpe'], 10);
+      }
+    });
 
     test('headers validos viram metadados; elapsed vem do FIT', () async {
       final r = await upload(fit(12), guid: 'g1', headers: {

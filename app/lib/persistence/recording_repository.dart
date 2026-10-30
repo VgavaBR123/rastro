@@ -5,6 +5,7 @@ library;
 
 import 'package:drift/drift.dart';
 
+import '../closing/domain/effort.dart';
 import '../recording/domain/gap_monitor.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_health.dart';
@@ -137,18 +138,25 @@ class RecordingRepository {
   /// ([hideEdgesMeters], F02) escolhidos na tela Salvar. Vazio vira null (a
   /// UI cai no titulo sugerido). Titulo, descricao e visibilidade sao so
   /// locais por enquanto: o upload ainda nao envia esses campos.
+  ///
+  /// Fechamento gentil (F04): [rpe] (1 a 10) e [mood] sao opcionais e sobem
+  /// nos metadados do upload.
   Future<void> saveDetails(
     String guid, {
     String? title,
     String? description,
     ActivityVisibility visibility = ActivityVisibility.defaultForNew,
     int? hideEdgesMeters,
+    int? rpe,
+    Mood? mood,
   }) => db.saveActivityDetails(
     guid,
     title: title,
     description: description,
     visibility: visibility,
     hideEdgesMeters: hideEdgesMeters,
+    rpe: normalizeRpe(rpe),
+    mood: mood?.dbValue,
   );
 
   /// Guarda uma volta fechada.

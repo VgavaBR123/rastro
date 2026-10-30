@@ -93,6 +93,8 @@ class SyncService {
           startTimeMs: a.startTimestampMs,
           timerTimeMs: a.timerTimeMs,
           distanceMeters: a.distanceMeters,
+          rpe: a.rpe,
+          mood: a.mood,
         ),
       );
       await _db.markSynced(a.guid, remoteId);

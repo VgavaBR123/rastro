@@ -33,6 +33,9 @@ class ActivityCard extends StatelessWidget {
   /// Sem miniatura e sem botoes; toque no cartao abre o detalhe.
   final bool compact;
 
+  /// Modo Gentil (F04): esforco no lugar do pace ou da velocidade.
+  final bool gentle;
+
   /// Acao extra no canto do cabecalho (menu do Historico).
   final Widget? trailing;
 
@@ -44,6 +47,7 @@ class ActivityCard extends StatelessWidget {
     this.onOpen,
     this.onShare,
     this.compact = false,
+    this.gentle = false,
     this.trailing,
   });
 
@@ -57,7 +61,14 @@ class ActivityCard extends StatelessWidget {
     final seconds = activity.timerTimeMs / 1000.0;
     final (String, String?) middle;
     final String middleLabel;
-    if (type == ActivityType.ride) {
+    var middleRole = c.pace;
+    if (gentle) {
+      // Modo Gentil (F04): esforco percebido; "--" quando nao informado.
+      middleLabel = 'Esforco';
+      middleRole = c.extra;
+      final rpe = activity.rpe;
+      middle = (rpe != null && rpe >= 1 && rpe <= 10 ? '$rpe/10' : '--', null);
+    } else if (type == ActivityType.ride) {
       middleLabel = 'Velocidade';
       middle = splitMeasure(formatSpeed(
         seconds > 0 ? activity.distanceMeters / seconds : 0,
@@ -74,7 +85,7 @@ class ActivityCard extends StatelessWidget {
     final metrics = Row(
       children: [
         Expanded(child: MetricTile(label: 'Distancia', value: dist, unit: distUnit, role: c.dist)),
-        Expanded(child: MetricTile(label: middleLabel, value: middle.$1, unit: middle.$2, role: c.pace)),
+        Expanded(child: MetricTile(label: middleLabel, value: middle.$1, unit: middle.$2, role: middleRole)),
         Expanded(
           child: MetricTile(label: 'Tempo', value: formatDuration(activity.timerTimeMs), role: c.tempo),
         ),
@@ -198,10 +209,12 @@ class RoutedActivityCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final metric = ref.watch(settingsProvider.select((s) => s.useMetric));
+    final gentle = ref.watch(settingsProvider.select((s) => s.gentleMode));
     final route = compact ? null : ref.watch(activityRouteProvider(activity.guid)).value;
     return ActivityCard(
       activity: activity,
       useMetric: metric,
+      gentle: gentle,
       route: route,
       onOpen: onOpen,
       onShare: onShare,

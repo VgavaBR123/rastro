@@ -7,11 +7,13 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../closing/domain/effort.dart';
 import '../core/format/activity_labels.dart';
 import '../core/format/measures.dart';
 import '../persistence/activity_visibility.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_models.dart';
+import 'closing/effort_picker.dart';
 import 'components/big_action_button.dart';
 import 'components/metric_tile.dart';
 import 'privacy/routine_warning_banner.dart';
@@ -24,6 +26,7 @@ import 'theme/app_typography.dart';
 
 export '../persistence/activity_visibility.dart';
 export 'privacy/routine_warning_banner.dart';
+export '../closing/domain/effort.dart' show Mood;
 
 /// Opcoes de "Ocultar inicio e fim" (F02), em metros. 0 = nao ocultar.
 const List<int> kHideEdgesOptions = [0, 200, 500, 1000];
@@ -45,11 +48,17 @@ class ActivityDraft {
   /// Ocultar os primeiros e os ultimos X metros (F02). 0 = nao.
   final int hideEdgesMeters;
 
+  /// Fechamento gentil (F04): esforco percebido (1 a 10) e humor. Opcionais.
+  final int? rpe;
+  final Mood? mood;
+
   const ActivityDraft({
     required this.title,
     required this.description,
     required this.visibility,
     this.hideEdgesMeters = 0,
+    this.rpe,
+    this.mood,
   });
 }
 
@@ -68,6 +77,9 @@ class SaveActivityView extends StatefulWidget {
 
   /// Rotina previsivel (F02): mostra uma dica gentil.
   final bool routineWarning;
+
+  /// Modo Gentil (F04): o resumo nao mostra o pace.
+  final bool gentle;
 
   final VoidCallback onBack;
   final ValueChanged<ActivityDraft> onSave;
@@ -90,6 +102,7 @@ class SaveActivityView extends StatefulWidget {
     required this.onDiscard,
     this.busy = false,
     this.routineWarning = false,
+    this.gentle = false,
   });
 
   @override
@@ -103,6 +116,8 @@ class _SaveActivityViewState extends State<SaveActivityView> {
   final TextEditingController _description = TextEditingController();
   ActivityVisibility _visibility = ActivityVisibility.defaultForNew;
   int _hideEdges = 0;
+  int? _rpe;
+  Mood? _mood;
 
   @override
   void dispose() {
@@ -118,6 +133,8 @@ class _SaveActivityViewState extends State<SaveActivityView> {
       description: _description.text.trim(),
       visibility: _visibility,
       hideEdgesMeters: _hideEdges,
+      rpe: _rpe,
+      mood: _mood,
     ));
   }
 
@@ -229,18 +246,20 @@ class _SaveActivityViewState extends State<SaveActivityView> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(
-                      child: MetricTile(
-                        key: const Key('save_pace'),
-                        label: 'Pace medio',
-                        value: pace,
-                        unit: paceUnit,
-                        role: c.pace,
-                        block: true,
-                        valueStyle: AppText.metricM,
+                    if (!widget.gentle) ...[
+                      Expanded(
+                        child: MetricTile(
+                          key: const Key('save_pace'),
+                          label: 'Pace medio',
+                          value: pace,
+                          unit: paceUnit,
+                          role: c.pace,
+                          block: true,
+                          valueStyle: AppText.metricM,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
+                      const SizedBox(width: 8),
+                    ],
                     Expanded(
                       child: MetricTile(
                         key: const Key('save_elevation'),
@@ -253,6 +272,22 @@ class _SaveActivityViewState extends State<SaveActivityView> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                _OptionalLabel('Esforco percebido', style: muted),
+                const SizedBox(height: 6),
+                RpePicker(
+                  key: const Key('save_rpe'),
+                  selected: _rpe,
+                  onChanged: widget.busy ? null : (v) => setState(() => _rpe = v),
+                ),
+                const SizedBox(height: 14),
+                _OptionalLabel('Como voce se sentiu', style: muted),
+                const SizedBox(height: 6),
+                MoodPicker(
+                  key: const Key('save_mood'),
+                  selected: _mood,
+                  onChanged: widget.busy ? null : (v) => setState(() => _mood = v),
                 ),
                 const SizedBox(height: 20),
                 Text('Titulo', style: muted),
@@ -362,6 +397,24 @@ class _SaveActivityViewState extends State<SaveActivityView> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Rotulo de campo com "Opcional" ao lado.
+class _OptionalLabel extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  const _OptionalLabel(this.text, {required this.style});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Row(
+      children: [
+        Expanded(child: Text(text, style: style)),
+        Text('Opcional', style: AppText.label.copyWith(color: c.textMuted)),
+      ],
     );
   }
 }

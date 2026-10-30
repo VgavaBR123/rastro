@@ -1,6 +1,7 @@
 // Detalhe de uma atividade (relatorio 11, tela Detalhe): mapa no topo com
 // botoes flutuantes, chip do esporte, titulo, grade 3 x 2 de metricas,
 // splits com SplitBar, perfil de elevacao, voltas e saude da gravacao (F01).
+// Fechamento gentil (F04): esforco, carga e humor; Modo Gentil sem pace.
 library;
 
 import 'package:flutter/material.dart';
@@ -10,11 +11,13 @@ import '../activity/activity_providers.dart';
 import '../activity/elevation_profile.dart';
 import '../activity/lap_summary.dart';
 import '../app/providers.dart';
+import '../closing/domain/effort.dart';
 import '../core/format/activity_labels.dart';
 import '../core/format/measures.dart';
 import '../persistence/database.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_models.dart';
+import 'closing/closing_summary_section.dart';
 import 'components/floating_map_button.dart';
 import 'components/metric_tile.dart';
 import 'components/sport_chip.dart';
@@ -57,6 +60,8 @@ class ActivityDetailScreen extends ConsumerWidget {
         .value;
     final health = ref.watch(activityHealthProvider(activity.guid)).value;
     final metric = ref.watch(settingsProvider).useMetric;
+    final gentle = ref.watch(settingsProvider).gentleMode;
+    final mood = Mood.fromDb(activity.mood);
     final muted = AppText.body.copyWith(color: c.textMuted);
 
     return Scaffold(
@@ -112,7 +117,15 @@ class ActivityDetailScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _metricGrid(_tiles(c, profile, metric)),
+                  _metricGrid(_tiles(c, profile, metric, gentle: gentle)),
+                  if (ClosingSummarySection.hasData(activity.rpe, mood)) ...[
+                    const SizedBox(height: 8),
+                    ClosingSummarySection(
+                      rpe: activity.rpe,
+                      mood: mood,
+                      timerMs: activity.timerTimeMs,
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   _card(
                     splitsAsync.when(
@@ -121,15 +134,18 @@ class ActivityDetailScreen extends ConsumerWidget {
                         child: Center(child: CircularProgressIndicator()),
                       ),
                       error: (e, _) => Text('Erro: $e', style: muted),
-                      data: (splits) =>
-                          SplitsSection(splits: splits, metric: metric),
+                      data: (splits) => SplitsSection(
+                        splits: splits,
+                        metric: metric,
+                        gentle: gentle,
+                      ),
                     ),
                   ),
                   // Secoes opcionais: somem quando nao ha dados (ou deu erro).
                   if (profile != null)
                     _card(ElevationSection(profile: profile, metric: metric)),
                   if (laps.isNotEmpty)
-                    _card(LapsSection(laps: laps, metric: metric)),
+                    _card(LapsSection(laps: laps, metric: metric, gentle: gentle)),
                   if (health != null)
                     _card(
                       RecordingHealthSection(health: health, metric: metric),
@@ -207,7 +223,13 @@ class ActivityDetailScreen extends ConsumerWidget {
 
   /// Metricas da grade, na ordem: distancia, tempo, pace (ou velocidade no
   /// pedal), subida, calorias e bateria. As duas ultimas somem sem leitura.
-  List<_Tile> _tiles(AppColors c, ElevationProfile? profile, bool metric) {
+  /// Modo Gentil (F04): sem o bloco de pace/velocidade.
+  List<_Tile> _tiles(
+    AppColors c,
+    ElevationProfile? profile,
+    bool metric, {
+    bool gentle = false,
+  }) {
     final seconds = activity.timerTimeMs / 1000.0;
     final ride = activity.activityType == ActivityType.ride;
     final pace = activity.distanceMeters > 0
@@ -227,19 +249,20 @@ class ActivityDetailScreen extends ConsumerWidget {
         c.tempo,
         const Key('detailTime'),
       ),
-      ride
-          ? _Tile(
-              'Velocidade',
-              formatSpeed(speed, metric: metric),
-              c.pace,
-              const Key('detailPace'),
-            )
-          : _Tile(
-              'Pace',
-              formatPace(pace, metric: metric),
-              c.pace,
-              const Key('detailPace'),
-            ),
+      if (!gentle && ride)
+        _Tile(
+          'Velocidade',
+          formatSpeed(speed, metric: metric),
+          c.pace,
+          const Key('detailPace'),
+        )
+      else if (!gentle)
+        _Tile(
+          'Pace',
+          formatPace(pace, metric: metric),
+          c.pace,
+          const Key('detailPace'),
+        ),
       _Tile(
         'Subida',
         formatElevation(profile?.gainMeters ?? double.nan, metric: metric),

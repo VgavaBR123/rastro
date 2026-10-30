@@ -23,8 +23,9 @@ final voiceAnnouncerProvider = Provider<VoiceAnnouncer>((ref) {
       : FlutterTtsVoiceAnnouncer();
 });
 
-/// Gancho do Modo Gentil (ainda nao existe): quando existir, sobrescreve este
-/// provider com um filtro que reescreve ou cala frases. Null = sem filtro.
+/// Filtro generico de falas (ex.: reescrever ou calar frases). O Modo Gentil
+/// (F04) nao usa este gancho: o compositor ja monta as frases sem ritmo.
+/// Null = sem filtro.
 final announcementFilterProvider = Provider<AnnouncementFilter?>((ref) => null);
 
 /// API generica de voz: `ref.read(narratorProvider).say(...)` ou `enqueue`
@@ -46,6 +47,8 @@ final recordingNarrationProvider = Provider<RecordingNarration>((ref) {
     narrator: ref.watch(narratorProvider),
     settings: () => ref.read(settingsProvider).narrator,
     useMetric: () => ref.read(settingsProvider).useMetric,
+    // Modo Gentil (F04): sem pace nem velocidade nas falas.
+    gentle: () => ref.read(settingsProvider).gentleMode,
   );
   ref.listen<RecordingUiState>(
     recordingControllerProvider,

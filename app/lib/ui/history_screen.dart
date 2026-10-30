@@ -173,6 +173,7 @@ class _ActivityTile extends ConsumerWidget {
       key: Key('tile-${activity.guid}'),
       activity: activity,
       useMetric: ref.watch(settingsProvider.select((s) => s.useMetric)),
+      gentle: ref.watch(settingsProvider.select((s) => s.gentleMode)),
       compact: true,
       onOpen: () {
         context.push(AppRoutes.activity(activity.guid), extra: activity);

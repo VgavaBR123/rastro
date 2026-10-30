@@ -187,6 +187,10 @@ void main() {
 
     await tester.tap(find.byKey(const Key('save_activity')));
     await drain(tester);
+    // Fechamento gentil (F04): Salvar mostra as frases; Concluir fecha.
+    expect(find.byKey(const Key('closing_view')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('closing_done')));
+    await drain(tester);
 
     expect(find.byType(RecordingScreen), findsNothing);
     final row = (await db.select(db.activities).get()).single;

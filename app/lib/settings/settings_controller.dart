@@ -31,6 +31,7 @@ class SettingsController extends StateNotifier<AppSettings> {
       reliabilityChecklistSeen: row.reliabilityChecklistSeen,
       hideOnServer: row.hideOnServer,
       narrator: NarratorSettings.fromJsonString(row.narratorPrefs),
+      gentleMode: row.gentleMode,
     );
   }
 
@@ -82,4 +83,10 @@ class SettingsController extends StateNotifier<AppSettings> {
   /// Atalho liga/desliga do Narrador (tela Gravar).
   Future<void> setNarratorEnabled(bool value) =>
       updateNarrator((n) => n.copyWith(enabled: value));
+
+  /// Modo Gentil (F04): esconde pace e velocidade em todo o app.
+  Future<void> setGentleMode(bool value) async {
+    state = state.copyWith(gentleMode: value);
+    await _db.saveSettings(gentleMode: value);
+  }
 }

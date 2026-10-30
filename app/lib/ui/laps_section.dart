@@ -13,7 +13,15 @@ class LapsSection extends StatelessWidget {
   final List<LapSummary> laps;
   final bool metric;
 
-  const LapsSection({super.key, required this.laps, required this.metric});
+  /// Modo Gentil (F04): sem a coluna de pace.
+  final bool gentle;
+
+  const LapsSection({
+    super.key,
+    required this.laps,
+    required this.metric,
+    this.gentle = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -65,14 +73,15 @@ class LapsSection extends StatelessWidget {
             style: AppText.metricS.copyWith(color: c.tempo.fg),
           ),
         ),
-        SizedBox(
-          width: 96,
-          child: Text(
-            formatPace(l.paceSecondsPerMeter, metric: metric),
-            textAlign: TextAlign.end,
-            style: AppText.metricS.copyWith(color: c.pace.fg),
+        if (!gentle)
+          SizedBox(
+            width: 96,
+            child: Text(
+              formatPace(l.paceSecondsPerMeter, metric: metric),
+              textAlign: TextAlign.end,
+              style: AppText.metricS.copyWith(color: c.pace.fg),
+            ),
           ),
-        ),
       ],
     ),
   );

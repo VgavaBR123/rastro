@@ -15,14 +15,27 @@ class SplitsSection extends StatelessWidget {
   final List<ActiveSplit> splits;
   final bool metric;
 
-  const SplitsSection({super.key, required this.splits, required this.metric});
+  /// Modo Gentil (F04): sem pace e sem cores de mais rapido ou mais lento;
+  /// cada trecho mostra distancia e tempo.
+  final bool gentle;
+
+  const SplitsSection({
+    super.key,
+    required this.splits,
+    required this.metric,
+    this.gentle = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final specs = splitBarSpecs([
+    final raw = splitBarSpecs([
       for (final s in splits) s.avgSpeedMetersPerSecond,
     ]);
+    // Gentil: barras so pelo tamanho, todas na cor normal.
+    final specs = gentle
+        ? [for (final s in raw) SplitBarSpec(s.fraction, SplitRank.normal)]
+        : raw;
     final ranked = specs.any((s) => s.rank != SplitRank.normal);
     return Column(
       key: const Key('splitsSection'),
@@ -94,14 +107,15 @@ class SplitsSection extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(
-            width: 92,
-            child: Text(
-              formatPace(splitPaceSecondsPerMeter(s), metric: metric),
-              textAlign: TextAlign.end,
-              style: AppText.metricS.copyWith(color: role.fg),
+          if (!gentle)
+            SizedBox(
+              width: 92,
+              child: Text(
+                formatPace(splitPaceSecondsPerMeter(s), metric: metric),
+                textAlign: TextAlign.end,
+                style: AppText.metricS.copyWith(color: role.fg),
+              ),
             ),
-          ),
         ],
       ),
     );

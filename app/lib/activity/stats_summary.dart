@@ -8,6 +8,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import '../closing/domain/effort.dart';
 import '../persistence/database.dart';
 import '../recording/domain/recording_models.dart';
 import 'elevation_profile.dart';
@@ -30,6 +31,9 @@ class StatEntry {
   /// Ganho de elevacao (m); null quando nao foi calculado ou nao ha altitude.
   final double? elevationGainMeters;
 
+  /// Esforco percebido (F04); null = nao informado (fica fora da carga).
+  final int? rpe;
+
   const StatEntry({
     this.guid = '',
     required this.type,
@@ -37,7 +41,11 @@ class StatEntry {
     required this.distanceMeters,
     required this.timerTimeMs,
     this.elevationGainMeters,
+    this.rpe,
   });
+
+  /// Carga do treino (sRPE); null sem RPE.
+  int? get load => trainingLoad(rpe: rpe, timerMs: timerTimeMs);
 
   factory StatEntry.fromActivity(Activity a, {double? elevationGainMeters}) =>
       StatEntry(
@@ -47,6 +55,7 @@ class StatEntry {
         distanceMeters: a.distanceMeters,
         timerTimeMs: a.timerTimeMs,
         elevationGainMeters: elevationGainMeters,
+        rpe: a.rpe,
       );
 }
 
@@ -86,7 +95,18 @@ class WeekBar {
   final DateTime start;
   final Map<ActivityType, int> timerMsBySport;
 
-  const WeekBar({required this.start, required this.timerMsBySport});
+  /// Carga do treino da semana (soma do sRPE, F04).
+  final int load;
+
+  /// Treinos da semana com esforco informado (os que entram na carga).
+  final int ratedCount;
+
+  const WeekBar({
+    required this.start,
+    required this.timerMsBySport,
+    this.load = 0,
+    this.ratedCount = 0,
+  });
 
   int get totalTimerMs => timerMsBySport.values.fold(0, (a, b) => a + b);
 }
@@ -152,6 +172,16 @@ class StatsSummary {
   /// Maior tempo de uma semana (escala das barras).
   int get maxWeekTimerMs =>
       weeks.fold(0, (m, w) => w.totalTimerMs > m ? w.totalTimerMs : m);
+
+  /// Maior carga de uma semana (escala das barras de carga, F04).
+  int get maxWeekLoad => weeks.fold(0, (m, w) => w.load > m ? w.load : m);
+
+  /// Algum treino da janela tem esforco informado.
+  bool get hasLoad => weeks.any((w) => w.ratedCount > 0);
+
+  /// Soma do sRPE no periodo.
+  int loadTotal(StatsPeriod p) =>
+      inPeriod(p).fold(0, (sum, e) => sum + (e.load ?? 0));
 }
 
 /// Monta o resumo das [kStatsWeeks] semanas ate a de [now]. Atividades fora
@@ -175,6 +205,8 @@ StatsSummary buildStatsSummary(List<StatEntry> all, {required DateTime now}) {
   ]..sort((a, b) => a.startTimestampMs.compareTo(b.startTimestampMs));
 
   final bySport = List.generate(kStatsWeeks, (_) => <ActivityType, int>{});
+  final load = List<int>.filled(kStatsWeeks, 0);
+  final rated = List<int>.filled(kStatsWeeks, 0);
   for (final e in inWindow) {
     // Indice pela ultima semana que comecou antes da atividade (mudanca de
     // horario de verao nao desloca: comparamos datas, nao 7 x 24 h).
@@ -184,12 +216,22 @@ StatsSummary buildStatsSummary(List<StatEntry> all, {required DateTime now}) {
     }
     final ms = e.timerTimeMs > 0 ? e.timerTimeMs : 0;
     bySport[i][e.type] = (bySport[i][e.type] ?? 0) + ms;
+    final l = e.load;
+    if (l != null) {
+      load[i] += l;
+      rated[i]++;
+    }
   }
 
   return StatsSummary(
     weeks: [
       for (var i = 0; i < kStatsWeeks; i++)
-        WeekBar(start: starts[i], timerMsBySport: Map.unmodifiable(bySport[i])),
+        WeekBar(
+          start: starts[i],
+          timerMsBySport: Map.unmodifiable(bySport[i]),
+          load: load[i],
+          ratedCount: rated[i],
+        ),
     ],
     entries: List.unmodifiable(inWindow),
     now: now,

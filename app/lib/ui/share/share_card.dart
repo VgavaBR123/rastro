@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../closing/domain/effort.dart';
 import '../../core/format/activity_labels.dart';
 import '../../core/format/measures.dart';
 import '../../recording/domain/geo.dart';
@@ -65,6 +66,12 @@ class ShareCardData {
   /// Desenhar o mapa da rota (desligado em "Sem mapa" e "So metricas").
   final bool showRoute;
 
+  /// Modo Gentil (F04): sem pace nem velocidade; o esforco entra no lugar.
+  final bool gentle;
+
+  /// Esforco percebido (F04), 1 a 10; null = nao informado.
+  final int? rpe;
+
   /// Mostrar esporte, data e titulo (desligado em "So metricas").
   final bool showHeader;
 
@@ -79,6 +86,8 @@ class ShareCardData {
     this.gainMeters,
     this.showRoute = true,
     this.showHeader = true,
+    this.gentle = false,
+    this.rpe,
   });
 }
 
@@ -86,17 +95,32 @@ class ShareCardData {
 typedef ShareMetric = ({String label, String value, RoleColors role});
 
 /// Metricas na ordem do cartao: distancia, pace (velocidade no pedal), tempo
-/// e, com leitura de altitude, subida. Funcao pura.
+/// e, com leitura de altitude, subida. No Modo Gentil (F04): distancia,
+/// tempo, esforco (quando informado) e subida. Funcao pura.
 List<ShareMetric> shareCardMetrics(ShareCardData d, AppColors c) {
   final seconds = d.timerMs / 1000.0;
   final ride = d.type == ActivityType.ride;
   final gain = d.gainMeters;
+  final rpe = d.rpe;
+  final distance = (
+    label: 'Distancia',
+    value: formatDistance(d.distanceMeters, metric: d.metric),
+    role: c.dist,
+  );
+  final time = (label: 'Tempo', value: formatDuration(d.timerMs), role: c.tempo);
+  final ascent = gain != null && gain.isFinite
+      ? (label: 'Subida', value: formatElevation(gain, metric: d.metric), role: c.subida)
+      : null;
+  if (d.gentle) {
+    return [
+      distance,
+      time,
+      if (isValidRpe(rpe)) (label: 'Esforco', value: '$rpe/10', role: c.extra),
+      ?ascent,
+    ];
+  }
   return [
-    (
-      label: 'Distancia',
-      value: formatDistance(d.distanceMeters, metric: d.metric),
-      role: c.dist,
-    ),
+    distance,
     ride
         ? (
             label: 'Velocidade',
@@ -114,13 +138,8 @@ List<ShareMetric> shareCardMetrics(ShareCardData d, AppColors c) {
             ),
             role: c.pace,
           ),
-    (label: 'Tempo', value: formatDuration(d.timerMs), role: c.tempo),
-    if (gain != null && gain.isFinite)
-      (
-        label: 'Subida',
-        value: formatElevation(gain, metric: d.metric),
-        role: c.subida,
-      ),
+    time,
+    ?ascent,
   ];
 }
 

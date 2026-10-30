@@ -79,6 +79,14 @@ class Activities extends Table {
   IntColumn get discardedPointCount =>
       integer().withDefault(const Constant(0))();
 
+  /// Fechamento gentil (F04): esforco percebido de 1 a 10. Null = nao
+  /// informado (e opcional).
+  IntColumn get rpe => integer().nullable()();
+
+  /// Fechamento gentil (F04): humor ('great' | 'good' | 'ok' | 'tired' |
+  /// 'awful', ver Mood). Null = nao informado.
+  TextColumn get mood => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {guid};
 }
@@ -183,6 +191,10 @@ class SettingsRows extends Table {
   /// padrao (desligado). JSON para crescer sem nova migracao.
   TextColumn get narratorPrefs => text().nullable()();
 
+  /// Modo Gentil (F04): esconde pace e velocidade (gravacao, detalhe, imagem
+  /// compartilhada e Narrador).
+  BoolColumn get gentleMode => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -202,7 +214,7 @@ class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -246,6 +258,11 @@ class RecordingDatabase extends _$RecordingDatabase {
           if (from < 9) {
             await m.addColumn(settingsRows, settingsRows.narratorPrefs);
           }
+          if (from < 10) {
+            await m.addColumn(activities, activities.rpe);
+            await m.addColumn(activities, activities.mood);
+            await m.addColumn(settingsRows, settingsRows.gentleMode);
+          }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
         // isso por conta propria. Sem este pragma, o `onDelete: cascade`
@@ -281,10 +298,12 @@ class RecordingDatabase extends _$RecordingDatabase {
     bool? reliabilityChecklistSeen,
     bool? hideOnServer,
     String? narratorPrefs,
+    bool? gentleMode,
   }) async {
     await loadSettings(); // garante a linha
     await (update(settingsRows)..where((t) => t.id.equals(0))).write(
       SettingsRowsCompanion(
+        gentleMode: gentleMode == null ? const Value.absent() : Value(gentleMode),
         useMetric: useMetric == null ? const Value.absent() : Value(useMetric),
         autoPauseEnabled: autoPauseEnabled == null
             ? const Value.absent()
@@ -478,6 +497,8 @@ class RecordingDatabase extends _$RecordingDatabase {
     String? description,
     required ActivityVisibility visibility,
     int? hideEdgesMeters,
+    int? rpe,
+    String? mood,
   }) {
     String? clean(String? v) {
       final t = v?.trim();
@@ -488,6 +509,9 @@ class RecordingDatabase extends _$RecordingDatabase {
       ActivitiesCompanion(
         title: Value(clean(title)),
         description: Value(clean(description)),
+        // F04: opcionais; fora de 1..10 nao e esforco valido.
+        rpe: Value(rpe != null && rpe >= 1 && rpe <= 10 ? rpe : null),
+        mood: Value(clean(mood)),
         visibility: Value(visibility.dbValue),
         hideEdgesMeters: hideEdgesMeters == null
             ? const Value.absent()

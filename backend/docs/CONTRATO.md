@@ -52,8 +52,10 @@ Upload: `POST /uploads` (Bearer), corpo = FIT em `application/octet-stream`. Hea
 - `x-activity-guid` (idempotencia por usuario + guid; reenvio = 200 com o existente, 201 se novo)
 - opcionais, metadados calculados no app (o FIT minimo nao os carrega):
   `x-activity-type` (`run` | `ride` | `walk`; outro valor = ignorado),
-  `x-start-time` (epoch ms), `x-timer-time-ms` (tempo em movimento), `x-distance-meters`.
-  Valor invalido/negativo = ignorado (nao e erro). `x-activity-type` nao diferencia caixa.
+  `x-start-time` (epoch ms), `x-timer-time-ms` (tempo em movimento), `x-distance-meters`,
+  `x-rpe` (esforco percebido, inteiro de 1 a 10) e
+  `x-mood` (`great` | `good` | `ok` | `tired` | `awful`), os dois do Fechamento gentil (F04).
+  Valor invalido/negativo = ignorado (nao e erro). `x-activity-type` e `x-mood` nao diferenciam caixa.
 
 Objeto `activity` (mesmo formato em todas as rotas abaixo):
 
@@ -63,7 +65,8 @@ Objeto `activity` (mesmo formato em todas as rotas abaixo):
   "receivedAt": 0, "sizeBytes": 0, "activityGuid": "act_...",
   "activityType": "run", "name": null,
   "startTime": 0, "elapsedTimeMs": 0, "timerTimeMs": 0,
-  "distanceMeters": 0.0, "pointCount": 0, "lengthMeters": 0.0
+  "distanceMeters": 0.0, "pointCount": 0, "lengthMeters": 0.0,
+  "rpe": null, "mood": null
 }
 ```
 - `startTime`: header `x-start-time`, senao timestamp do 1o record do FIT, senao null.
