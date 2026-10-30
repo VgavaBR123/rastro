@@ -24,6 +24,8 @@ Future<void> seed(RecordingDatabase db, String guid, DateTime start, {bool finis
     );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late RecordingDatabase db;
   late ProviderContainer container;
   final now = DateTime(2026, 11, 2, 9);

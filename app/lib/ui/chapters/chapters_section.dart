@@ -9,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/router.dart';
 import '../../chapters/chapter_providers.dart';
 import '../../chapters/domain/chapter_pages.dart' show kRestartMessage;
-import '../../chapters/domain/period.dart';
 import '../section_card.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -22,15 +21,15 @@ class ChaptersSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = AppColors.of(context);
-    final streak = ref.watch(currentStreakProvider).value;
-    final index = ref.watch(chapterIndexProvider).value;
-    final now = ref.watch(chapterClockProvider)();
-    final month = MonthKey.of(now);
+    // Tudo vem do provider, calculado com o mesmo "agora": a view so desenha.
+    final o = ref.watch(chaptersOverviewProvider).value;
+    if (o == null) return const SizedBox.shrink();
+    final streak = o.streak;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (streak != null && streak.weeks.isNotEmpty)
+        if (streak.weeks.isNotEmpty)
           SectionCard(
             title: 'Sequencia semanal',
             padding: const EdgeInsets.all(16),
@@ -59,8 +58,7 @@ class ChaptersSection extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Coringa de ${monthName(month.month).toLowerCase()}: '
-                    '${streak.jokerAvailable(month) ? 'disponivel' : 'usado'}',
+                    o.jokerLabel,
                     style: AppText.body.copyWith(color: c.textMuted),
                   ),
                   if (streak.restarted) ...[
@@ -71,31 +69,30 @@ class ChaptersSection extends ConsumerWidget {
               ),
             ),
           ),
-        if (index != null)
-          SectionCard(
-            key: const Key('stats_chapters'),
-            title: 'Capitulos',
-            child: Column(
-              children: [
-                for (final y in index.years)
-                  _ChapterItem(
-                    key: Key('chapter_item_year_$y'),
-                    label: y == now.year ? '$y ate agora' : '$y',
-                    hint: 'Capitulo do ano',
-                    icon: Icons.calendar_today_rounded,
-                    onTap: () => context.push(AppRoutes.yearChapter(y)),
-                  ),
-                for (final m in index.months)
-                  _ChapterItem(
-                    key: Key('chapter_item_month_${m.code}'),
-                    label: '${monthName(m.month)} de ${m.year}',
-                    hint: 'Capitulo do mes',
-                    icon: Icons.auto_stories_rounded,
-                    onTap: () => context.push(AppRoutes.monthChapter(m)),
-                  ),
-              ],
-            ),
+        SectionCard(
+          key: const Key('stats_chapters'),
+          title: 'Capitulos',
+          child: Column(
+            children: [
+              for (final y in o.years)
+                _ChapterItem(
+                  key: Key('chapter_item_year_${y.year}'),
+                  label: y.label,
+                  hint: 'Capitulo do ano',
+                  icon: Icons.calendar_today_rounded,
+                  onTap: () => context.push(AppRoutes.yearChapter(y.year)),
+                ),
+              for (final m in o.months)
+                _ChapterItem(
+                  key: Key('chapter_item_month_${m.month.code}'),
+                  label: m.label,
+                  hint: 'Capitulo do mes',
+                  icon: Icons.auto_stories_rounded,
+                  onTap: () => context.push(AppRoutes.monthChapter(m.month)),
+                ),
+            ],
           ),
+        ),
       ],
     );
   }

@@ -29,7 +29,7 @@ class _FakeSource implements LocationSource {
   Future<void> stop() async => _c.close();
 }
 
-final now = DateTime(2026, 11, 2, 9);
+var now = DateTime(2026, 11, 2, 9);
 
 Future<void> seed(RecordingDatabase db, String guid, DateTime start) => db.upsertActivity(
   ActivitiesCompanion.insert(
@@ -45,7 +45,10 @@ Future<void> seed(RecordingDatabase db, String guid, DateTime start) => db.upser
 
 void main() {
   late RecordingDatabase db;
-  setUp(() => db = RecordingDatabase(NativeDatabase.memory()));
+  setUp(() {
+    db = RecordingDatabase(NativeDatabase.memory());
+    now = DateTime(2026, 11, 2, 9);
+  });
   tearDown(() => db.close());
 
   Future<void> settle(WidgetTester tester) async {
@@ -167,5 +170,29 @@ void main() {
     expect(find.text('Junho'), findsOneWidget);
     // Mes antigo pela lista nao esconde o cartao de outubro (so avanca).
     expect(await tester.runAsync(db.chapterMonthSeen), 202506);
+  });
+
+  testWidgets('app aberto em 31/10 volta do segundo plano em 1/11: cartao aparece', (tester) async {
+    await tester.runAsync(() => seed(db, 'a', DateTime(2026, 10, 5, 7)));
+    now = DateTime(2026, 10, 31, 23, 50);
+    await pumpApp(tester);
+    expect(find.byKey(const Key('home_chapter_card')), findsNothing);
+
+    now = DateTime(2026, 11, 1, 8);
+    // Segundo plano e volta, passando pelos estados intermediarios como o
+    // sistema faz.
+    for (final st in [
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.paused,
+      AppLifecycleState.hidden,
+      AppLifecycleState.inactive,
+      AppLifecycleState.resumed,
+    ]) {
+      tester.binding.handleAppLifecycleStateChanged(st);
+    }
+    await settle(tester);
+    expect(find.byKey(const Key('home_chapter_card')), findsOneWidget);
+    expect(find.text('Seu capitulo de outubro esta pronto'), findsOneWidget);
   });
 }
