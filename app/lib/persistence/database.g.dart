@@ -2369,6 +2369,21 @@ class $SettingsRowsTable extends SettingsRows
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _plan5kVoiceMeta = const VerificationMeta(
+    'plan5kVoice',
+  );
+  @override
+  late final GeneratedColumn<bool> plan5kVoice = GeneratedColumn<bool>(
+    'plan5k_voice',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("plan5k_voice" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2380,6 +2395,7 @@ class $SettingsRowsTable extends SettingsRows
     narratorPrefs,
     gentleMode,
     chapterMonthSeen,
+    plan5kVoice,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2459,6 +2475,15 @@ class $SettingsRowsTable extends SettingsRows
         ),
       );
     }
+    if (data.containsKey('plan5k_voice')) {
+      context.handle(
+        _plan5kVoiceMeta,
+        plan5kVoice.isAcceptableOrUnknown(
+          data['plan5k_voice']!,
+          _plan5kVoiceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2504,6 +2529,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.int,
         data['${effectivePrefix}chapter_month_seen'],
       ),
+      plan5kVoice: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}plan5k_voice'],
+      )!,
     );
   }
 
@@ -2540,6 +2569,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
   /// dispensado. O cartao do Inicio so oferece meses depois deste. Null =
   /// nenhum ainda.
   final int? chapterMonthSeen;
+
+  /// Plano 5 km (F06): "Voz do plano", independente do Narrador geral.
+  /// Padrao ligada.
+  final bool plan5kVoice;
   const SettingsRow({
     required this.id,
     required this.useMetric,
@@ -2550,6 +2583,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     this.narratorPrefs,
     required this.gentleMode,
     this.chapterMonthSeen,
+    required this.plan5kVoice,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2571,6 +2605,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     if (!nullToAbsent || chapterMonthSeen != null) {
       map['chapter_month_seen'] = Variable<int>(chapterMonthSeen);
     }
+    map['plan5k_voice'] = Variable<bool>(plan5kVoice);
     return map;
   }
 
@@ -2591,6 +2626,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       chapterMonthSeen: chapterMonthSeen == null && nullToAbsent
           ? const Value.absent()
           : Value(chapterMonthSeen),
+      plan5kVoice: Value(plan5kVoice),
     );
   }
 
@@ -2611,6 +2647,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       narratorPrefs: serializer.fromJson<String?>(json['narratorPrefs']),
       gentleMode: serializer.fromJson<bool>(json['gentleMode']),
       chapterMonthSeen: serializer.fromJson<int?>(json['chapterMonthSeen']),
+      plan5kVoice: serializer.fromJson<bool>(json['plan5kVoice']),
     );
   }
   @override
@@ -2628,6 +2665,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'narratorPrefs': serializer.toJson<String?>(narratorPrefs),
       'gentleMode': serializer.toJson<bool>(gentleMode),
       'chapterMonthSeen': serializer.toJson<int?>(chapterMonthSeen),
+      'plan5kVoice': serializer.toJson<bool>(plan5kVoice),
     };
   }
 
@@ -2641,6 +2679,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     Value<String?> narratorPrefs = const Value.absent(),
     bool? gentleMode,
     Value<int?> chapterMonthSeen = const Value.absent(),
+    bool? plan5kVoice,
   }) => SettingsRow(
     id: id ?? this.id,
     useMetric: useMetric ?? this.useMetric,
@@ -2656,6 +2695,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     chapterMonthSeen: chapterMonthSeen.present
         ? chapterMonthSeen.value
         : this.chapterMonthSeen,
+    plan5kVoice: plan5kVoice ?? this.plan5kVoice,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2680,6 +2720,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       chapterMonthSeen: data.chapterMonthSeen.present
           ? data.chapterMonthSeen.value
           : this.chapterMonthSeen,
+      plan5kVoice: data.plan5kVoice.present
+          ? data.plan5kVoice.value
+          : this.plan5kVoice,
     );
   }
 
@@ -2694,7 +2737,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('hideOnServer: $hideOnServer, ')
           ..write('narratorPrefs: $narratorPrefs, ')
           ..write('gentleMode: $gentleMode, ')
-          ..write('chapterMonthSeen: $chapterMonthSeen')
+          ..write('chapterMonthSeen: $chapterMonthSeen, ')
+          ..write('plan5kVoice: $plan5kVoice')
           ..write(')'))
         .toString();
   }
@@ -2710,6 +2754,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     narratorPrefs,
     gentleMode,
     chapterMonthSeen,
+    plan5kVoice,
   );
   @override
   bool operator ==(Object other) =>
@@ -2723,7 +2768,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.hideOnServer == this.hideOnServer &&
           other.narratorPrefs == this.narratorPrefs &&
           other.gentleMode == this.gentleMode &&
-          other.chapterMonthSeen == this.chapterMonthSeen);
+          other.chapterMonthSeen == this.chapterMonthSeen &&
+          other.plan5kVoice == this.plan5kVoice);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2736,6 +2782,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<String?> narratorPrefs;
   final Value<bool> gentleMode;
   final Value<int?> chapterMonthSeen;
+  final Value<bool> plan5kVoice;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
@@ -2746,6 +2793,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.narratorPrefs = const Value.absent(),
     this.gentleMode = const Value.absent(),
     this.chapterMonthSeen = const Value.absent(),
+    this.plan5kVoice = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2757,6 +2805,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.narratorPrefs = const Value.absent(),
     this.gentleMode = const Value.absent(),
     this.chapterMonthSeen = const Value.absent(),
+    this.plan5kVoice = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
@@ -2768,6 +2817,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<String>? narratorPrefs,
     Expression<bool>? gentleMode,
     Expression<int>? chapterMonthSeen,
+    Expression<bool>? plan5kVoice,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2780,6 +2830,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       if (narratorPrefs != null) 'narrator_prefs': narratorPrefs,
       if (gentleMode != null) 'gentle_mode': gentleMode,
       if (chapterMonthSeen != null) 'chapter_month_seen': chapterMonthSeen,
+      if (plan5kVoice != null) 'plan5k_voice': plan5kVoice,
     });
   }
 
@@ -2793,6 +2844,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<String?>? narratorPrefs,
     Value<bool>? gentleMode,
     Value<int?>? chapterMonthSeen,
+    Value<bool>? plan5kVoice,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
@@ -2805,6 +2857,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       narratorPrefs: narratorPrefs ?? this.narratorPrefs,
       gentleMode: gentleMode ?? this.gentleMode,
       chapterMonthSeen: chapterMonthSeen ?? this.chapterMonthSeen,
+      plan5kVoice: plan5kVoice ?? this.plan5kVoice,
     );
   }
 
@@ -2840,6 +2893,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (chapterMonthSeen.present) {
       map['chapter_month_seen'] = Variable<int>(chapterMonthSeen.value);
     }
+    if (plan5kVoice.present) {
+      map['plan5k_voice'] = Variable<bool>(plan5kVoice.value);
+    }
     return map;
   }
 
@@ -2854,7 +2910,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('hideOnServer: $hideOnServer, ')
           ..write('narratorPrefs: $narratorPrefs, ')
           ..write('gentleMode: $gentleMode, ')
-          ..write('chapterMonthSeen: $chapterMonthSeen')
+          ..write('chapterMonthSeen: $chapterMonthSeen, ')
+          ..write('plan5kVoice: $plan5kVoice')
           ..write(')'))
         .toString();
   }
@@ -4721,6 +4778,1015 @@ class DismissedZoneSuggestionsCompanion
   }
 }
 
+class $Plan5kStatesTable extends Plan5kStates
+    with TableInfo<$Plan5kStatesTable, Plan5kStateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $Plan5kStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _startedMeta = const VerificationMeta(
+    'started',
+  );
+  @override
+  late final GeneratedColumn<bool> started = GeneratedColumn<bool>(
+    'started',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("started" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _startWeekMeta = const VerificationMeta(
+    'startWeek',
+  );
+  @override
+  late final GeneratedColumn<int> startWeek = GeneratedColumn<int>(
+    'start_week',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _currentWeekMeta = const VerificationMeta(
+    'currentWeek',
+  );
+  @override
+  late final GeneratedColumn<int> currentWeek = GeneratedColumn<int>(
+    'current_week',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _repeatsMeta = const VerificationMeta(
+    'repeats',
+  );
+  @override
+  late final GeneratedColumn<String> repeats = GeneratedColumn<String>(
+    'repeats',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _finishedMeta = const VerificationMeta(
+    'finished',
+  );
+  @override
+  late final GeneratedColumn<bool> finished = GeneratedColumn<bool>(
+    'finished',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("finished" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    started,
+    startWeek,
+    currentWeek,
+    repeats,
+    finished,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'plan5k_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Plan5kStateRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('started')) {
+      context.handle(
+        _startedMeta,
+        started.isAcceptableOrUnknown(data['started']!, _startedMeta),
+      );
+    }
+    if (data.containsKey('start_week')) {
+      context.handle(
+        _startWeekMeta,
+        startWeek.isAcceptableOrUnknown(data['start_week']!, _startWeekMeta),
+      );
+    }
+    if (data.containsKey('current_week')) {
+      context.handle(
+        _currentWeekMeta,
+        currentWeek.isAcceptableOrUnknown(
+          data['current_week']!,
+          _currentWeekMeta,
+        ),
+      );
+    }
+    if (data.containsKey('repeats')) {
+      context.handle(
+        _repeatsMeta,
+        repeats.isAcceptableOrUnknown(data['repeats']!, _repeatsMeta),
+      );
+    }
+    if (data.containsKey('finished')) {
+      context.handle(
+        _finishedMeta,
+        finished.isAcceptableOrUnknown(data['finished']!, _finishedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Plan5kStateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Plan5kStateRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      started: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}started'],
+      )!,
+      startWeek: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}start_week'],
+      )!,
+      currentWeek: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}current_week'],
+      )!,
+      repeats: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}repeats'],
+      ),
+      finished: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}finished'],
+      )!,
+    );
+  }
+
+  @override
+  $Plan5kStatesTable createAlias(String alias) {
+    return $Plan5kStatesTable(attachedDatabase, alias);
+  }
+}
+
+class Plan5kStateRow extends DataClass implements Insertable<Plan5kStateRow> {
+  final int id;
+  final bool started;
+  final int startWeek;
+  final int currentWeek;
+
+  /// Repeticoes por semana em JSON ({"3": 1}). Null = nenhuma.
+  final String? repeats;
+  final bool finished;
+  const Plan5kStateRow({
+    required this.id,
+    required this.started,
+    required this.startWeek,
+    required this.currentWeek,
+    this.repeats,
+    required this.finished,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['started'] = Variable<bool>(started);
+    map['start_week'] = Variable<int>(startWeek);
+    map['current_week'] = Variable<int>(currentWeek);
+    if (!nullToAbsent || repeats != null) {
+      map['repeats'] = Variable<String>(repeats);
+    }
+    map['finished'] = Variable<bool>(finished);
+    return map;
+  }
+
+  Plan5kStatesCompanion toCompanion(bool nullToAbsent) {
+    return Plan5kStatesCompanion(
+      id: Value(id),
+      started: Value(started),
+      startWeek: Value(startWeek),
+      currentWeek: Value(currentWeek),
+      repeats: repeats == null && nullToAbsent
+          ? const Value.absent()
+          : Value(repeats),
+      finished: Value(finished),
+    );
+  }
+
+  factory Plan5kStateRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Plan5kStateRow(
+      id: serializer.fromJson<int>(json['id']),
+      started: serializer.fromJson<bool>(json['started']),
+      startWeek: serializer.fromJson<int>(json['startWeek']),
+      currentWeek: serializer.fromJson<int>(json['currentWeek']),
+      repeats: serializer.fromJson<String?>(json['repeats']),
+      finished: serializer.fromJson<bool>(json['finished']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'started': serializer.toJson<bool>(started),
+      'startWeek': serializer.toJson<int>(startWeek),
+      'currentWeek': serializer.toJson<int>(currentWeek),
+      'repeats': serializer.toJson<String?>(repeats),
+      'finished': serializer.toJson<bool>(finished),
+    };
+  }
+
+  Plan5kStateRow copyWith({
+    int? id,
+    bool? started,
+    int? startWeek,
+    int? currentWeek,
+    Value<String?> repeats = const Value.absent(),
+    bool? finished,
+  }) => Plan5kStateRow(
+    id: id ?? this.id,
+    started: started ?? this.started,
+    startWeek: startWeek ?? this.startWeek,
+    currentWeek: currentWeek ?? this.currentWeek,
+    repeats: repeats.present ? repeats.value : this.repeats,
+    finished: finished ?? this.finished,
+  );
+  Plan5kStateRow copyWithCompanion(Plan5kStatesCompanion data) {
+    return Plan5kStateRow(
+      id: data.id.present ? data.id.value : this.id,
+      started: data.started.present ? data.started.value : this.started,
+      startWeek: data.startWeek.present ? data.startWeek.value : this.startWeek,
+      currentWeek: data.currentWeek.present
+          ? data.currentWeek.value
+          : this.currentWeek,
+      repeats: data.repeats.present ? data.repeats.value : this.repeats,
+      finished: data.finished.present ? data.finished.value : this.finished,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Plan5kStateRow(')
+          ..write('id: $id, ')
+          ..write('started: $started, ')
+          ..write('startWeek: $startWeek, ')
+          ..write('currentWeek: $currentWeek, ')
+          ..write('repeats: $repeats, ')
+          ..write('finished: $finished')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, started, startWeek, currentWeek, repeats, finished);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Plan5kStateRow &&
+          other.id == this.id &&
+          other.started == this.started &&
+          other.startWeek == this.startWeek &&
+          other.currentWeek == this.currentWeek &&
+          other.repeats == this.repeats &&
+          other.finished == this.finished);
+}
+
+class Plan5kStatesCompanion extends UpdateCompanion<Plan5kStateRow> {
+  final Value<int> id;
+  final Value<bool> started;
+  final Value<int> startWeek;
+  final Value<int> currentWeek;
+  final Value<String?> repeats;
+  final Value<bool> finished;
+  const Plan5kStatesCompanion({
+    this.id = const Value.absent(),
+    this.started = const Value.absent(),
+    this.startWeek = const Value.absent(),
+    this.currentWeek = const Value.absent(),
+    this.repeats = const Value.absent(),
+    this.finished = const Value.absent(),
+  });
+  Plan5kStatesCompanion.insert({
+    this.id = const Value.absent(),
+    this.started = const Value.absent(),
+    this.startWeek = const Value.absent(),
+    this.currentWeek = const Value.absent(),
+    this.repeats = const Value.absent(),
+    this.finished = const Value.absent(),
+  });
+  static Insertable<Plan5kStateRow> custom({
+    Expression<int>? id,
+    Expression<bool>? started,
+    Expression<int>? startWeek,
+    Expression<int>? currentWeek,
+    Expression<String>? repeats,
+    Expression<bool>? finished,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (started != null) 'started': started,
+      if (startWeek != null) 'start_week': startWeek,
+      if (currentWeek != null) 'current_week': currentWeek,
+      if (repeats != null) 'repeats': repeats,
+      if (finished != null) 'finished': finished,
+    });
+  }
+
+  Plan5kStatesCompanion copyWith({
+    Value<int>? id,
+    Value<bool>? started,
+    Value<int>? startWeek,
+    Value<int>? currentWeek,
+    Value<String?>? repeats,
+    Value<bool>? finished,
+  }) {
+    return Plan5kStatesCompanion(
+      id: id ?? this.id,
+      started: started ?? this.started,
+      startWeek: startWeek ?? this.startWeek,
+      currentWeek: currentWeek ?? this.currentWeek,
+      repeats: repeats ?? this.repeats,
+      finished: finished ?? this.finished,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (started.present) {
+      map['started'] = Variable<bool>(started.value);
+    }
+    if (startWeek.present) {
+      map['start_week'] = Variable<int>(startWeek.value);
+    }
+    if (currentWeek.present) {
+      map['current_week'] = Variable<int>(currentWeek.value);
+    }
+    if (repeats.present) {
+      map['repeats'] = Variable<String>(repeats.value);
+    }
+    if (finished.present) {
+      map['finished'] = Variable<bool>(finished.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Plan5kStatesCompanion(')
+          ..write('id: $id, ')
+          ..write('started: $started, ')
+          ..write('startWeek: $startWeek, ')
+          ..write('currentWeek: $currentWeek, ')
+          ..write('repeats: $repeats, ')
+          ..write('finished: $finished')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $Plan5kSessionsTable extends Plan5kSessions
+    with TableInfo<$Plan5kSessionsTable, Plan5kSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $Plan5kSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _weekMeta = const VerificationMeta('week');
+  @override
+  late final GeneratedColumn<int> week = GeneratedColumn<int>(
+    'week',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _numberMeta = const VerificationMeta('number');
+  @override
+  late final GeneratedColumn<int> number = GeneratedColumn<int>(
+    'number',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _roundMeta = const VerificationMeta('round');
+  @override
+  late final GeneratedColumn<int> round = GeneratedColumn<int>(
+    'round',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _plannedMsMeta = const VerificationMeta(
+    'plannedMs',
+  );
+  @override
+  late final GeneratedColumn<int> plannedMs = GeneratedColumn<int>(
+    'planned_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _movingMsMeta = const VerificationMeta(
+    'movingMs',
+  );
+  @override
+  late final GeneratedColumn<int> movingMs = GeneratedColumn<int>(
+    'moving_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _activityGuidMeta = const VerificationMeta(
+    'activityGuid',
+  );
+  @override
+  late final GeneratedColumn<String> activityGuid = GeneratedColumn<String>(
+    'activity_guid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _startedAtMsMeta = const VerificationMeta(
+    'startedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> startedAtMs = GeneratedColumn<int>(
+    'started_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endedAtMsMeta = const VerificationMeta(
+    'endedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> endedAtMs = GeneratedColumn<int>(
+    'ended_at_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    week,
+    number,
+    round,
+    status,
+    plannedMs,
+    movingMs,
+    activityGuid,
+    startedAtMs,
+    endedAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'plan5k_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Plan5kSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('week')) {
+      context.handle(
+        _weekMeta,
+        week.isAcceptableOrUnknown(data['week']!, _weekMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_weekMeta);
+    }
+    if (data.containsKey('number')) {
+      context.handle(
+        _numberMeta,
+        number.isAcceptableOrUnknown(data['number']!, _numberMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_numberMeta);
+    }
+    if (data.containsKey('round')) {
+      context.handle(
+        _roundMeta,
+        round.isAcceptableOrUnknown(data['round']!, _roundMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusMeta);
+    }
+    if (data.containsKey('planned_ms')) {
+      context.handle(
+        _plannedMsMeta,
+        plannedMs.isAcceptableOrUnknown(data['planned_ms']!, _plannedMsMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_plannedMsMeta);
+    }
+    if (data.containsKey('moving_ms')) {
+      context.handle(
+        _movingMsMeta,
+        movingMs.isAcceptableOrUnknown(data['moving_ms']!, _movingMsMeta),
+      );
+    }
+    if (data.containsKey('activity_guid')) {
+      context.handle(
+        _activityGuidMeta,
+        activityGuid.isAcceptableOrUnknown(
+          data['activity_guid']!,
+          _activityGuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('started_at_ms')) {
+      context.handle(
+        _startedAtMsMeta,
+        startedAtMs.isAcceptableOrUnknown(
+          data['started_at_ms']!,
+          _startedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_startedAtMsMeta);
+    }
+    if (data.containsKey('ended_at_ms')) {
+      context.handle(
+        _endedAtMsMeta,
+        endedAtMs.isAcceptableOrUnknown(data['ended_at_ms']!, _endedAtMsMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Plan5kSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Plan5kSessionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      week: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}week'],
+      )!,
+      number: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}number'],
+      )!,
+      round: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}round'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      plannedMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}planned_ms'],
+      )!,
+      movingMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}moving_ms'],
+      )!,
+      activityGuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity_guid'],
+      ),
+      startedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}started_at_ms'],
+      )!,
+      endedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}ended_at_ms'],
+      ),
+    );
+  }
+
+  @override
+  $Plan5kSessionsTable createAlias(String alias) {
+    return $Plan5kSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class Plan5kSessionRow extends DataClass
+    implements Insertable<Plan5kSessionRow> {
+  final int id;
+  final int week;
+  final int number;
+
+  /// Rodada da semana (0 = primeira vez; sobe a cada repeticao).
+  final int round;
+
+  /// 'inProgress' | 'done' | 'partial' (SessionStatus).
+  final String status;
+  final int plannedMs;
+
+  /// Tempo de plano andado (salvo durante a sessao e no fim).
+  final int movingMs;
+  final String? activityGuid;
+  final int startedAtMs;
+  final int? endedAtMs;
+  const Plan5kSessionRow({
+    required this.id,
+    required this.week,
+    required this.number,
+    required this.round,
+    required this.status,
+    required this.plannedMs,
+    required this.movingMs,
+    this.activityGuid,
+    required this.startedAtMs,
+    this.endedAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['week'] = Variable<int>(week);
+    map['number'] = Variable<int>(number);
+    map['round'] = Variable<int>(round);
+    map['status'] = Variable<String>(status);
+    map['planned_ms'] = Variable<int>(plannedMs);
+    map['moving_ms'] = Variable<int>(movingMs);
+    if (!nullToAbsent || activityGuid != null) {
+      map['activity_guid'] = Variable<String>(activityGuid);
+    }
+    map['started_at_ms'] = Variable<int>(startedAtMs);
+    if (!nullToAbsent || endedAtMs != null) {
+      map['ended_at_ms'] = Variable<int>(endedAtMs);
+    }
+    return map;
+  }
+
+  Plan5kSessionsCompanion toCompanion(bool nullToAbsent) {
+    return Plan5kSessionsCompanion(
+      id: Value(id),
+      week: Value(week),
+      number: Value(number),
+      round: Value(round),
+      status: Value(status),
+      plannedMs: Value(plannedMs),
+      movingMs: Value(movingMs),
+      activityGuid: activityGuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(activityGuid),
+      startedAtMs: Value(startedAtMs),
+      endedAtMs: endedAtMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endedAtMs),
+    );
+  }
+
+  factory Plan5kSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Plan5kSessionRow(
+      id: serializer.fromJson<int>(json['id']),
+      week: serializer.fromJson<int>(json['week']),
+      number: serializer.fromJson<int>(json['number']),
+      round: serializer.fromJson<int>(json['round']),
+      status: serializer.fromJson<String>(json['status']),
+      plannedMs: serializer.fromJson<int>(json['plannedMs']),
+      movingMs: serializer.fromJson<int>(json['movingMs']),
+      activityGuid: serializer.fromJson<String?>(json['activityGuid']),
+      startedAtMs: serializer.fromJson<int>(json['startedAtMs']),
+      endedAtMs: serializer.fromJson<int?>(json['endedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'week': serializer.toJson<int>(week),
+      'number': serializer.toJson<int>(number),
+      'round': serializer.toJson<int>(round),
+      'status': serializer.toJson<String>(status),
+      'plannedMs': serializer.toJson<int>(plannedMs),
+      'movingMs': serializer.toJson<int>(movingMs),
+      'activityGuid': serializer.toJson<String?>(activityGuid),
+      'startedAtMs': serializer.toJson<int>(startedAtMs),
+      'endedAtMs': serializer.toJson<int?>(endedAtMs),
+    };
+  }
+
+  Plan5kSessionRow copyWith({
+    int? id,
+    int? week,
+    int? number,
+    int? round,
+    String? status,
+    int? plannedMs,
+    int? movingMs,
+    Value<String?> activityGuid = const Value.absent(),
+    int? startedAtMs,
+    Value<int?> endedAtMs = const Value.absent(),
+  }) => Plan5kSessionRow(
+    id: id ?? this.id,
+    week: week ?? this.week,
+    number: number ?? this.number,
+    round: round ?? this.round,
+    status: status ?? this.status,
+    plannedMs: plannedMs ?? this.plannedMs,
+    movingMs: movingMs ?? this.movingMs,
+    activityGuid: activityGuid.present ? activityGuid.value : this.activityGuid,
+    startedAtMs: startedAtMs ?? this.startedAtMs,
+    endedAtMs: endedAtMs.present ? endedAtMs.value : this.endedAtMs,
+  );
+  Plan5kSessionRow copyWithCompanion(Plan5kSessionsCompanion data) {
+    return Plan5kSessionRow(
+      id: data.id.present ? data.id.value : this.id,
+      week: data.week.present ? data.week.value : this.week,
+      number: data.number.present ? data.number.value : this.number,
+      round: data.round.present ? data.round.value : this.round,
+      status: data.status.present ? data.status.value : this.status,
+      plannedMs: data.plannedMs.present ? data.plannedMs.value : this.plannedMs,
+      movingMs: data.movingMs.present ? data.movingMs.value : this.movingMs,
+      activityGuid: data.activityGuid.present
+          ? data.activityGuid.value
+          : this.activityGuid,
+      startedAtMs: data.startedAtMs.present
+          ? data.startedAtMs.value
+          : this.startedAtMs,
+      endedAtMs: data.endedAtMs.present ? data.endedAtMs.value : this.endedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Plan5kSessionRow(')
+          ..write('id: $id, ')
+          ..write('week: $week, ')
+          ..write('number: $number, ')
+          ..write('round: $round, ')
+          ..write('status: $status, ')
+          ..write('plannedMs: $plannedMs, ')
+          ..write('movingMs: $movingMs, ')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('startedAtMs: $startedAtMs, ')
+          ..write('endedAtMs: $endedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    week,
+    number,
+    round,
+    status,
+    plannedMs,
+    movingMs,
+    activityGuid,
+    startedAtMs,
+    endedAtMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Plan5kSessionRow &&
+          other.id == this.id &&
+          other.week == this.week &&
+          other.number == this.number &&
+          other.round == this.round &&
+          other.status == this.status &&
+          other.plannedMs == this.plannedMs &&
+          other.movingMs == this.movingMs &&
+          other.activityGuid == this.activityGuid &&
+          other.startedAtMs == this.startedAtMs &&
+          other.endedAtMs == this.endedAtMs);
+}
+
+class Plan5kSessionsCompanion extends UpdateCompanion<Plan5kSessionRow> {
+  final Value<int> id;
+  final Value<int> week;
+  final Value<int> number;
+  final Value<int> round;
+  final Value<String> status;
+  final Value<int> plannedMs;
+  final Value<int> movingMs;
+  final Value<String?> activityGuid;
+  final Value<int> startedAtMs;
+  final Value<int?> endedAtMs;
+  const Plan5kSessionsCompanion({
+    this.id = const Value.absent(),
+    this.week = const Value.absent(),
+    this.number = const Value.absent(),
+    this.round = const Value.absent(),
+    this.status = const Value.absent(),
+    this.plannedMs = const Value.absent(),
+    this.movingMs = const Value.absent(),
+    this.activityGuid = const Value.absent(),
+    this.startedAtMs = const Value.absent(),
+    this.endedAtMs = const Value.absent(),
+  });
+  Plan5kSessionsCompanion.insert({
+    this.id = const Value.absent(),
+    required int week,
+    required int number,
+    this.round = const Value.absent(),
+    required String status,
+    required int plannedMs,
+    this.movingMs = const Value.absent(),
+    this.activityGuid = const Value.absent(),
+    required int startedAtMs,
+    this.endedAtMs = const Value.absent(),
+  }) : week = Value(week),
+       number = Value(number),
+       status = Value(status),
+       plannedMs = Value(plannedMs),
+       startedAtMs = Value(startedAtMs);
+  static Insertable<Plan5kSessionRow> custom({
+    Expression<int>? id,
+    Expression<int>? week,
+    Expression<int>? number,
+    Expression<int>? round,
+    Expression<String>? status,
+    Expression<int>? plannedMs,
+    Expression<int>? movingMs,
+    Expression<String>? activityGuid,
+    Expression<int>? startedAtMs,
+    Expression<int>? endedAtMs,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (week != null) 'week': week,
+      if (number != null) 'number': number,
+      if (round != null) 'round': round,
+      if (status != null) 'status': status,
+      if (plannedMs != null) 'planned_ms': plannedMs,
+      if (movingMs != null) 'moving_ms': movingMs,
+      if (activityGuid != null) 'activity_guid': activityGuid,
+      if (startedAtMs != null) 'started_at_ms': startedAtMs,
+      if (endedAtMs != null) 'ended_at_ms': endedAtMs,
+    });
+  }
+
+  Plan5kSessionsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? week,
+    Value<int>? number,
+    Value<int>? round,
+    Value<String>? status,
+    Value<int>? plannedMs,
+    Value<int>? movingMs,
+    Value<String?>? activityGuid,
+    Value<int>? startedAtMs,
+    Value<int?>? endedAtMs,
+  }) {
+    return Plan5kSessionsCompanion(
+      id: id ?? this.id,
+      week: week ?? this.week,
+      number: number ?? this.number,
+      round: round ?? this.round,
+      status: status ?? this.status,
+      plannedMs: plannedMs ?? this.plannedMs,
+      movingMs: movingMs ?? this.movingMs,
+      activityGuid: activityGuid ?? this.activityGuid,
+      startedAtMs: startedAtMs ?? this.startedAtMs,
+      endedAtMs: endedAtMs ?? this.endedAtMs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (week.present) {
+      map['week'] = Variable<int>(week.value);
+    }
+    if (number.present) {
+      map['number'] = Variable<int>(number.value);
+    }
+    if (round.present) {
+      map['round'] = Variable<int>(round.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (plannedMs.present) {
+      map['planned_ms'] = Variable<int>(plannedMs.value);
+    }
+    if (movingMs.present) {
+      map['moving_ms'] = Variable<int>(movingMs.value);
+    }
+    if (activityGuid.present) {
+      map['activity_guid'] = Variable<String>(activityGuid.value);
+    }
+    if (startedAtMs.present) {
+      map['started_at_ms'] = Variable<int>(startedAtMs.value);
+    }
+    if (endedAtMs.present) {
+      map['ended_at_ms'] = Variable<int>(endedAtMs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Plan5kSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('week: $week, ')
+          ..write('number: $number, ')
+          ..write('round: $round, ')
+          ..write('status: $status, ')
+          ..write('plannedMs: $plannedMs, ')
+          ..write('movingMs: $movingMs, ')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('startedAtMs: $startedAtMs, ')
+          ..write('endedAtMs: $endedAtMs')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RecordingDatabase extends GeneratedDatabase {
   _$RecordingDatabase(QueryExecutor e) : super(e);
   $RecordingDatabaseManager get managers => $RecordingDatabaseManager(this);
@@ -4735,6 +5801,8 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
   late final $PrivacyZonesTable privacyZones = $PrivacyZonesTable(this);
   late final $DismissedZoneSuggestionsTable dismissedZoneSuggestions =
       $DismissedZoneSuggestionsTable(this);
+  late final $Plan5kStatesTable plan5kStates = $Plan5kStatesTable(this);
+  late final $Plan5kSessionsTable plan5kSessions = $Plan5kSessionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4748,6 +5816,8 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     recordingGaps,
     privacyZones,
     dismissedZoneSuggestions,
+    plan5kStates,
+    plan5kSessions,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -6150,6 +7220,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<String?> narratorPrefs,
       Value<bool> gentleMode,
       Value<int?> chapterMonthSeen,
+      Value<bool> plan5kVoice,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -6162,6 +7233,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<String?> narratorPrefs,
       Value<bool> gentleMode,
       Value<int?> chapterMonthSeen,
+      Value<bool> plan5kVoice,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -6215,6 +7287,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<int> get chapterMonthSeen => $composableBuilder(
     column: $table.chapterMonthSeen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get plan5kVoice => $composableBuilder(
+    column: $table.plan5kVoice,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6272,6 +7349,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.chapterMonthSeen,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get plan5kVoice => $composableBuilder(
+    column: $table.plan5kVoice,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -6319,6 +7401,11 @@ class $$SettingsRowsTableAnnotationComposer
 
   GeneratedColumn<int> get chapterMonthSeen => $composableBuilder(
     column: $table.chapterMonthSeen,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get plan5kVoice => $composableBuilder(
+    column: $table.plan5kVoice,
     builder: (column) => column,
   );
 }
@@ -6369,6 +7456,7 @@ class $$SettingsRowsTableTableManager
                 Value<String?> narratorPrefs = const Value.absent(),
                 Value<bool> gentleMode = const Value.absent(),
                 Value<int?> chapterMonthSeen = const Value.absent(),
+                Value<bool> plan5kVoice = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 useMetric: useMetric,
@@ -6379,6 +7467,7 @@ class $$SettingsRowsTableTableManager
                 narratorPrefs: narratorPrefs,
                 gentleMode: gentleMode,
                 chapterMonthSeen: chapterMonthSeen,
+                plan5kVoice: plan5kVoice,
               ),
           createCompanionCallback:
               ({
@@ -6391,6 +7480,7 @@ class $$SettingsRowsTableTableManager
                 Value<String?> narratorPrefs = const Value.absent(),
                 Value<bool> gentleMode = const Value.absent(),
                 Value<int?> chapterMonthSeen = const Value.absent(),
+                Value<bool> plan5kVoice = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 useMetric: useMetric,
@@ -6401,6 +7491,7 @@ class $$SettingsRowsTableTableManager
                 narratorPrefs: narratorPrefs,
                 gentleMode: gentleMode,
                 chapterMonthSeen: chapterMonthSeen,
+                plan5kVoice: plan5kVoice,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -7743,6 +8834,548 @@ typedef $$DismissedZoneSuggestionsTableProcessedTableManager =
       DismissedZoneSuggestionRow,
       PrefetchHooks Function()
     >;
+typedef $$Plan5kStatesTableCreateCompanionBuilder =
+    Plan5kStatesCompanion Function({
+      Value<int> id,
+      Value<bool> started,
+      Value<int> startWeek,
+      Value<int> currentWeek,
+      Value<String?> repeats,
+      Value<bool> finished,
+    });
+typedef $$Plan5kStatesTableUpdateCompanionBuilder =
+    Plan5kStatesCompanion Function({
+      Value<int> id,
+      Value<bool> started,
+      Value<int> startWeek,
+      Value<int> currentWeek,
+      Value<String?> repeats,
+      Value<bool> finished,
+    });
+
+class $$Plan5kStatesTableFilterComposer
+    extends Composer<_$RecordingDatabase, $Plan5kStatesTable> {
+  $$Plan5kStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get started => $composableBuilder(
+    column: $table.started,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startWeek => $composableBuilder(
+    column: $table.startWeek,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get currentWeek => $composableBuilder(
+    column: $table.currentWeek,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get repeats => $composableBuilder(
+    column: $table.repeats,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get finished => $composableBuilder(
+    column: $table.finished,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$Plan5kStatesTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $Plan5kStatesTable> {
+  $$Plan5kStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get started => $composableBuilder(
+    column: $table.started,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startWeek => $composableBuilder(
+    column: $table.startWeek,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get currentWeek => $composableBuilder(
+    column: $table.currentWeek,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get repeats => $composableBuilder(
+    column: $table.repeats,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get finished => $composableBuilder(
+    column: $table.finished,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$Plan5kStatesTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $Plan5kStatesTable> {
+  $$Plan5kStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<bool> get started =>
+      $composableBuilder(column: $table.started, builder: (column) => column);
+
+  GeneratedColumn<int> get startWeek =>
+      $composableBuilder(column: $table.startWeek, builder: (column) => column);
+
+  GeneratedColumn<int> get currentWeek => $composableBuilder(
+    column: $table.currentWeek,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get repeats =>
+      $composableBuilder(column: $table.repeats, builder: (column) => column);
+
+  GeneratedColumn<bool> get finished =>
+      $composableBuilder(column: $table.finished, builder: (column) => column);
+}
+
+class $$Plan5kStatesTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $Plan5kStatesTable,
+          Plan5kStateRow,
+          $$Plan5kStatesTableFilterComposer,
+          $$Plan5kStatesTableOrderingComposer,
+          $$Plan5kStatesTableAnnotationComposer,
+          $$Plan5kStatesTableCreateCompanionBuilder,
+          $$Plan5kStatesTableUpdateCompanionBuilder,
+          (
+            Plan5kStateRow,
+            BaseReferences<
+              _$RecordingDatabase,
+              $Plan5kStatesTable,
+              Plan5kStateRow
+            >,
+          ),
+          Plan5kStateRow,
+          PrefetchHooks Function()
+        > {
+  $$Plan5kStatesTableTableManager(
+    _$RecordingDatabase db,
+    $Plan5kStatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$Plan5kStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$Plan5kStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$Plan5kStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<bool> started = const Value.absent(),
+                Value<int> startWeek = const Value.absent(),
+                Value<int> currentWeek = const Value.absent(),
+                Value<String?> repeats = const Value.absent(),
+                Value<bool> finished = const Value.absent(),
+              }) => Plan5kStatesCompanion(
+                id: id,
+                started: started,
+                startWeek: startWeek,
+                currentWeek: currentWeek,
+                repeats: repeats,
+                finished: finished,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<bool> started = const Value.absent(),
+                Value<int> startWeek = const Value.absent(),
+                Value<int> currentWeek = const Value.absent(),
+                Value<String?> repeats = const Value.absent(),
+                Value<bool> finished = const Value.absent(),
+              }) => Plan5kStatesCompanion.insert(
+                id: id,
+                started: started,
+                startWeek: startWeek,
+                currentWeek: currentWeek,
+                repeats: repeats,
+                finished: finished,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$Plan5kStatesTable, Plan5kStateRow>(table),
+                  BaseReferences<
+                    _$RecordingDatabase,
+                    $Plan5kStatesTable,
+                    Plan5kStateRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$Plan5kStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $Plan5kStatesTable,
+      Plan5kStateRow,
+      $$Plan5kStatesTableFilterComposer,
+      $$Plan5kStatesTableOrderingComposer,
+      $$Plan5kStatesTableAnnotationComposer,
+      $$Plan5kStatesTableCreateCompanionBuilder,
+      $$Plan5kStatesTableUpdateCompanionBuilder,
+      (
+        Plan5kStateRow,
+        BaseReferences<_$RecordingDatabase, $Plan5kStatesTable, Plan5kStateRow>,
+      ),
+      Plan5kStateRow,
+      PrefetchHooks Function()
+    >;
+typedef $$Plan5kSessionsTableCreateCompanionBuilder =
+    Plan5kSessionsCompanion Function({
+      Value<int> id,
+      required int week,
+      required int number,
+      Value<int> round,
+      required String status,
+      required int plannedMs,
+      Value<int> movingMs,
+      Value<String?> activityGuid,
+      required int startedAtMs,
+      Value<int?> endedAtMs,
+    });
+typedef $$Plan5kSessionsTableUpdateCompanionBuilder =
+    Plan5kSessionsCompanion Function({
+      Value<int> id,
+      Value<int> week,
+      Value<int> number,
+      Value<int> round,
+      Value<String> status,
+      Value<int> plannedMs,
+      Value<int> movingMs,
+      Value<String?> activityGuid,
+      Value<int> startedAtMs,
+      Value<int?> endedAtMs,
+    });
+
+class $$Plan5kSessionsTableFilterComposer
+    extends Composer<_$RecordingDatabase, $Plan5kSessionsTable> {
+  $$Plan5kSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get week => $composableBuilder(
+    column: $table.week,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get round => $composableBuilder(
+    column: $table.round,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get plannedMs => $composableBuilder(
+    column: $table.plannedMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get movingMs => $composableBuilder(
+    column: $table.movingMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activityGuid => $composableBuilder(
+    column: $table.activityGuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startedAtMs => $composableBuilder(
+    column: $table.startedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get endedAtMs => $composableBuilder(
+    column: $table.endedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$Plan5kSessionsTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $Plan5kSessionsTable> {
+  $$Plan5kSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get week => $composableBuilder(
+    column: $table.week,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get number => $composableBuilder(
+    column: $table.number,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get round => $composableBuilder(
+    column: $table.round,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get plannedMs => $composableBuilder(
+    column: $table.plannedMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get movingMs => $composableBuilder(
+    column: $table.movingMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get activityGuid => $composableBuilder(
+    column: $table.activityGuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startedAtMs => $composableBuilder(
+    column: $table.startedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get endedAtMs => $composableBuilder(
+    column: $table.endedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$Plan5kSessionsTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $Plan5kSessionsTable> {
+  $$Plan5kSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get week =>
+      $composableBuilder(column: $table.week, builder: (column) => column);
+
+  GeneratedColumn<int> get number =>
+      $composableBuilder(column: $table.number, builder: (column) => column);
+
+  GeneratedColumn<int> get round =>
+      $composableBuilder(column: $table.round, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get plannedMs =>
+      $composableBuilder(column: $table.plannedMs, builder: (column) => column);
+
+  GeneratedColumn<int> get movingMs =>
+      $composableBuilder(column: $table.movingMs, builder: (column) => column);
+
+  GeneratedColumn<String> get activityGuid => $composableBuilder(
+    column: $table.activityGuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get startedAtMs => $composableBuilder(
+    column: $table.startedAtMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get endedAtMs =>
+      $composableBuilder(column: $table.endedAtMs, builder: (column) => column);
+}
+
+class $$Plan5kSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $Plan5kSessionsTable,
+          Plan5kSessionRow,
+          $$Plan5kSessionsTableFilterComposer,
+          $$Plan5kSessionsTableOrderingComposer,
+          $$Plan5kSessionsTableAnnotationComposer,
+          $$Plan5kSessionsTableCreateCompanionBuilder,
+          $$Plan5kSessionsTableUpdateCompanionBuilder,
+          (
+            Plan5kSessionRow,
+            BaseReferences<
+              _$RecordingDatabase,
+              $Plan5kSessionsTable,
+              Plan5kSessionRow
+            >,
+          ),
+          Plan5kSessionRow,
+          PrefetchHooks Function()
+        > {
+  $$Plan5kSessionsTableTableManager(
+    _$RecordingDatabase db,
+    $Plan5kSessionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$Plan5kSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$Plan5kSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$Plan5kSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> week = const Value.absent(),
+                Value<int> number = const Value.absent(),
+                Value<int> round = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> plannedMs = const Value.absent(),
+                Value<int> movingMs = const Value.absent(),
+                Value<String?> activityGuid = const Value.absent(),
+                Value<int> startedAtMs = const Value.absent(),
+                Value<int?> endedAtMs = const Value.absent(),
+              }) => Plan5kSessionsCompanion(
+                id: id,
+                week: week,
+                number: number,
+                round: round,
+                status: status,
+                plannedMs: plannedMs,
+                movingMs: movingMs,
+                activityGuid: activityGuid,
+                startedAtMs: startedAtMs,
+                endedAtMs: endedAtMs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int week,
+                required int number,
+                Value<int> round = const Value.absent(),
+                required String status,
+                required int plannedMs,
+                Value<int> movingMs = const Value.absent(),
+                Value<String?> activityGuid = const Value.absent(),
+                required int startedAtMs,
+                Value<int?> endedAtMs = const Value.absent(),
+              }) => Plan5kSessionsCompanion.insert(
+                id: id,
+                week: week,
+                number: number,
+                round: round,
+                status: status,
+                plannedMs: plannedMs,
+                movingMs: movingMs,
+                activityGuid: activityGuid,
+                startedAtMs: startedAtMs,
+                endedAtMs: endedAtMs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$Plan5kSessionsTable, Plan5kSessionRow>(table),
+                  BaseReferences<
+                    _$RecordingDatabase,
+                    $Plan5kSessionsTable,
+                    Plan5kSessionRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$Plan5kSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $Plan5kSessionsTable,
+      Plan5kSessionRow,
+      $$Plan5kSessionsTableFilterComposer,
+      $$Plan5kSessionsTableOrderingComposer,
+      $$Plan5kSessionsTableAnnotationComposer,
+      $$Plan5kSessionsTableCreateCompanionBuilder,
+      $$Plan5kSessionsTableUpdateCompanionBuilder,
+      (
+        Plan5kSessionRow,
+        BaseReferences<
+          _$RecordingDatabase,
+          $Plan5kSessionsTable,
+          Plan5kSessionRow
+        >,
+      ),
+      Plan5kSessionRow,
+      PrefetchHooks Function()
+    >;
 
 class $RecordingDatabaseManager {
   final _$RecordingDatabase _db;
@@ -7765,4 +9398,8 @@ class $RecordingDatabaseManager {
         _db,
         _db.dismissedZoneSuggestions,
       );
+  $$Plan5kStatesTableTableManager get plan5kStates =>
+      $$Plan5kStatesTableTableManager(_db, _db.plan5kStates);
+  $$Plan5kSessionsTableTableManager get plan5kSessions =>
+      $$Plan5kSessionsTableTableManager(_db, _db.plan5kSessions);
 }

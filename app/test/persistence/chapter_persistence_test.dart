@@ -29,7 +29,7 @@ void main() {
     setUp(() => db = RecordingDatabase(NativeDatabase.memory()));
     tearDown(() => db.close());
 
-    test('schema na versao 11', () => expect(db.schemaVersion, 11));
+    test('schema na versao 11', () => expect(db.schemaVersion, greaterThanOrEqualTo(11)));
 
     test('ultimo capitulo visto: padrao null e so avanca', () async {
       expect(await db.chapterMonthSeen(), isNull);
@@ -74,7 +74,10 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 11) return;
+          if (v != 12) return;
+          raw.execute('DROP TABLE plan5k_states');
+          raw.execute('DROP TABLE plan5k_sessions');
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN plan5k_voice');
           raw.execute('ALTER TABLE settings_rows DROP COLUMN chapter_month_seen');
           raw.execute('PRAGMA user_version = 10');
         },

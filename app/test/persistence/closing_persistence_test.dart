@@ -165,7 +165,10 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 11) return;
+          if (v != 12) return;
+          raw.execute('DROP TABLE plan5k_states');
+          raw.execute('DROP TABLE plan5k_sessions');
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN plan5k_voice');
           raw.execute('ALTER TABLE settings_rows DROP COLUMN chapter_month_seen');
           raw.execute('ALTER TABLE activities DROP COLUMN rpe');
           raw.execute('ALTER TABLE activities DROP COLUMN mood');

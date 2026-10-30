@@ -200,8 +200,52 @@ class SettingsRows extends Table {
   /// nenhum ainda.
   IntColumn get chapterMonthSeen => integer().nullable()();
 
+  /// Plano 5 km (F06): "Voz do plano", independente do Narrador geral.
+  /// Padrao ligada.
+  BoolColumn get plan5kVoice => boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// Plano Do Zero aos 5 km (F06): estado do plano (linha unica, id=0).
+@DataClassName('Plan5kStateRow')
+class Plan5kStates extends Table {
+  IntColumn get id => integer().withDefault(const Constant(0))();
+  BoolColumn get started => boolean().withDefault(const Constant(false))();
+  IntColumn get startWeek => integer().withDefault(const Constant(1))();
+  IntColumn get currentWeek => integer().withDefault(const Constant(1))();
+
+  /// Repeticoes por semana em JSON ({"3": 1}). Null = nenhuma.
+  TextColumn get repeats => text().nullable()();
+  BoolColumn get finished => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Plano 5 km (F06): uma linha por sessao gravada (concluida, parcial ou em
+/// andamento), ligada a atividade pelo guid. SEM chave estrangeira de
+/// proposito: apagar a atividade nao apaga o resultado (a sessao continua
+/// concluida; so o RPE dela deixa de existir).
+@DataClassName('Plan5kSessionRow')
+class Plan5kSessions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get week => integer()();
+  IntColumn get number => integer()();
+
+  /// Rodada da semana (0 = primeira vez; sobe a cada repeticao).
+  IntColumn get round => integer().withDefault(const Constant(0))();
+
+  /// 'inProgress' | 'done' | 'partial' (SessionStatus).
+  TextColumn get status => text()();
+  IntColumn get plannedMs => integer()();
+
+  /// Tempo de plano andado (salvo durante a sessao e no fim).
+  IntColumn get movingMs => integer().withDefault(const Constant(0))();
+  TextColumn get activityGuid => text().nullable()();
+  IntColumn get startedAtMs => integer()();
+  IntColumn get endedAtMs => integer().nullable()();
 }
 
 @DriftDatabase(
@@ -214,12 +258,14 @@ class SettingsRows extends Table {
       RecordingGaps,
       PrivacyZones,
       DismissedZoneSuggestions,
+      Plan5kStates,
+      Plan5kSessions,
     ])
 class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -271,6 +317,11 @@ class RecordingDatabase extends _$RecordingDatabase {
           if (from < 11) {
             await m.addColumn(settingsRows, settingsRows.chapterMonthSeen);
           }
+          if (from < 12) {
+            await m.addColumn(settingsRows, settingsRows.plan5kVoice);
+            await m.createTable(plan5kStates);
+            await m.createTable(plan5kSessions);
+          }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
         // isso por conta propria. Sem este pragma, o `onDelete: cascade`
@@ -307,10 +358,13 @@ class RecordingDatabase extends _$RecordingDatabase {
     bool? hideOnServer,
     String? narratorPrefs,
     bool? gentleMode,
+    bool? plan5kVoice,
   }) async {
     await loadSettings(); // garante a linha
     await (update(settingsRows)..where((t) => t.id.equals(0))).write(
       SettingsRowsCompanion(
+        plan5kVoice:
+            plan5kVoice == null ? const Value.absent() : Value(plan5kVoice),
         gentleMode: gentleMode == null ? const Value.absent() : Value(gentleMode),
         useMetric: useMetric == null ? const Value.absent() : Value(useMetric),
         autoPauseEnabled: autoPauseEnabled == null
@@ -326,6 +380,50 @@ class RecordingDatabase extends _$RecordingDatabase {
             narratorPrefs == null ? const Value.absent() : Value(narratorPrefs),
       ),
     );
+  }
+
+  // --- Plano 5 km (F06) ---
+
+  Future<Plan5kStateRow?> plan5kState() =>
+      (select(plan5kStates)..where((t) => t.id.equals(0))).getSingleOrNull();
+
+  Future<void> savePlan5kState(Plan5kStatesCompanion row) =>
+      into(plan5kStates).insertOnConflictUpdate(row.copyWith(id: const Value(0)));
+
+  /// Reinicia o plano: some o estado e os resultados (as atividades ficam).
+  Future<void> clearPlan5k() => transaction(() async {
+    await delete(plan5kStates).go();
+    await delete(plan5kSessions).go();
+  });
+
+  Future<int> insertPlan5kSession(Plan5kSessionsCompanion row) =>
+      into(plan5kSessions).insert(row);
+
+  Future<void> updatePlan5kSessionByGuid(
+    String guid,
+    Plan5kSessionsCompanion row,
+  ) => (update(plan5kSessions)..where((t) => t.activityGuid.equals(guid))).write(row);
+
+  Future<void> deletePlan5kSessionByGuid(String guid) =>
+      (delete(plan5kSessions)..where((t) => t.activityGuid.equals(guid))).go();
+
+  Future<Plan5kSessionRow?> plan5kSessionByGuid(String guid) =>
+      (select(plan5kSessions)
+            ..where((t) => t.activityGuid.equals(guid))
+            ..limit(1))
+          .getSingleOrNull();
+
+  /// Resultados em ordem, com o RPE e o estado da atividade ligada (null se
+  /// ela foi apagada).
+  Future<List<({Plan5kSessionRow row, Activity? activity})>> plan5kSessionsWithActivity() async {
+    final q = select(plan5kSessions).join([
+      leftOuterJoin(activities, activities.guid.equalsExp(plan5kSessions.activityGuid)),
+    ])..orderBy([OrderingTerm.asc(plan5kSessions.id)]);
+    final rows = await q.get();
+    return [
+      for (final r in rows)
+        (row: r.readTable(plan5kSessions), activity: r.readTableOrNull(activities)),
+    ];
   }
 
   // --- Capitulos (F05) ---
