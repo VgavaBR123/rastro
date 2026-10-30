@@ -51,6 +51,7 @@ dependencies:
   battery_plus: ^7.1.2
   sentry_flutter: ^10.2.0
   native_glass_navbar: ^1.2.0
+  flutter_tts: ^4.2.5
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -614,7 +614,8 @@ class Activity extends DataClass implements Insertable<Activity> {
   /// [ActivityVisibility]). Privacidade automatica (F02): atividade nova
   /// nasce 'private' ("so eu"); o repositorio grava isso explicitamente no
   /// inicio, porque bancos migrados guardam o padrao antigo da coluna. As
-  /// atividades antigas mantem o que tinham. Por enquanto so local.
+  /// atividades antigas mantem o que tinham (a migracao que cria a coluna
+  /// grava 'everyone', o padrao de antes). Por enquanto so local.
   final String visibility;
 
   /// Privacidade (F02): ocultar os primeiros e os ultimos X metros desta
@@ -2235,6 +2236,17 @@ class $SettingsRowsTable extends SettingsRows
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _narratorPrefsMeta = const VerificationMeta(
+    'narratorPrefs',
+  );
+  @override
+  late final GeneratedColumn<String> narratorPrefs = GeneratedColumn<String>(
+    'narrator_prefs',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2243,6 +2255,7 @@ class $SettingsRowsTable extends SettingsRows
     weightKg,
     reliabilityChecklistSeen,
     hideOnServer,
+    narratorPrefs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2298,6 +2311,15 @@ class $SettingsRowsTable extends SettingsRows
         ),
       );
     }
+    if (data.containsKey('narrator_prefs')) {
+      context.handle(
+        _narratorPrefsMeta,
+        narratorPrefs.isAcceptableOrUnknown(
+          data['narrator_prefs']!,
+          _narratorPrefsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2331,6 +2353,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.bool,
         data['${effectivePrefix}hide_on_server'],
       )!,
+      narratorPrefs: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}narrator_prefs'],
+      ),
     );
   }
 
@@ -2354,6 +2380,10 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
 
   /// Privacidade (F02): o FIT enviado ao servidor sai sem os pontos ocultos.
   final bool hideOnServer;
+
+  /// Narrador por voz (F03): preferencias em JSON (NarratorSettings). Null =
+  /// padrao (desligado). JSON para crescer sem nova migracao.
+  final String? narratorPrefs;
   const SettingsRow({
     required this.id,
     required this.useMetric,
@@ -2361,6 +2391,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     this.weightKg,
     required this.reliabilityChecklistSeen,
     required this.hideOnServer,
+    this.narratorPrefs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2375,6 +2406,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       reliabilityChecklistSeen,
     );
     map['hide_on_server'] = Variable<bool>(hideOnServer);
+    if (!nullToAbsent || narratorPrefs != null) {
+      map['narrator_prefs'] = Variable<String>(narratorPrefs);
+    }
     return map;
   }
 
@@ -2388,6 +2422,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           : Value(weightKg),
       reliabilityChecklistSeen: Value(reliabilityChecklistSeen),
       hideOnServer: Value(hideOnServer),
+      narratorPrefs: narratorPrefs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(narratorPrefs),
     );
   }
 
@@ -2405,6 +2442,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         json['reliabilityChecklistSeen'],
       ),
       hideOnServer: serializer.fromJson<bool>(json['hideOnServer']),
+      narratorPrefs: serializer.fromJson<String?>(json['narratorPrefs']),
     );
   }
   @override
@@ -2419,6 +2457,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
         reliabilityChecklistSeen,
       ),
       'hideOnServer': serializer.toJson<bool>(hideOnServer),
+      'narratorPrefs': serializer.toJson<String?>(narratorPrefs),
     };
   }
 
@@ -2429,6 +2468,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     Value<double?> weightKg = const Value.absent(),
     bool? reliabilityChecklistSeen,
     bool? hideOnServer,
+    Value<String?> narratorPrefs = const Value.absent(),
   }) => SettingsRow(
     id: id ?? this.id,
     useMetric: useMetric ?? this.useMetric,
@@ -2437,6 +2477,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     reliabilityChecklistSeen:
         reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
     hideOnServer: hideOnServer ?? this.hideOnServer,
+    narratorPrefs: narratorPrefs.present
+        ? narratorPrefs.value
+        : this.narratorPrefs,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2452,6 +2495,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       hideOnServer: data.hideOnServer.present
           ? data.hideOnServer.value
           : this.hideOnServer,
+      narratorPrefs: data.narratorPrefs.present
+          ? data.narratorPrefs.value
+          : this.narratorPrefs,
     );
   }
 
@@ -2463,7 +2509,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
           ..write('weightKg: $weightKg, ')
           ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
-          ..write('hideOnServer: $hideOnServer')
+          ..write('hideOnServer: $hideOnServer, ')
+          ..write('narratorPrefs: $narratorPrefs')
           ..write(')'))
         .toString();
   }
@@ -2476,6 +2523,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     weightKg,
     reliabilityChecklistSeen,
     hideOnServer,
+    narratorPrefs,
   );
   @override
   bool operator ==(Object other) =>
@@ -2486,7 +2534,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.autoPauseEnabled == this.autoPauseEnabled &&
           other.weightKg == this.weightKg &&
           other.reliabilityChecklistSeen == this.reliabilityChecklistSeen &&
-          other.hideOnServer == this.hideOnServer);
+          other.hideOnServer == this.hideOnServer &&
+          other.narratorPrefs == this.narratorPrefs);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2496,6 +2545,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<double?> weightKg;
   final Value<bool> reliabilityChecklistSeen;
   final Value<bool> hideOnServer;
+  final Value<String?> narratorPrefs;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
@@ -2503,6 +2553,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.weightKg = const Value.absent(),
     this.reliabilityChecklistSeen = const Value.absent(),
     this.hideOnServer = const Value.absent(),
+    this.narratorPrefs = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2511,6 +2562,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.weightKg = const Value.absent(),
     this.reliabilityChecklistSeen = const Value.absent(),
     this.hideOnServer = const Value.absent(),
+    this.narratorPrefs = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
@@ -2519,6 +2571,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<double>? weightKg,
     Expression<bool>? reliabilityChecklistSeen,
     Expression<bool>? hideOnServer,
+    Expression<String>? narratorPrefs,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2528,6 +2581,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       if (reliabilityChecklistSeen != null)
         'reliability_checklist_seen': reliabilityChecklistSeen,
       if (hideOnServer != null) 'hide_on_server': hideOnServer,
+      if (narratorPrefs != null) 'narrator_prefs': narratorPrefs,
     });
   }
 
@@ -2538,6 +2592,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<double?>? weightKg,
     Value<bool>? reliabilityChecklistSeen,
     Value<bool>? hideOnServer,
+    Value<String?>? narratorPrefs,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
@@ -2547,6 +2602,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       reliabilityChecklistSeen:
           reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
       hideOnServer: hideOnServer ?? this.hideOnServer,
+      narratorPrefs: narratorPrefs ?? this.narratorPrefs,
     );
   }
 
@@ -2573,6 +2629,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     if (hideOnServer.present) {
       map['hide_on_server'] = Variable<bool>(hideOnServer.value);
     }
+    if (narratorPrefs.present) {
+      map['narrator_prefs'] = Variable<String>(narratorPrefs.value);
+    }
     return map;
   }
 
@@ -2584,7 +2643,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
           ..write('weightKg: $weightKg, ')
           ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
-          ..write('hideOnServer: $hideOnServer')
+          ..write('hideOnServer: $hideOnServer, ')
+          ..write('narratorPrefs: $narratorPrefs')
           ..write(')'))
         .toString();
   }
@@ -5839,6 +5899,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<double?> weightKg,
       Value<bool> reliabilityChecklistSeen,
       Value<bool> hideOnServer,
+      Value<String?> narratorPrefs,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -5848,6 +5909,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<double?> weightKg,
       Value<bool> reliabilityChecklistSeen,
       Value<bool> hideOnServer,
+      Value<String?> narratorPrefs,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -5886,6 +5948,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<bool> get hideOnServer => $composableBuilder(
     column: $table.hideOnServer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get narratorPrefs => $composableBuilder(
+    column: $table.narratorPrefs,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5928,6 +5995,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.hideOnServer,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get narratorPrefs => $composableBuilder(
+    column: $table.narratorPrefs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -5960,6 +6032,11 @@ class $$SettingsRowsTableAnnotationComposer
 
   GeneratedColumn<bool> get hideOnServer => $composableBuilder(
     column: $table.hideOnServer,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get narratorPrefs => $composableBuilder(
+    column: $table.narratorPrefs,
     builder: (column) => column,
   );
 }
@@ -6007,6 +6084,7 @@ class $$SettingsRowsTableTableManager
                 Value<double?> weightKg = const Value.absent(),
                 Value<bool> reliabilityChecklistSeen = const Value.absent(),
                 Value<bool> hideOnServer = const Value.absent(),
+                Value<String?> narratorPrefs = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 useMetric: useMetric,
@@ -6014,6 +6092,7 @@ class $$SettingsRowsTableTableManager
                 weightKg: weightKg,
                 reliabilityChecklistSeen: reliabilityChecklistSeen,
                 hideOnServer: hideOnServer,
+                narratorPrefs: narratorPrefs,
               ),
           createCompanionCallback:
               ({
@@ -6023,6 +6102,7 @@ class $$SettingsRowsTableTableManager
                 Value<double?> weightKg = const Value.absent(),
                 Value<bool> reliabilityChecklistSeen = const Value.absent(),
                 Value<bool> hideOnServer = const Value.absent(),
+                Value<String?> narratorPrefs = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 useMetric: useMetric,
@@ -6030,6 +6110,7 @@ class $$SettingsRowsTableTableManager
                 weightKg: weightKg,
                 reliabilityChecklistSeen: reliabilityChecklistSeen,
                 hideOnServer: hideOnServer,
+                narratorPrefs: narratorPrefs,
               ),
           withReferenceMapper: (p0) => p0
               .map(

@@ -193,6 +193,47 @@ class _RecordSetupScreenState extends ConsumerState<RecordSetupScreen> {
   }
 }
 
+/// Atalho do Narrador por voz (F03) na folha da Gravar: liga e desliga sem
+/// ir as Configuracoes.
+class _NarratorToggle extends ConsumerWidget {
+  const _NarratorToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = AppColors.of(context);
+    final on = ref.watch(settingsProvider.select((s) => s.narrator.enabled));
+    // Material proprio: a folha pinta o fundo num Container, que esconderia o
+    // splash do toque.
+    return Material(
+      type: MaterialType.transparency,
+      child: _tile(c, on, ref),
+    );
+  }
+
+  Widget _tile(AppColors c, bool on, WidgetRef ref) {
+    return SwitchListTile(
+      key: const Key('narrator_toggle'),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+      minTileHeight: 48,
+      secondary: Icon(
+        on ? Icons.record_voice_over_rounded : Icons.voice_over_off_rounded,
+        color: on ? c.ciano.fg : c.textMuted,
+      ),
+      title: Text('Narrador por voz', style: AppText.bodyStrong.copyWith(color: c.text)),
+      subtitle: Text(
+        on ? 'Fala o tempo e o pace durante a gravacao' : 'Desligado',
+        style: AppText.label.copyWith(color: c.textMuted),
+      ),
+      value: on,
+      onChanged: (v) async {
+        final ctrl = ref.read(settingsProvider.notifier);
+        await ctrl.ensureLoaded();
+        await ctrl.setNarratorEnabled(v);
+      },
+    );
+  }
+}
+
 /// Folha de Camadas: escolhe o estilo do mapa (ou volta a seguir o tema).
 Future<void> showMapLayersSheet(BuildContext context) => showModalBottomSheet<void>(
   context: context,
@@ -331,7 +372,9 @@ class _SetupSheet extends StatelessWidget {
             selected: type,
             onChanged: onPicked,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          const _NarratorToggle(),
+          const SizedBox(height: 8),
           BigActionButton(
             key: const Key('record_start'),
             label: 'Iniciar',

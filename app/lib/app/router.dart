@@ -16,6 +16,7 @@ import '../ui/components/app_nav_bar.dart';
 import '../ui/auth_screen.dart';
 import '../ui/history_screen.dart';
 import '../ui/home_screen.dart';
+import '../ui/narrator_settings_screen.dart';
 import '../ui/password_reset_screen.dart';
 import '../ui/privacy/add_zone_screen.dart';
 import '../ui/privacy/privacy_zones_screen.dart';
@@ -53,6 +54,9 @@ abstract final class AppRoutes {
 
   /// Novo local protegido no mapa. O centro inicial (GeoPoint) vai em `extra`.
   static const String privacyAddZone = '/privacy/add';
+
+  /// Narrador por voz (F03), pelas Configuracoes.
+  static const String narrator = '/narrator';
   static const String auth = '/auth';
 
   /// Gravacao de [type]. Para retomar uma interrompida, passe-a em `extra`.
@@ -131,6 +135,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
       GoRoute(path: AppRoutes.settings, builder: (_, _) => const SettingsScreen()),
       reliabilityRoute(),
       ...privacyRoutes(),
+      narratorRoute(),
       GoRoute(
         path: AppRoutes.auth,
         builder: (_, _) => const AuthScreen(),
@@ -153,6 +158,12 @@ GoRoute reliabilityRoute() => GoRoute(
   builder: (_, state) => ReliabilityChecklistScreen(
     beforeFirstRecording: state.uri.queryParameters['first'] == '1',
   ),
+);
+
+/// Configuracoes do Narrador por voz (F03), por cima do shell.
+GoRoute narratorRoute() => GoRoute(
+  path: AppRoutes.narrator,
+  builder: (_, _) => const NarratorSettingsScreen(),
 );
 
 /// Rotas da privacidade (F02), por cima do shell.

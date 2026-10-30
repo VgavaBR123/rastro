@@ -83,6 +83,37 @@ Com `integration_test`:
 - Fora do celular o mapa de "Adicionar no mapa" vira campos de latitude e
   longitude; o mapa nativo (mira no centro) fica para o E2E no emulador.
 
+## Narrador por voz (F03)
+- Unit (dominio puro em `lib/narrator/domain`): `narrator/domain/spoken_pt_test.dart`
+  (numeros por extenso com genero, duracao, pace, distancia, velocidade),
+  `narrator_settings_test.dart` (padroes, JSON tolerante, opcoes validas),
+  `narration_event_detector_test.dart` (inicio x retomada apos crash, splits
+  multiplos num update, volta, pausas, marca de tempo so gravando, troca de
+  unidade, fim), `narration_composer_test.dart` (frases do spec, contexto
+  "mais rapido ate agora", so o essencial, milha, pedal com velocidade,
+  gatilhos desligados, exemplo) e `announcement_queue_test.dart` (prioridade,
+  FIFO, troca por chave, fala velha, limite).
+- Runtime: `narrator/narrator_test.dart` (uma fala por vez, critica interrompe,
+  stop, `replace` sem apagar a fila, falha do TTS, gancho do Modo Gentil) e
+  `recording_narration_test.dart` (ponte estado da gravacao -> falas; descarte
+  sem resumo de fim, pausa tecnica muda, dois splits com o narrador ocupado)
+  com `FakeVoiceAnnouncer`; `flutter_tts_voice_announcer_test.dart` testa o
+  adaptador contra um canal falso (pt-BR, ducking por plataforma, fim por
+  aviso, timeout, stop, eco atrasado do stop nao termina a fala seguinte).
+- Persistencia: `persistence/narrator_persistence_test.dart` (preferencias em
+  JSON, atalho, JSON corrompido, migracao 8 -> 9 sobre arquivo real).
+- Widget: `ui/narrator_settings_screen_test.dart` (Configuracoes > Narrador,
+  gatilhos, conteudo, so o essencial, ouvir exemplo sem apagar a fila, milhas,
+  alvos >= 44 dp), `ui/record_setup_narrator_test.dart` (atalho Voz
+  ligada/desligada na Gravar) e `ui/recording_screen_narrator_test.dart`
+  (Descartar nao fala o fim; Salvar fala).
+- Integracao: `integration/narrator_flow_test.dart` (gravacao real com GPS
+  falso -> falas na ordem, desligado fica mudo, desligar no meio cala, API
+  generica com prioridade, filtro por provider, descarte sem resumo de fim).
+- Em `flutter test` a voz cai em `NoopVoiceAnnouncer` (`voiceAnnouncerProvider`).
+  O som de verdade (voz pt-BR instalada, musica abaixando e voltando) fica para
+  o E2E no aparelho.
+
 ## Fixtures
 Rotas gravadas (sequencias de `LocationSample`) viram fixtures versionadas em
 `test/fixtures/`, inclusive casos dificeis: tunel (perda de sinal), salto de GPS,

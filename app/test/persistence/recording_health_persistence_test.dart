@@ -178,7 +178,13 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 7) return;
+          if (v != 9) return;
+          // F02 e F03 vieram depois: o schema 6 tambem nao tem o que e deles.
+          raw.execute('DROP TABLE privacy_zones');
+          raw.execute('DROP TABLE dismissed_zone_suggestions');
+          raw.execute('ALTER TABLE activities DROP COLUMN hide_edges_meters');
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN hide_on_server');
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN narrator_prefs');
           raw.execute('DROP TABLE recording_gaps');
           raw.execute('ALTER TABLE activities DROP COLUMN last_heartbeat_ms');
           raw.execute('ALTER TABLE activities DROP COLUMN heartbeat_paused');

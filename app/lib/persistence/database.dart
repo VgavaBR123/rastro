@@ -179,6 +179,10 @@ class SettingsRows extends Table {
   /// Privacidade (F02): o FIT enviado ao servidor sai sem os pontos ocultos.
   BoolColumn get hideOnServer => boolean().withDefault(const Constant(true))();
 
+  /// Narrador por voz (F03): preferencias em JSON (NarratorSettings). Null =
+  /// padrao (desligado). JSON para crescer sem nova migracao.
+  TextColumn get narratorPrefs => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -198,7 +202,7 @@ class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -239,6 +243,9 @@ class RecordingDatabase extends _$RecordingDatabase {
             await m.createTable(privacyZones);
             await m.createTable(dismissedZoneSuggestions);
           }
+          if (from < 9) {
+            await m.addColumn(settingsRows, settingsRows.narratorPrefs);
+          }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
         // isso por conta propria. Sem este pragma, o `onDelete: cascade`
@@ -273,6 +280,7 @@ class RecordingDatabase extends _$RecordingDatabase {
     Value<double?> weightKg = const Value.absent(),
     bool? reliabilityChecklistSeen,
     bool? hideOnServer,
+    String? narratorPrefs,
   }) async {
     await loadSettings(); // garante a linha
     await (update(settingsRows)..where((t) => t.id.equals(0))).write(
@@ -287,6 +295,8 @@ class RecordingDatabase extends _$RecordingDatabase {
             : Value(reliabilityChecklistSeen),
         hideOnServer:
             hideOnServer == null ? const Value.absent() : Value(hideOnServer),
+        narratorPrefs:
+            narratorPrefs == null ? const Value.absent() : Value(narratorPrefs),
       ),
     );
   }

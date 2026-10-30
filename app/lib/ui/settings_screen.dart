@@ -123,6 +123,23 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           SectionCard(
+            title: 'Narrador',
+            child: ListTile(
+              key: const Key('narrator'),
+              minTileHeight: 56,
+              leading: Icon(
+                s.narrator.enabled
+                    ? Icons.record_voice_over_rounded
+                    : Icons.voice_over_off_rounded,
+                color: s.narrator.enabled ? c.ciano.fg : c.textMuted,
+              ),
+              title: const Text('Narrador por voz'),
+              subtitle: Text(s.narrator.enabled ? 'Ligado' : 'Desligado'),
+              trailing: Icon(Icons.chevron_right_rounded, color: c.textMuted),
+              onTap: () => context.push(AppRoutes.narrator),
+            ),
+          ),
+          SectionCard(
             title: 'Privacidade',
             child: Column(
               children: [

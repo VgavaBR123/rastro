@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
 import '../core/format/measures.dart';
+import '../narrator/narrator_providers.dart';
 import '../persistence/recording_repository.dart';
 import '../privacy/privacy_providers.dart';
 import '../recording/domain/gap_monitor.dart';
@@ -82,6 +83,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       // sem peso para as calorias).
       await ref.read(settingsProvider.notifier).ensureLoaded();
       if (!mounted) return;
+      // Narrador por voz (F03): passa a ouvir a gravacao antes dela comecar.
+      ref.read(recordingNarrationProvider);
       final ctrl = ref.read(recordingControllerProvider.notifier);
       final resumeFrom = widget.resumeFrom;
       if (resumeFrom != null) {
@@ -119,7 +122,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   /// Segurou Encerrar: pausa (se ainda gravando) e abre a tela Salvar.
   void _openSave() {
     final s = ref.read(recordingControllerProvider);
-    if (s.isRecording) ref.read(recordingControllerProvider.notifier).pause();
+    if (s.isRecording) {
+      // Pausa tecnica para abrir Salvar: o Narrador nao a anuncia.
+      ref.read(recordingNarrationProvider).silenceNextPause();
+      ref.read(recordingControllerProvider.notifier).pause();
+    }
     setState(() {
       _saving = true;
       _locked = false;
@@ -182,6 +189,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     // So apaga se havia gravacao: o guid fica no controller depois do fim.
     final wasActive = ref.read(recordingControllerProvider).isActive;
     final guid = ctrl.activityGuid;
+    // Atividade apagada: o Narrador nao fala o resumo do fim.
+    ref.read(recordingNarrationProvider).suppressNextFinish();
     await ctrl.stop();
     if (wasActive && guid != null) await repo.deleteActivity(guid);
     if (!mounted) return;

@@ -258,7 +258,8 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 8) return;
+          if (v != 9) return;
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN narrator_prefs');
           raw.execute('DROP TABLE privacy_zones');
           raw.execute('DROP TABLE dismissed_zone_suggestions');
           raw.execute('DROP TABLE recording_gaps');
@@ -310,7 +311,8 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 8) return;
+          if (v != 9) return;
+          raw.execute('ALTER TABLE settings_rows DROP COLUMN narrator_prefs');
           raw.execute('DROP TABLE privacy_zones');
           raw.execute('DROP TABLE dismissed_zone_suggestions');
           raw.execute('ALTER TABLE activities DROP COLUMN hide_edges_meters');

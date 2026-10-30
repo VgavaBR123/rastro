@@ -74,6 +74,16 @@ class RecordingUiState {
   /// Gravando ha mais de 30 s sem ponto de GPS.
   final bool gpsSignalLost;
 
+  /// Esporte da gravacao corrente (null antes de comecar).
+  final ActivityType? activityType;
+
+  /// Narrador (F03): duracao (cronometro) dos splits ja fechados, em ordem.
+  final List<int> splitDurationsKmMs;
+  final List<int> splitDurationsMileMs;
+
+  /// Narrador (F03): voltas ja fechadas, em ordem.
+  final List<LapRecord> closedLaps;
+
   const RecordingUiState({
     this.state = RecordingState.idle,
     this.distanceMeters = 0,
@@ -89,6 +99,10 @@ class RecordingUiState {
     this.completedLaps = 0,
     this.gapNotice,
     this.gpsSignalLost = false,
+    this.activityType,
+    this.splitDurationsKmMs = const [],
+    this.splitDurationsMileMs = const [],
+    this.closedLaps = const [],
   });
 
   bool get isRecording => state == RecordingState.recording;
@@ -139,8 +153,15 @@ class RecordingUiState {
       completedLaps: session.laps.length,
       gapNotice: gapNotice,
       gpsSignalLost: gpsSignalLost,
+      activityType: session.activityType,
+      splitDurationsKmMs: _durations(session.splits.kilometers),
+      splitDurationsMileMs: _durations(session.splits.miles),
+      closedLaps: session.laps,
     );
   }
+
+  static List<int> _durations(SplitList list) =>
+      List.unmodifiable([for (final s in list.completed) s.durationMs]);
 
   RecordingUiState copyWith({RecordingState? state, String? error}) =>
       RecordingUiState(
@@ -158,5 +179,9 @@ class RecordingUiState {
         completedLaps: completedLaps,
         gapNotice: gapNotice,
         gpsSignalLost: gpsSignalLost,
+        activityType: activityType,
+        splitDurationsKmMs: splitDurationsKmMs,
+        splitDurationsMileMs: splitDurationsMileMs,
+        closedLaps: closedLaps,
       );
 }

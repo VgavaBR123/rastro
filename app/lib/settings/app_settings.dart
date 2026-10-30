@@ -1,6 +1,8 @@
 // Configuracoes do app (imutavel), independentes da camada de banco.
 library;
 
+import '../narrator/domain/narrator_settings.dart';
+
 class AppSettings {
   final bool useMetric;
   final bool autoPauseEnabled;
@@ -14,12 +16,16 @@ class AppSettings {
   /// Privacidade (F02): o upload sai sem as pontas ocultas. Padrao ligado.
   final bool hideOnServer;
 
+  /// Narrador por voz (F03).
+  final NarratorSettings narrator;
+
   const AppSettings({
     this.useMetric = true,
     this.autoPauseEnabled = true,
     this.weightKg,
     this.reliabilityChecklistSeen = false,
     this.hideOnServer = true,
+    this.narrator = const NarratorSettings(),
   });
 
   AppSettings copyWith({
@@ -27,6 +33,7 @@ class AppSettings {
     bool? autoPauseEnabled,
     bool? reliabilityChecklistSeen,
     bool? hideOnServer,
+    NarratorSettings? narrator,
   }) => AppSettings(
     useMetric: useMetric ?? this.useMetric,
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
@@ -34,6 +41,7 @@ class AppSettings {
     reliabilityChecklistSeen:
         reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
     hideOnServer: hideOnServer ?? this.hideOnServer,
+    narrator: narrator ?? this.narrator,
   );
 
   /// Troca o peso (null apaga).
@@ -43,5 +51,6 @@ class AppSettings {
     weightKg: value,
     reliabilityChecklistSeen: reliabilityChecklistSeen,
     hideOnServer: hideOnServer,
+    narrator: narrator,
   );
 }
