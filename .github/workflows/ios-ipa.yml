@@ -24,7 +24,13 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # O native_glass_navbar (barra Liquid Glass) exige Xcode 27, que hoje
+    # (out/2026) so existe na imagem "xcode-27" (preview do runner-images,
+    # issue actions/runner-images#14404). Nela /Applications/Xcode.app ja aponta
+    # para o Xcode 27; o caminho versionado muda a cada beta, por isso nao
+    # fixamos xcode-select num Xcode_27_*.app. Quando a macos-26/latest trouxer
+    # o Xcode 27, voltar para ela com `sudo xcode-select -s`.
+    runs-on: xcode-27
     timeout-minutes: 45
     defaults:
       run:
@@ -32,6 +38,12 @@ jobs:
     steps:
       - name: Clonar repositorio
         uses: actions/checkout@v4
+
+      - name: Conferir Xcode 27
+        run: |
+          xcodebuild -version
+          xcodebuild -version | head -1 | grep -Eq '^Xcode 27(\.|$)' || {
+            echo "::error::Precisa de Xcode 27 para o native_glass_navbar"; exit 1; }
 
       - name: Instalar Flutter (mesma versao do ambiente local)
         uses: subosito/flutter-action@v2

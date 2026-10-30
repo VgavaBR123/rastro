@@ -10,3 +10,6 @@ node_modules/
 # Windows
 Thumbs.db
 desktop.ini
+
+# Ferramentas para controlar o iPhone (go-ios, WebDriverAgent)
+tools/iphone/

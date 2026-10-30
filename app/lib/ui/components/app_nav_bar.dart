@@ -1,10 +1,17 @@
 // Navegacao principal (relatorio 11, AppNavBar): capsula flutuante com quatro
 // abas e, ao lado, o botao Gravar com anel multicolorido.
+//
+// No iPhone com iOS 26 ou mais novo a barra e a nativa (Liquid Glass, pacote
+// native_glass_navbar): as abas viram itens do UITabBar com SF Symbols e o
+// Gravar vira o botao de acao circular. Em Android, iOS antigo e nos testes
+// aparece a barra Flutter (_FlutterNavBar), que tambem e o `fallback` do pacote.
 library;
 
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:native_glass_navbar/native_glass_navbar.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -16,18 +23,61 @@ class NavTab {
   final IconData icon;
   final RoleColors Function(AppColors) role;
   final Key key;
-  const NavTab({required this.label, required this.icon, required this.role, required this.key});
+
+  /// SF Symbol da aba na barra nativa do iOS.
+  final String symbol;
+
+  /// SF Symbol com a aba selecionada (null = o mesmo de [symbol]).
+  final String? selectedSymbol;
+
+  const NavTab({
+    required this.label,
+    required this.icon,
+    required this.role,
+    required this.key,
+    required this.symbol,
+    this.selectedSymbol,
+  });
 }
 
 /// Abas do shell, na ordem dos ramos do router.
 final List<NavTab> kNavTabs = [
-  NavTab(label: 'Inicio', icon: Icons.home_rounded, role: (c) => c.dist, key: const Key('nav_home')),
-  NavTab(label: 'Historico', icon: Icons.history_rounded, role: (c) => c.pace, key: const Key('nav_history')),
-  NavTab(label: 'Estatisticas', icon: Icons.insights_rounded, role: (c) => c.subida, key: const Key('nav_stats')),
-  NavTab(label: 'Voce', icon: Icons.person_rounded, role: (c) => c.extra, key: const Key('nav_profile')),
+  NavTab(
+    label: 'Inicio',
+    icon: Icons.home_rounded,
+    role: (c) => c.dist,
+    key: const Key('nav_home'),
+    symbol: 'house',
+    selectedSymbol: 'house.fill',
+  ),
+  NavTab(
+    label: 'Historico',
+    icon: Icons.history_rounded,
+    role: (c) => c.pace,
+    key: const Key('nav_history'),
+    symbol: 'clock.arrow.circlepath',
+  ),
+  NavTab(
+    label: 'Estatisticas',
+    icon: Icons.insights_rounded,
+    role: (c) => c.subida,
+    key: const Key('nav_stats'),
+    symbol: 'chart.xyaxis.line',
+  ),
+  NavTab(
+    label: 'Voce',
+    icon: Icons.person_rounded,
+    role: (c) => c.extra,
+    key: const Key('nav_profile'),
+    symbol: 'person',
+    selectedSymbol: 'person.fill',
+  ),
 ];
 
-class AppNavBar extends StatelessWidget {
+/// SF Symbol do botao de acao (Gravar) na barra nativa.
+const String kNavRecordSymbol = 'record.circle';
+
+class AppNavBar extends StatefulWidget {
   /// Aba ativa (0 a 3), ou null quando a tela atual e Gravar.
   final int? currentIndex;
   final bool recordActive;
@@ -42,13 +92,131 @@ class AppNavBar extends StatelessWidget {
     this.recordActive = false,
   });
 
+  /// Altura da barra Flutter.
   static const double height = 64;
   static const double bottomGap = 20;
 
+  /// Altura da barra nativa do iOS sem a area segura (padrao do UITabBar,
+  /// a mesma que o pacote usa no SizedBox do UiKitView).
+  static const double nativeHeight = 49;
+
+  /// true quando a barra nativa (Liquid Glass) esta na tela. Comeca false e
+  /// so muda no iOS, depois que o canal do pacote confirma iOS 26+.
+  static final ValueNotifier<bool> nativeActive = ValueNotifier(false);
+
+  static Future<void>? _probe;
+
+  /// Faz uma unica vez a mesma checagem que o NativeGlassNavBar faz para
+  /// decidir entre o nativo e o fallback, e publica em [nativeActive].
+  static void _ensureProbed() {
+    if (defaultTargetPlatform != TargetPlatform.iOS) return;
+    _probe ??= LiquidGlassHelper.isLiquidGlassSupported().then((ok) {
+      nativeActive.value = ok;
+    });
+  }
+
   /// Espaco que o conteudo rolavel precisa deixar livre embaixo para nao
-  /// ficar escondido atras da navegacao.
-  static double reservedHeight(BuildContext context) =>
-      height + bottomGap + MediaQuery.paddingOf(context).bottom + 12;
+  /// ficar escondido atras da navegacao. Reflete a barra que esta na tela
+  /// (nativa ou Flutter); dentro de um [NavBarModeScope] quem chama e
+  /// reconstruido quando o modo muda.
+  static double reservedHeight(BuildContext context) {
+    final scope = context.dependOnInheritedWidgetOfExactType<NavBarModeScope>();
+    final native = (scope?.notifier ?? nativeActive).value;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return native
+        ? nativeHeight + bottom + 12
+        : height + bottomGap + bottom + 12;
+  }
+
+  @override
+  State<AppNavBar> createState() => _AppNavBarState();
+}
+
+/// Publica [AppNavBar.nativeActive] para a subarvore: quem usa
+/// [AppNavBar.reservedHeight] embaixo dele reconstroi quando a barra nativa
+/// entra (ou sai) da tela.
+class NavBarModeScope extends InheritedNotifier<ValueNotifier<bool>> {
+  NavBarModeScope({super.key, required super.child})
+    : super(notifier: AppNavBar.nativeActive);
+}
+
+class _AppNavBarState extends State<AppNavBar> {
+  /// Ultima aba ativa: a barra nativa nao tem "nenhuma selecionada", entao na
+  /// tela Gravar ela continua marcando a aba de onde se veio.
+  int _lastIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastIndex = widget.currentIndex ?? 0;
+  }
+
+  @override
+  void didUpdateWidget(AppNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final i = widget.currentIndex;
+    if (i != null) _lastIndex = i;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final flutterBar = _FlutterNavBar(
+      currentIndex: widget.currentIndex,
+      recordActive: widget.recordActive,
+      onTabSelected: widget.onTabSelected,
+      onRecord: widget.onRecord,
+    );
+    if (defaultTargetPlatform != TargetPlatform.iOS) return flutterBar;
+
+    AppNavBar._ensureProbed();
+    final c = AppColors.of(context);
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppNavBar.nativeActive,
+      builder: (context, native, _) => NativeGlassNavBar(
+        currentIndex: _lastIndex,
+        onTap: widget.onTabSelected,
+        tintColor: c.primary,
+        actionButton: TabBarActionButton(
+          symbol: kNavRecordSymbol,
+          onTap: widget.onRecord,
+        ),
+        tabs: [
+          for (final t in kNavTabs)
+            NativeGlassNavBarItem(
+              label: t.label,
+              symbol: t.symbol,
+              selectedSymbol: t.selectedSymbol,
+            ),
+        ],
+        // O pacote mostra o fallback enquanto confirma o suporte (a cada vez
+        // que o widget e recriado, ex.: ao fechar o teclado). Se ja sabemos
+        // que o nativo vai aparecer, reserva so o espaco dele em vez de piscar
+        // a barra Flutter.
+        fallback: native
+            ? SizedBox(
+                height:
+                    AppNavBar.nativeHeight +
+                    MediaQuery.paddingOf(context).bottom,
+              )
+            : flutterBar,
+      ),
+    );
+  }
+}
+
+/// A barra desenhada em Flutter (Android, iOS antes do 26 e testes).
+class _FlutterNavBar extends StatelessWidget {
+  final int? currentIndex;
+  final bool recordActive;
+  final ValueChanged<int> onTabSelected;
+  final VoidCallback onRecord;
+
+  const _FlutterNavBar({
+    required this.currentIndex,
+    required this.recordActive,
+    required this.onTabSelected,
+    required this.onRecord,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -58,10 +226,10 @@ class AppNavBar extends StatelessWidget {
         AppShape.gutter,
         0,
         AppShape.gutter,
-        bottomGap + MediaQuery.paddingOf(context).bottom,
+        AppNavBar.bottomGap + MediaQuery.paddingOf(context).bottom,
       ),
       child: SizedBox(
-        height: height,
+        height: AppNavBar.height,
         child: Row(
           children: [
             Expanded(
@@ -69,7 +237,11 @@ class AppNavBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppShape.nav),
                   boxShadow: const [
-                    BoxShadow(color: Color(0x80000000), blurRadius: 40, offset: Offset(0, 16)),
+                    BoxShadow(
+                      color: Color(0x80000000),
+                      blurRadius: 40,
+                      offset: Offset(0, 16),
+                    ),
                   ],
                 ),
                 child: ClipRRect(
@@ -118,7 +290,11 @@ class _TabItem extends StatelessWidget {
   final NavTab tab;
   final bool active;
   final VoidCallback onTap;
-  const _TabItem({required this.tab, required this.active, required this.onTap});
+  const _TabItem({
+    required this.tab,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +315,9 @@ class _TabItem extends StatelessWidget {
             color: active ? role.tint : Colors.transparent,
             borderRadius: BorderRadius.circular(AppShape.navActive),
             border: Border.all(
-              color: active ? role.fill.withValues(alpha: 0.35) : Colors.transparent,
+              color: active
+                  ? role.fill.withValues(alpha: 0.35)
+                  : Colors.transparent,
             ),
           ),
           child: Column(
@@ -197,13 +375,21 @@ class _RecordButton extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: c.primary,
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: c.primary.withValues(alpha: 0.6), blurRadius: 12)],
+                      boxShadow: [
+                        BoxShadow(
+                          color: c.primary.withValues(alpha: 0.6),
+                          blurRadius: 12,
+                        ),
+                      ],
                     ),
                     alignment: Alignment.center,
                     child: Container(
                       width: 10,
                       height: 10,
-                      decoration: BoxDecoration(color: c.onPrimary, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: c.onPrimary,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 3),

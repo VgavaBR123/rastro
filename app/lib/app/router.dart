@@ -134,8 +134,12 @@ class AppShell extends StatelessWidget {
   final StatefulNavigationShell shell;
   const AppShell({super.key, required this.shell});
 
+  // NavBarModeScope: as telas (e a margem do aviso, abaixo) usam
+  // AppNavBar.reservedHeight e reconstroem quando a barra nativa do iOS entra.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => NavBarModeScope(child: Builder(builder: _build));
+
+  Widget _build(BuildContext context) {
     final index = shell.currentIndex;
     final theme = Theme.of(context);
     // Com o teclado aberto a navegacao some (senao sobe junto e cobre o campo).
