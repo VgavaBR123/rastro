@@ -53,10 +53,17 @@ class Activities extends Table {
   TextColumn get description => text().nullable()();
 
   /// Quem pode ver: 'private' | 'followers' | 'everyone' (ver
-  /// [ActivityVisibility]). Padrao 'everyone', o mesmo da tela Salvar; as
-  /// atividades antigas ganham esse valor na migracao. Por enquanto so local.
+  /// [ActivityVisibility]). Privacidade automatica (F02): atividade nova
+  /// nasce 'private' ("so eu"); o repositorio grava isso explicitamente no
+  /// inicio, porque bancos migrados guardam o padrao antigo da coluna. As
+  /// atividades antigas mantem o que tinham (a migracao que cria a coluna
+  /// grava 'everyone', o padrao de antes). Por enquanto so local.
   TextColumn get visibility =>
-      text().withDefault(const Constant('everyone'))();
+      text().withDefault(const Constant('private'))();
+
+  /// Privacidade (F02): ocultar os primeiros e os ultimos X metros desta
+  /// atividade no que sai do aparelho (imagem, upload, exportacao). 0 = nao.
+  IntColumn get hideEdgesMeters => integer().withDefault(const Constant(0))();
 
   /// Gravacao blindada (F01): instante (epoch ms) do ultimo batimento salvo
   /// durante a gravacao. Na recuperacao pos-crash, o intervalo dele ate a
@@ -86,6 +93,28 @@ class RecordingGaps extends Table {
   IntColumn get startMs => integer()();
   IntColumn get endMs => integer()();
   IntColumn get reason => integer()();
+}
+
+/// Zonas de privacidade (F02): circulos guardados so no aparelho. O que
+/// comeca ou termina dentro deles sai cortado do que e compartilhado.
+@DataClassName('PrivacyZoneRow')
+class PrivacyZones extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  RealColumn get latitude => real()();
+  RealColumn get longitude => real()();
+  RealColumn get radiusMeters => real()();
+  TextColumn get label => text()();
+  IntColumn get createdAtMs => integer()();
+}
+
+/// Sugestoes de zona que a pessoa ignorou (F02): o lugar nao volta a ser
+/// sugerido.
+@DataClassName('DismissedZoneSuggestionRow')
+class DismissedZoneSuggestions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  RealColumn get latitude => real()();
+  RealColumn get longitude => real()();
+  IntColumn get createdAtMs => integer()();
 }
 
 /// Exclusoes que ainda precisam chegar ao servidor (apagou no aparelho sem
@@ -147,6 +176,9 @@ class SettingsRows extends Table {
   BoolColumn get reliabilityChecklistSeen =>
       boolean().withDefault(const Constant(false))();
 
+  /// Privacidade (F02): o FIT enviado ao servidor sai sem os pontos ocultos.
+  BoolColumn get hideOnServer => boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -159,12 +191,14 @@ class SettingsRows extends Table {
       RemoteDeletions,
       Laps,
       RecordingGaps,
+      PrivacyZones,
+      DismissedZoneSuggestions,
     ])
 class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -184,6 +218,10 @@ class RecordingDatabase extends _$RecordingDatabase {
             await m.addColumn(activities, activities.title);
             await m.addColumn(activities, activities.description);
             await m.addColumn(activities, activities.visibility);
+            // O addColumn usa o padrao atual da coluna ('private', do F02).
+            // Antes do F02 o padrao era 'everyone': as atividades que ja
+            // existiam mantem esse valor.
+            await customStatement("UPDATE activities SET visibility = 'everyone'");
           }
           if (from < 7) {
             await m.addColumn(activities, activities.lastHeartbeatMs);
@@ -194,6 +232,12 @@ class RecordingDatabase extends _$RecordingDatabase {
               settingsRows.reliabilityChecklistSeen,
             );
             await m.createTable(recordingGaps);
+          }
+          if (from < 8) {
+            await m.addColumn(activities, activities.hideEdgesMeters);
+            await m.addColumn(settingsRows, settingsRows.hideOnServer);
+            await m.createTable(privacyZones);
+            await m.createTable(dismissedZoneSuggestions);
           }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
@@ -228,6 +272,7 @@ class RecordingDatabase extends _$RecordingDatabase {
     bool? autoPauseEnabled,
     Value<double?> weightKg = const Value.absent(),
     bool? reliabilityChecklistSeen,
+    bool? hideOnServer,
   }) async {
     await loadSettings(); // garante a linha
     await (update(settingsRows)..where((t) => t.id.equals(0))).write(
@@ -240,8 +285,68 @@ class RecordingDatabase extends _$RecordingDatabase {
         reliabilityChecklistSeen: reliabilityChecklistSeen == null
             ? const Value.absent()
             : Value(reliabilityChecklistSeen),
+        hideOnServer:
+            hideOnServer == null ? const Value.absent() : Value(hideOnServer),
       ),
     );
+  }
+
+  // --- Privacidade (F02) ---
+
+  Future<List<PrivacyZoneRow>> allPrivacyZones() =>
+      (select(privacyZones)..orderBy([(t) => OrderingTerm(expression: t.id)])).get();
+
+  Future<int> insertPrivacyZone(PrivacyZonesCompanion zone) =>
+      into(privacyZones).insert(zone);
+
+  Future<void> deletePrivacyZone(int id) =>
+      (delete(privacyZones)..where((t) => t.id.equals(id))).go();
+
+  Future<List<DismissedZoneSuggestionRow>> allDismissedZoneSuggestions() =>
+      select(dismissedZoneSuggestions).get();
+
+  Future<void> insertDismissedZoneSuggestion(
+    DismissedZoneSuggestionsCompanion row,
+  ) => into(dismissedZoneSuggestions).insert(row);
+
+  /// Primeiro e ultimo ponto aceito de cada atividade finalizada, das
+  /// [limit] mais recentes. Uma linha por ponta: (guid, seq, lat, lon,
+  /// inicio da atividade).
+  Future<List<({String guid, int seq, double latitude, double longitude, int startMs})>>
+      finishedActivityEndpoints({int limit = 100, int? atOrBeforeMs}) async {
+    // O LIMIT vale so para atividades com ponto aceito: as sem GPS (esteira,
+    // indoor) nao ocupam lugar na janela.
+    final rows = await customSelect(
+      'SELECT w.activity_guid AS guid, w.seq AS seq, w.latitude AS lat, '
+      'w.longitude AS lon, a.start_timestamp_ms AS start_ms '
+      'FROM waypoints w '
+      'JOIN (SELECT activity_guid, MIN(seq) AS mn, MAX(seq) AS mx FROM waypoints '
+      '      WHERE classification = 0 GROUP BY activity_guid) e '
+      '  ON e.activity_guid = w.activity_guid AND (w.seq = e.mn OR w.seq = e.mx) '
+      'JOIN (SELECT guid, start_timestamp_ms FROM activities x WHERE is_finished = 1 '
+      '      AND (? IS NULL OR start_timestamp_ms <= ?) '
+      '      AND EXISTS (SELECT 1 FROM waypoints y WHERE y.activity_guid = x.guid '
+      '                  AND y.classification = 0) '
+      '      ORDER BY start_timestamp_ms DESC LIMIT ?) a ON a.guid = w.activity_guid '
+      'WHERE w.classification = 0 '
+      'ORDER BY a.start_timestamp_ms DESC, w.activity_guid, w.seq',
+      variables: [
+        Variable<int>(atOrBeforeMs),
+        Variable<int>(atOrBeforeMs),
+        Variable.withInt(limit),
+      ],
+      readsFrom: {waypoints, activities},
+    ).get();
+    return [
+      for (final r in rows)
+        (
+          guid: r.read<String>('guid'),
+          seq: r.read<int>('seq'),
+          latitude: r.read<double>('lat'),
+          longitude: r.read<double>('lon'),
+          startMs: r.read<int>('start_ms'),
+        ),
+    ];
   }
 
   // --- Gravacao blindada (F01) ---
@@ -362,6 +467,7 @@ class RecordingDatabase extends _$RecordingDatabase {
     String? title,
     String? description,
     required ActivityVisibility visibility,
+    int? hideEdgesMeters,
   }) {
     String? clean(String? v) {
       final t = v?.trim();
@@ -373,6 +479,9 @@ class RecordingDatabase extends _$RecordingDatabase {
         title: Value(clean(title)),
         description: Value(clean(description)),
         visibility: Value(visibility.dbValue),
+        hideEdgesMeters: hideEdgesMeters == null
+            ? const Value.absent()
+            : Value(hideEdgesMeters < 0 ? 0 : hideEdgesMeters),
       ),
     );
   }

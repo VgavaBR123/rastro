@@ -112,17 +112,24 @@ class RecordingController extends StateNotifier<RecordingUiState> {
 
   String? get activityGuid => _guid;
 
+  /// Inicio (epoch ms) da atividade em gravacao, o mesmo do cabecalho no
+  /// banco. Nao muda com pausas. Null antes de comecar.
+  int? get startTimestampMs => _startMs;
+  int? _startMs;
+
   Future<void> start(ActivityType type, {bool autoPauseEnabled = true}) async {
     if (state.isActive) return;
     if (!await _ensurePermission()) return;
     final startBattery = await _battery.level();
-    final guid = 'act_${_now()}';
+    final startMs = _now();
+    final guid = 'act_$startMs';
     final session = _beginSession(guid, type, autoPauseEnabled);
+    _startMs = startMs;
 
     await _repo.startActivity(
       guid: guid,
       type: type,
-      startTimestampMs: _now(),
+      startTimestampMs: startMs,
       autoPauseEnabled: autoPauseEnabled,
       startBatteryLevel: startBattery,
       ownerUserId: _currentUserId(),
@@ -143,6 +150,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     if (!await _ensurePermission()) return;
     final a = interrupted.activity;
     final session = _beginSession(a.guid, a.activityType, a.autoPauseEnabled);
+    _startMs = a.startTimestampMs;
     _route.addAll(interrupted.acceptedPoints.map((w) => w.position));
     _discarded = a.discardedPointCount;
 

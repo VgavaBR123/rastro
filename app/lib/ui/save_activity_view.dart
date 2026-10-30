@@ -14,6 +14,7 @@ import '../recording/domain/geo.dart';
 import '../recording/domain/recording_models.dart';
 import 'components/big_action_button.dart';
 import 'components/metric_tile.dart';
+import 'privacy/routine_warning_banner.dart';
 import 'components/segmented_selector.dart';
 import 'components/sport_chip.dart';
 import 'route_map.dart';
@@ -22,16 +23,33 @@ import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
 
 export '../persistence/activity_visibility.dart';
+export 'privacy/routine_warning_banner.dart';
+
+/// Opcoes de "Ocultar inicio e fim" (F02), em metros. 0 = nao ocultar.
+const List<int> kHideEdgesOptions = [0, 200, 500, 1000];
+
+/// Rotulo de uma opcao de corte das pontas na unidade das configuracoes.
+String hideEdgesLabel(int meters, {required bool metric}) {
+  if (meters <= 0) return 'Nao';
+  if (!metric) return '${(meters / 1609.344).toStringAsFixed(1)} mi';
+  if (meters >= 1000 && meters % 1000 == 0) return '${meters ~/ 1000} km';
+  return '$meters m';
+}
 
 /// O que o usuario preencheu na tela Salvar.
 class ActivityDraft {
   final String title;
   final String description;
   final ActivityVisibility visibility;
+
+  /// Ocultar os primeiros e os ultimos X metros (F02). 0 = nao.
+  final int hideEdgesMeters;
+
   const ActivityDraft({
     required this.title,
     required this.description,
     required this.visibility,
+    this.hideEdgesMeters = 0,
   });
 }
 
@@ -47,6 +65,9 @@ class SaveActivityView extends StatefulWidget {
 
   /// Salvar ou descartar em andamento: botoes desligados.
   final bool busy;
+
+  /// Rotina previsivel (F02): mostra uma dica gentil.
+  final bool routineWarning;
 
   final VoidCallback onBack;
   final ValueChanged<ActivityDraft> onSave;
@@ -68,6 +89,7 @@ class SaveActivityView extends StatefulWidget {
     required this.onSave,
     required this.onDiscard,
     this.busy = false,
+    this.routineWarning = false,
   });
 
   @override
@@ -79,7 +101,8 @@ class _SaveActivityViewState extends State<SaveActivityView> {
     text: suggestedActivityTitle(widget.type, widget.startedAt),
   );
   final TextEditingController _description = TextEditingController();
-  ActivityVisibility _visibility = ActivityVisibility.everyone;
+  ActivityVisibility _visibility = ActivityVisibility.defaultForNew;
+  int _hideEdges = 0;
 
   @override
   void dispose() {
@@ -94,6 +117,7 @@ class _SaveActivityViewState extends State<SaveActivityView> {
       title: title.isEmpty ? suggestedActivityTitle(widget.type, widget.startedAt) : title,
       description: _description.text.trim(),
       visibility: _visibility,
+      hideEdgesMeters: _hideEdges,
     ));
   }
 
@@ -282,6 +306,34 @@ class _SaveActivityViewState extends State<SaveActivityView> {
                   selected: _visibility,
                   onChanged: widget.busy ? null : (v) => setState(() => _visibility = v),
                 ),
+                const SizedBox(height: 14),
+                Text('Ocultar inicio e fim', style: muted),
+                const SizedBox(height: 6),
+                SegmentedSelector<int>(
+                  key: const Key('save_hide_edges'),
+                  options: [
+                    for (final m in kHideEdgesOptions)
+                      SegmentOption(
+                        value: m,
+                        label: hideEdgesLabel(m, metric: widget.metric),
+                        role: c.subida,
+                        key: Key('hide_edges_$m'),
+                      ),
+                  ],
+                  selected: _hideEdges,
+                  onChanged: widget.busy ? null : (v) => setState(() => _hideEdges = v),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 6, 4, 0),
+                  child: Text(
+                    'Some da imagem e do upload, alem das zonas de privacidade.',
+                    style: muted,
+                  ),
+                ),
+                if (widget.routineWarning) ...[
+                  const SizedBox(height: 14),
+                  RoutineWarningBanner(key: const Key('routine_warning')),
+                ],
               ],
             ),
           ),

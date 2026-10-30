@@ -34,6 +34,21 @@ enum ShareCardStyle {
   const ShareCardStyle(this.label, this.icon);
 }
 
+/// Quanto da atividade a imagem mostra (privacidade, F02).
+enum ShareRouteMode {
+  /// Rota sem as pontas ocultas (padrao).
+  trimmed('Rota cortada'),
+
+  /// Sem mapa: titulo, data e metricas.
+  noMap('Sem mapa'),
+
+  /// So as metricas (sem titulo, data nem mapa).
+  metricsOnly('So metricas');
+
+  final String label;
+  const ShareRouteMode(this.label);
+}
+
 /// O que o cartao mostra.
 class ShareCardData {
   final String title;
@@ -47,6 +62,12 @@ class ShareCardData {
   final List<GeoPoint> route;
   final bool metric;
 
+  /// Desenhar o mapa da rota (desligado em "Sem mapa" e "So metricas").
+  final bool showRoute;
+
+  /// Mostrar esporte, data e titulo (desligado em "So metricas").
+  final bool showHeader;
+
   const ShareCardData({
     required this.title,
     required this.type,
@@ -56,6 +77,8 @@ class ShareCardData {
     required this.route,
     required this.metric,
     this.gainMeters,
+    this.showRoute = true,
+    this.showHeader = true,
   });
 }
 
@@ -77,7 +100,10 @@ List<ShareMetric> shareCardMetrics(ShareCardData d, AppColors c) {
     ride
         ? (
             label: 'Velocidade',
-            value: formatSpeed(seconds > 0 ? d.distanceMeters / seconds : 0, metric: d.metric),
+            value: formatSpeed(
+              seconds > 0 ? d.distanceMeters / seconds : 0,
+              metric: d.metric,
+            ),
             role: c.pace,
           )
         : (
@@ -90,7 +116,11 @@ List<ShareMetric> shareCardMetrics(ShareCardData d, AppColors c) {
           ),
     (label: 'Tempo', value: formatDuration(d.timerMs), role: c.tempo),
     if (gain != null && gain.isFinite)
-      (label: 'Subida', value: formatElevation(gain, metric: d.metric), role: c.subida),
+      (
+        label: 'Subida',
+        value: formatElevation(gain, metric: d.metric),
+        role: c.subida,
+      ),
   ];
 }
 
@@ -104,7 +134,9 @@ class ShareCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Theme(
       data: AppTheme.dark,
-      child: Builder(builder: (context) => _content(context, AppColors.of(context))),
+      child: Builder(
+        builder: (context) => _content(context, AppColors.of(context)),
+      ),
     );
   }
 
@@ -135,32 +167,40 @@ class ShareCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  SportChip(type: data.type),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      formatDateTimeMs(data.startTimestampMs),
-                      key: const Key('share_card_date'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.label.copyWith(color: c.textMuted, shadows: shadows),
+              if (data.showHeader) ...[
+                Row(
+                  children: [
+                    SportChip(type: data.type),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        formatDateTimeMs(data.startTimestampMs),
+                        key: const Key('share_card_date'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.label.copyWith(
+                          color: c.textMuted,
+                          shadows: shadows,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  data.title,
+                  key: const Key('share_card_title'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.screenTitle.copyWith(
+                    color: c.text,
+                    shadows: shadows,
                   ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Text(
-                data.title,
-                key: const Key('share_card_title'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: AppText.screenTitle.copyWith(color: c.text, shadows: shadows),
-              ),
-              const SizedBox(height: 12),
+                ),
+                const SizedBox(height: 12),
+              ],
               Expanded(
-                child: data.route.length < 2
+                child: !data.showRoute || data.route.length < 2
                     ? const SizedBox.expand()
                     : LayoutBuilder(
                         builder: (_, box) => RoutePreview(
@@ -176,19 +216,29 @@ class ShareCard extends StatelessWidget {
                       ),
               ),
               const SizedBox(height: 16),
-              _MetricGrid(metrics: metrics, textColor: c.textMuted, shadows: shadows),
+              _MetricGrid(
+                metrics: metrics,
+                textColor: c.textMuted,
+                shadows: shadows,
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
                   Container(
                     width: 8,
                     height: 8,
-                    decoration: BoxDecoration(color: c.primary, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: c.primary,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     kShareBrand,
-                    style: AppText.bodyStrong.copyWith(color: c.primaryText, shadows: shadows),
+                    style: AppText.bodyStrong.copyWith(
+                      color: c.primaryText,
+                      shadows: shadows,
+                    ),
                   ),
                 ],
               ),
@@ -206,21 +256,31 @@ class _MetricGrid extends StatelessWidget {
   final Color textColor;
   final List<Shadow>? shadows;
 
-  const _MetricGrid({required this.metrics, required this.textColor, this.shadows});
+  const _MetricGrid({
+    required this.metrics,
+    required this.textColor,
+    this.shadows,
+  });
 
   @override
   Widget build(BuildContext context) {
     final rows = <Widget>[];
     for (var i = 0; i < metrics.length; i += 2) {
       if (i > 0) rows.add(const SizedBox(height: 14));
-      rows.add(Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: _metric(metrics[i])),
-          const SizedBox(width: 16),
-          Expanded(child: i + 1 < metrics.length ? _metric(metrics[i + 1]) : const SizedBox()),
-        ],
-      ));
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _metric(metrics[i])),
+            const SizedBox(width: 16),
+            Expanded(
+              child: i + 1 < metrics.length
+                  ? _metric(metrics[i + 1])
+                  : const SizedBox(),
+            ),
+          ],
+        ),
+      );
     }
     return Column(children: rows);
   }
@@ -229,12 +289,18 @@ class _MetricGrid extends StatelessWidget {
     key: Key('share_metric_${m.label}'),
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(m.label, style: AppText.label.copyWith(color: textColor, shadows: shadows)),
+      Text(
+        m.label,
+        style: AppText.label.copyWith(color: textColor, shadows: shadows),
+      ),
       const SizedBox(height: 2),
       FittedBox(
         fit: BoxFit.scaleDown,
         alignment: Alignment.centerLeft,
-        child: Text(m.value, style: AppText.metricM.copyWith(color: m.role.fg, shadows: shadows)),
+        child: Text(
+          m.value,
+          style: AppText.metricM.copyWith(color: m.role.fg, shadows: shadows),
+        ),
       ),
     ],
   );

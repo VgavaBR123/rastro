@@ -17,8 +17,12 @@ import '../../app/providers.dart';
 import '../../core/format/activity_labels.dart';
 import '../../persistence/database.dart';
 import '../../platform/activity_sharer.dart';
+import '../../privacy/privacy_providers.dart';
+import '../../privacy/privacy_repository.dart';
 import '../components/big_action_button.dart';
 import '../components/segmented_selector.dart';
+import '../components/sport_chip.dart';
+import '../privacy/routine_warning_banner.dart';
 import '../share_activity.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -29,7 +33,8 @@ import 'share_card.dart';
 /// que ficar em `cache/share/` (res/xml/share_paths.xml). Os testes trocam
 /// por uma pasta temporaria.
 final shareImageDirectoryProvider = Provider<Future<Directory> Function()>(
-  (ref) => () async => Directory('${(await getTemporaryDirectory()).path}/share'),
+  (ref) =>
+      () async => Directory('${(await getTemporaryDirectory()).path}/share'),
 );
 
 class ShareActivityScreen extends ConsumerStatefulWidget {
@@ -37,7 +42,8 @@ class ShareActivityScreen extends ConsumerStatefulWidget {
   const ShareActivityScreen({super.key, required this.activity});
 
   @override
-  ConsumerState<ShareActivityScreen> createState() => _ShareActivityScreenState();
+  ConsumerState<ShareActivityScreen> createState() =>
+      _ShareActivityScreenState();
 }
 
 class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
@@ -45,12 +51,50 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
   ShareCardStyle _style = ShareCardStyle.card;
   bool _busy = false;
 
+  /// Privacidade (F02): quanto da atividade aparece na imagem.
+  ShareRouteMode _mode = ShareRouteMode.trimmed;
+
+  /// Trecho completo, so depois de confirmar.
+  bool _revealFull = false;
+
+  Future<void> _confirmReveal() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final c = AppColors.of(ctx);
+        return AlertDialog(
+          key: const Key('reveal_dialog'),
+          title: const Text('Mostrar o trajeto completo?'),
+          content: const Text(
+            'O inicio e o fim podem revelar onde voce mora ou trabalha. '
+            'A imagem vai sair com o trajeto inteiro.',
+          ),
+          actions: [
+            TextButton(
+              key: const Key('reveal_cancel'),
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Manter oculto'),
+            ),
+            TextButton(
+              key: const Key('reveal_confirm'),
+              style: TextButton.styleFrom(foregroundColor: c.danger),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Mostrar'),
+            ),
+          ],
+        );
+      },
+    );
+    if (ok == true && mounted) setState(() => _revealFull = true);
+  }
+
   Activity get _a => widget.activity;
 
   /// Desenha o cartao a [kShareCardPixelRatio] e grava o PNG. Uma imagem por
   /// vez na pasta: as anteriores sao apagadas.
   Future<String> _writeImage() async {
-    final boundary = _cardKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final boundary =
+        _cardKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final image = await boundary.toImage(pixelRatio: kShareCardPixelRatio);
     final ByteData? bytes;
     try {
@@ -88,16 +132,73 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
     } on Object {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Nao foi possivel compartilhar')));
+        ..showSnackBar(
+          const SnackBar(content: Text('Nao foi possivel compartilhar')),
+        );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  /// Etiqueta "Inicio e fim ocultos" e o botao de mostrar o trecho completo
+  /// (ou de voltar a esconder).
+  Widget _privacyTag(AppColors c) {
+    final link = TextButton.styleFrom(
+      foregroundColor: c.ciano.fg,
+      minimumSize: const Size(44, 44),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: _revealFull
+                    ? SportChip.custom(
+                        key: const Key('share_full_tag'),
+                        label: 'Trajeto completo visivel',
+                        role: c.tempo,
+                      )
+                    : SportChip.custom(
+                        key: const Key('share_hidden_tag'),
+                        label: 'Inicio e fim ocultos',
+                        role: c.subida,
+                      ),
+              ),
+            ),
+          ),
+          _revealFull
+              ? TextButton(
+                  key: const Key('share_hide_again'),
+                  style: link,
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _revealFull = false),
+                  child: const Text('Ocultar de novo'),
+                )
+              : TextButton(
+                  key: const Key('share_reveal_full'),
+                  style: link,
+                  onPressed: _busy ? null : _confirmReveal,
+                  child: const Text('Mostrar completo'),
+                ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
-    final route = ref.watch(activityRouteProvider(_a.guid)).value ?? const [];
+    final private =
+        ref.watch(visibleRouteProvider(_a.guid)).value ?? PrivateRoute.empty;
+    final routine =
+        ref.watch(routineWarningForActivityProvider(_a.guid)).value ?? false;
+    final trimmed = private.trim.hidesAnything;
+    final route = _revealFull ? private.full : private.points;
     final profile = ref.watch(activityElevationProfileProvider(_a.guid)).value;
     final data = ShareCardData(
       title: displayActivityTitle(
@@ -112,6 +213,8 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
       gainMeters: profile?.gainMeters,
       route: route,
       metric: ref.watch(settingsProvider).useMetric,
+      showRoute: _mode == ShareRouteMode.trimmed,
+      showHeader: _mode != ShareRouteMode.metricsOnly,
     );
 
     return Scaffold(
@@ -130,13 +233,21 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                   const SizedBox(width: 4),
-                  Text('Compartilhar', style: AppText.screenTitle.copyWith(color: c.text)),
+                  Text(
+                    'Compartilhar',
+                    style: AppText.screenTitle.copyWith(color: c.text),
+                  ),
                 ],
               ),
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(AppShape.gutter, 8, AppShape.gutter, 12),
+                padding: const EdgeInsets.fromLTRB(
+                  AppShape.gutter,
+                  8,
+                  AppShape.gutter,
+                  12,
+                ),
                 child: Center(
                   child: AspectRatio(
                     aspectRatio: kShareCardSize.width / kShareCardSize.height,
@@ -165,10 +276,38 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 12),
+              padding: const EdgeInsets.fromLTRB(
+                AppShape.gutter,
+                0,
+                AppShape.gutter,
+                12,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (trimmed && _mode == ShareRouteMode.trimmed)
+                    _privacyTag(c),
+                  if (routine)
+                    const Padding(
+                      key: Key('share_routine_warning'),
+                      padding: EdgeInsets.only(bottom: 8),
+                      child: RoutineWarningBanner(),
+                    ),
+                  SegmentedSelector<ShareRouteMode>(
+                    key: const Key('share_privacy'),
+                    options: [
+                      for (final m in ShareRouteMode.values)
+                        SegmentOption(
+                          key: Key('share_privacy_${m.name}'),
+                          value: m,
+                          label: m.label,
+                          role: c.subida,
+                        ),
+                    ],
+                    selected: _mode,
+                    onChanged: _busy ? null : (m) => setState(() => _mode = m),
+                  ),
+                  const SizedBox(height: 8),
                   SegmentedSelector<ShareCardStyle>(
                     key: const Key('share_style'),
                     options: [

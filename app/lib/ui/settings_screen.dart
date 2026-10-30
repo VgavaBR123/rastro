@@ -1,5 +1,5 @@
-// Tela de configuracoes: unidades (metrico ou imperial), pausa automatica e
-// peso (para calorias), em secoes de cartao.
+// Tela de configuracoes: unidades (metrico ou imperial), pausa automatica,
+// peso (para calorias) e privacidade (F02), em secoes de cartao.
 library;
 
 import 'package:flutter/material.dart';
@@ -118,6 +118,37 @@ class SettingsScreen extends ConsumerWidget {
                       onSave: ctrl.setWeightKg,
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+          SectionCard(
+            title: 'Privacidade',
+            child: Column(
+              children: [
+                ListTile(
+                  key: const Key('privacy_zones'),
+                  minTileHeight: 56,
+                  title: const Text('Zonas de privacidade'),
+                  subtitle: const Text(
+                    'Esconde o inicio e o fim perto de casa e do trabalho',
+                  ),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: c.textMuted,
+                  ),
+                  onTap: () => context.push(AppRoutes.privacy),
+                ),
+                const SectionDivider(),
+                SwitchListTile(
+                  key: const Key('hide_on_server'),
+                  title: const Text('Ocultar tambem no servidor'),
+                  subtitle: const Text(
+                    'O upload sai sem o inicio e o fim ocultos; distancia e '
+                    'tempo totais continuam certos',
+                  ),
+                  value: s.hideOnServer,
+                  onChanged: ctrl.setHideOnServer,
                 ),
               ],
             ),

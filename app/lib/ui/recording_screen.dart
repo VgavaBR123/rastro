@@ -9,12 +9,15 @@
 // segurar), para o braco ou o bolso nao pausarem a gravacao sem querer.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
 import '../core/format/measures.dart';
 import '../persistence/recording_repository.dart';
+import '../privacy/privacy_providers.dart';
 import '../recording/domain/gap_monitor.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_health.dart';
@@ -56,6 +59,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   /// Tela Salvar aberta (a gravacao segue pausada por baixo).
   bool _saving = false;
   DateTime? _startedAt;
+
+  /// Rotina previsivel (F02): dica gentil no Salvar.
+  bool _routineWarning = false;
 
   /// Salvar ou descartar em andamento: o fim da gravacao vem desta tela, que
   /// fecha sozinha depois.
@@ -118,8 +124,33 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       _saving = true;
       _locked = false;
       _page = 0;
-      _startedAt = DateTime.now().subtract(Duration(milliseconds: s.elapsedMs));
+      // Inicio do cabecalho: "agora menos o tempo" erraria com pausas.
+      final startMs = ref.read(recordingControllerProvider.notifier).startTimestampMs;
+      _startedAt = startMs != null
+          ? DateTime.fromMillisecondsSinceEpoch(startMs)
+          : DateTime.now().subtract(Duration(milliseconds: s.elapsedMs));
     });
+    unawaited(_checkRoutine());
+  }
+
+  /// Confere a rotina (F02) com o inicio desta gravacao e as anteriores. A
+  /// dica e opcional: se a consulta falhar, o Salvar segue sem ela.
+  Future<void> _checkRoutine() async {
+    final ctrl = ref.read(recordingControllerProvider.notifier);
+    final route = ctrl.route;
+    bool warn;
+    try {
+      warn = await routineWarningWithNew(
+        ref.read(privacyRepositoryProvider),
+        start: route.isEmpty ? null : route.first,
+        startedAt: _startedAt ?? DateTime.now(),
+        exceptGuid: ctrl.activityGuid,
+      );
+    } catch (e) {
+      debugPrint('Aviso de rotina indisponivel: $e');
+      warn = false;
+    }
+    if (mounted && warn != _routineWarning) setState(() => _routineWarning = warn);
   }
 
   Future<void> _save(ActivityDraft draft) async {
@@ -137,6 +168,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         title: draft.title,
         description: draft.description,
         visibility: draft.visibility,
+        hideEdgesMeters: draft.hideEdgesMeters,
       );
     }
     if (!mounted) return;
@@ -185,6 +217,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         metric: metric,
         startedAt: _startedAt ?? DateTime.now(),
         busy: _finishing,
+        routineWarning: _routineWarning,
         onBack: () => setState(() => _saving = false),
         onSave: _save,
         onDiscard: _discard,

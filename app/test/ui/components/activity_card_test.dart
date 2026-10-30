@@ -26,6 +26,7 @@ Activity activity(ActivityType t, {int hour = 7, String? title}) => Activity(
       visibility: 'everyone',
       heartbeatPaused: false,
       discardedPointCount: 0,
+      hideEdgesMeters: 0,
     );
 
 const route = [

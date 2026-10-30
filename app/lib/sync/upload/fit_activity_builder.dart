@@ -14,26 +14,32 @@ import 'package:strava_estudo_app/sync/fit/fit_writer.dart';
 /// classification do waypoint que entra no FIT (0 == ACCEPT).
 const int _classificationAccept = 0;
 
-/// Constroi o FIT da atividade `header` usando os waypoints aceitos de `db`.
+/// Registro FIT de um waypoint de [header].
+FitRecord fitRecordFor(Activity header, Waypoint wp) => FitRecord(
+  // elapsedTimeMs e relativo ao inicio; o FIT quer o instante absoluto.
+  timestampUnixMs: header.startTimestampMs + wp.elapsedTimeMs,
+  latitude: wp.latitude,
+  longitude: wp.longitude,
+  cumulativeDistanceMeters: wp.cumulativeDistanceMeters,
+  altitudeMeters: wp.altitudeMeters,
+  speedMetersPerSecond: wp.speedMetersPerSecond,
+);
+
+/// Constroi o FIT da atividade `header` usando os waypoints aceitos de `db`
+/// (sem corte de privacidade).
 Future<Uint8List> buildActivityFit(RecordingDatabase db, Activity header) async {
   final List<Waypoint> waypoints = await db.waypointsForActivity(header.guid);
-
-  final List<FitRecord> records = <FitRecord>[
+  return buildFitFromWaypoints(header, [
     for (final Waypoint wp in waypoints)
-      if (wp.classification == _classificationAccept)
-        FitRecord(
-          // elapsedTimeMs e relativo ao inicio; o FIT quer o instante absoluto.
-          timestampUnixMs: header.startTimestampMs + wp.elapsedTimeMs,
-          latitude: wp.latitude,
-          longitude: wp.longitude,
-          cumulativeDistanceMeters: wp.cumulativeDistanceMeters,
-          altitudeMeters: wp.altitudeMeters,
-          speedMetersPerSecond: wp.speedMetersPerSecond,
-        ),
-  ];
-
-  return encodeActivityFit(
-    startTimeUnixMs: header.startTimestampMs,
-    records: records,
-  );
+      if (wp.classification == _classificationAccept) wp,
+  ]);
 }
+
+/// FIT de [header] com exatamente os [waypoints] dados (ja filtrados e, se
+/// for o caso, cortados pela privacidade). A distancia acumulada de cada
+/// ponto continua a original: o total da atividade vai nos metadados.
+Uint8List buildFitFromWaypoints(Activity header, List<Waypoint> waypoints) =>
+    encodeActivityFit(
+      startTimeUnixMs: header.startTimestampMs,
+      records: [for (final Waypoint wp in waypoints) fitRecordFor(header, wp)],
+    );

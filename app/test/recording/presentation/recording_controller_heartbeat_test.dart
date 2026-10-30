@@ -222,6 +222,25 @@ void main() {
     },
   );
 
+  test('inicio da gravacao exposto e igual ao do cabecalho (F02)', () async {
+    expect(ctrl.startTimestampMs, isNull);
+    await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
+    now = 900000; // pausas e tempo parado nao mexem no inicio
+    expect(ctrl.startTimestampMs, 100000);
+    expect((await head()).startTimestampMs, 100000);
+    await ctrl.stop();
+  });
+
+  test('retomada usa o inicio salvo no cabecalho (F02)', () async {
+    await repo.startActivity(guid: 'z', type: ActivityType.ride, startTimestampMs: 90000);
+    final interrupted = (await repo.interrupted()).single;
+    now = 500000;
+    await ctrl.resumeInterrupted(interrupted);
+    await settle();
+    expect(ctrl.startTimestampMs, 90000);
+    await ctrl.stop();
+  });
+
   test('retomada de gravacao que morreu pausada: sem lacuna', () async {
     await repo.startActivity(
       guid: 'y',

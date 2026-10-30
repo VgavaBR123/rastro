@@ -12,11 +12,15 @@ enum ActivityVisibility {
   /// Valor gravado no banco.
   final String dbValue;
 
-  /// Le o valor do banco; desconhecido ou null vira [everyone] (o padrao).
+  /// Padrao das atividades novas (privacidade automatica, F02).
+  static const ActivityVisibility defaultForNew = onlyMe;
+
+  /// Le o valor do banco; desconhecido ou null vira [onlyMe] (na duvida, o
+  /// mais restrito).
   static ActivityVisibility fromDb(String? value) {
     for (final v in values) {
       if (v.dbValue == value) return v;
     }
-    return everyone;
+    return onlyMe;
   }
 }

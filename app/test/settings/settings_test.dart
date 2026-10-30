@@ -71,4 +71,18 @@ void main() {
     ]);
     expect((await db.loadSettings()).reliabilityChecklistSeen, isTrue);
   });
+
+  test('ocultar tambem no servidor: padrao ligado, desliga e persiste (F02)', () async {
+    final c1 = SettingsController(db);
+    await c1.load();
+    expect(c1.state.hideOnServer, isTrue);
+    await c1.setHideOnServer(false);
+    expect(c1.state.hideOnServer, isFalse);
+    // Outras alteracoes nao religam.
+    await c1.setUseMetric(false);
+    expect(c1.state.hideOnServer, isFalse);
+    final c2 = SettingsController(db);
+    await c2.load();
+    expect(c2.state.hideOnServer, isFalse);
+  });
 }

@@ -96,6 +96,9 @@ class RecordingRepository {
         autoPauseEnabled: Value(autoPauseEnabled),
         startBatteryLevel: Value(startBatteryLevel),
         ownerUserId: Value(ownerUserId),
+        // Privacidade (F02): toda atividade nasce "so eu", mesmo em banco
+        // migrado (onde o padrao da coluna ainda e o antigo).
+        visibility: Value(ActivityVisibility.defaultForNew.dbValue),
       ),
     );
   }
@@ -130,19 +133,22 @@ class RecordingRepository {
     );
   }
 
-  /// Grava titulo, descricao e visibilidade escolhidos na tela Salvar.
-  /// Vazio vira null (a UI cai no titulo sugerido). So local por enquanto: o
-  /// upload (lib/sync) ainda nao envia esses campos ao servidor.
+  /// Grava titulo, descricao, visibilidade e o corte das pontas
+  /// ([hideEdgesMeters], F02) escolhidos na tela Salvar. Vazio vira null (a
+  /// UI cai no titulo sugerido). Titulo, descricao e visibilidade sao so
+  /// locais por enquanto: o upload ainda nao envia esses campos.
   Future<void> saveDetails(
     String guid, {
     String? title,
     String? description,
-    ActivityVisibility visibility = ActivityVisibility.everyone,
+    ActivityVisibility visibility = ActivityVisibility.defaultForNew,
+    int? hideEdgesMeters,
   }) => db.saveActivityDetails(
     guid,
     title: title,
     description: description,
     visibility: visibility,
+    hideEdgesMeters: hideEdgesMeters,
   );
 
   /// Guarda uma volta fechada.

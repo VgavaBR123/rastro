@@ -28,6 +28,7 @@ class SettingsController extends StateNotifier<AppSettings> {
       autoPauseEnabled: row.autoPauseEnabled,
       weightKg: row.weightKg,
       reliabilityChecklistSeen: row.reliabilityChecklistSeen,
+      hideOnServer: row.hideOnServer,
     );
   }
 
@@ -53,5 +54,11 @@ class SettingsController extends StateNotifier<AppSettings> {
   Future<void> markReliabilityChecklistSeen() async {
     state = state.copyWith(reliabilityChecklistSeen: true);
     await _db.saveSettings(reliabilityChecklistSeen: true);
+  }
+
+  /// Privacidade (F02): cortar as pontas ocultas tambem no upload.
+  Future<void> setHideOnServer(bool value) async {
+    state = state.copyWith(hideOnServer: value);
+    await _db.saveSettings(hideOnServer: value);
   }
 }

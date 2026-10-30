@@ -212,7 +212,19 @@ class $ActivitiesTable extends Activities
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('everyone'),
+    defaultValue: const Constant('private'),
+  );
+  static const VerificationMeta _hideEdgesMetersMeta = const VerificationMeta(
+    'hideEdgesMeters',
+  );
+  @override
+  late final GeneratedColumn<int> hideEdgesMeters = GeneratedColumn<int>(
+    'hide_edges_meters',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _lastHeartbeatMsMeta = const VerificationMeta(
     'lastHeartbeatMs',
@@ -271,6 +283,7 @@ class $ActivitiesTable extends Activities
     title,
     description,
     visibility,
+    hideEdgesMeters,
     lastHeartbeatMs,
     heartbeatPaused,
     discardedPointCount,
@@ -414,6 +427,15 @@ class $ActivitiesTable extends Activities
         visibility.isAcceptableOrUnknown(data['visibility']!, _visibilityMeta),
       );
     }
+    if (data.containsKey('hide_edges_meters')) {
+      context.handle(
+        _hideEdgesMetersMeta,
+        hideEdgesMeters.isAcceptableOrUnknown(
+          data['hide_edges_meters']!,
+          _hideEdgesMetersMeta,
+        ),
+      );
+    }
     if (data.containsKey('last_heartbeat_ms')) {
       context.handle(
         _lastHeartbeatMsMeta,
@@ -526,6 +548,10 @@ class $ActivitiesTable extends Activities
         DriftSqlType.string,
         data['${effectivePrefix}visibility'],
       )!,
+      hideEdgesMeters: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}hide_edges_meters'],
+      )!,
       lastHeartbeatMs: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}last_heartbeat_ms'],
@@ -585,9 +611,15 @@ class Activity extends DataClass implements Insertable<Activity> {
   final String? description;
 
   /// Quem pode ver: 'private' | 'followers' | 'everyone' (ver
-  /// [ActivityVisibility]). Padrao 'everyone', o mesmo da tela Salvar; as
-  /// atividades antigas ganham esse valor na migracao. Por enquanto so local.
+  /// [ActivityVisibility]). Privacidade automatica (F02): atividade nova
+  /// nasce 'private' ("so eu"); o repositorio grava isso explicitamente no
+  /// inicio, porque bancos migrados guardam o padrao antigo da coluna. As
+  /// atividades antigas mantem o que tinham. Por enquanto so local.
   final String visibility;
+
+  /// Privacidade (F02): ocultar os primeiros e os ultimos X metros desta
+  /// atividade no que sai do aparelho (imagem, upload, exportacao). 0 = nao.
+  final int hideEdgesMeters;
 
   /// Gravacao blindada (F01): instante (epoch ms) do ultimo batimento salvo
   /// durante a gravacao. Na recuperacao pos-crash, o intervalo dele ate a
@@ -619,6 +651,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     this.title,
     this.description,
     required this.visibility,
+    required this.hideEdgesMeters,
     this.lastHeartbeatMs,
     required this.heartbeatPaused,
     required this.discardedPointCount,
@@ -668,6 +701,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       map['description'] = Variable<String>(description);
     }
     map['visibility'] = Variable<String>(visibility);
+    map['hide_edges_meters'] = Variable<int>(hideEdgesMeters);
     if (!nullToAbsent || lastHeartbeatMs != null) {
       map['last_heartbeat_ms'] = Variable<int>(lastHeartbeatMs);
     }
@@ -712,6 +746,7 @@ class Activity extends DataClass implements Insertable<Activity> {
           ? const Value.absent()
           : Value(description),
       visibility: Value(visibility),
+      hideEdgesMeters: Value(hideEdgesMeters),
       lastHeartbeatMs: lastHeartbeatMs == null && nullToAbsent
           ? const Value.absent()
           : Value(lastHeartbeatMs),
@@ -748,6 +783,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       title: serializer.fromJson<String?>(json['title']),
       description: serializer.fromJson<String?>(json['description']),
       visibility: serializer.fromJson<String>(json['visibility']),
+      hideEdgesMeters: serializer.fromJson<int>(json['hideEdgesMeters']),
       lastHeartbeatMs: serializer.fromJson<int?>(json['lastHeartbeatMs']),
       heartbeatPaused: serializer.fromJson<bool>(json['heartbeatPaused']),
       discardedPointCount: serializer.fromJson<int>(
@@ -781,6 +817,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       'title': serializer.toJson<String?>(title),
       'description': serializer.toJson<String?>(description),
       'visibility': serializer.toJson<String>(visibility),
+      'hideEdgesMeters': serializer.toJson<int>(hideEdgesMeters),
       'lastHeartbeatMs': serializer.toJson<int?>(lastHeartbeatMs),
       'heartbeatPaused': serializer.toJson<bool>(heartbeatPaused),
       'discardedPointCount': serializer.toJson<int>(discardedPointCount),
@@ -806,6 +843,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     Value<String?> title = const Value.absent(),
     Value<String?> description = const Value.absent(),
     String? visibility,
+    int? hideEdgesMeters,
     Value<int?> lastHeartbeatMs = const Value.absent(),
     bool? heartbeatPaused,
     int? discardedPointCount,
@@ -834,6 +872,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     title: title.present ? title.value : this.title,
     description: description.present ? description.value : this.description,
     visibility: visibility ?? this.visibility,
+    hideEdgesMeters: hideEdgesMeters ?? this.hideEdgesMeters,
     lastHeartbeatMs: lastHeartbeatMs.present
         ? lastHeartbeatMs.value
         : this.lastHeartbeatMs,
@@ -884,6 +923,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       visibility: data.visibility.present
           ? data.visibility.value
           : this.visibility,
+      hideEdgesMeters: data.hideEdgesMeters.present
+          ? data.hideEdgesMeters.value
+          : this.hideEdgesMeters,
       lastHeartbeatMs: data.lastHeartbeatMs.present
           ? data.lastHeartbeatMs.value
           : this.lastHeartbeatMs,
@@ -917,6 +959,7 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('title: $title, ')
           ..write('description: $description, ')
           ..write('visibility: $visibility, ')
+          ..write('hideEdgesMeters: $hideEdgesMeters, ')
           ..write('lastHeartbeatMs: $lastHeartbeatMs, ')
           ..write('heartbeatPaused: $heartbeatPaused, ')
           ..write('discardedPointCount: $discardedPointCount')
@@ -944,6 +987,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     title,
     description,
     visibility,
+    hideEdgesMeters,
     lastHeartbeatMs,
     heartbeatPaused,
     discardedPointCount,
@@ -970,6 +1014,7 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.title == this.title &&
           other.description == this.description &&
           other.visibility == this.visibility &&
+          other.hideEdgesMeters == this.hideEdgesMeters &&
           other.lastHeartbeatMs == this.lastHeartbeatMs &&
           other.heartbeatPaused == this.heartbeatPaused &&
           other.discardedPointCount == this.discardedPointCount);
@@ -994,6 +1039,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<String?> title;
   final Value<String?> description;
   final Value<String> visibility;
+  final Value<int> hideEdgesMeters;
   final Value<int?> lastHeartbeatMs;
   final Value<bool> heartbeatPaused;
   final Value<int> discardedPointCount;
@@ -1017,6 +1063,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.title = const Value.absent(),
     this.description = const Value.absent(),
     this.visibility = const Value.absent(),
+    this.hideEdgesMeters = const Value.absent(),
     this.lastHeartbeatMs = const Value.absent(),
     this.heartbeatPaused = const Value.absent(),
     this.discardedPointCount = const Value.absent(),
@@ -1041,6 +1088,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.title = const Value.absent(),
     this.description = const Value.absent(),
     this.visibility = const Value.absent(),
+    this.hideEdgesMeters = const Value.absent(),
     this.lastHeartbeatMs = const Value.absent(),
     this.heartbeatPaused = const Value.absent(),
     this.discardedPointCount = const Value.absent(),
@@ -1068,6 +1116,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<String>? title,
     Expression<String>? description,
     Expression<String>? visibility,
+    Expression<int>? hideEdgesMeters,
     Expression<int>? lastHeartbeatMs,
     Expression<bool>? heartbeatPaused,
     Expression<int>? discardedPointCount,
@@ -1092,6 +1141,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (title != null) 'title': title,
       if (description != null) 'description': description,
       if (visibility != null) 'visibility': visibility,
+      if (hideEdgesMeters != null) 'hide_edges_meters': hideEdgesMeters,
       if (lastHeartbeatMs != null) 'last_heartbeat_ms': lastHeartbeatMs,
       if (heartbeatPaused != null) 'heartbeat_paused': heartbeatPaused,
       if (discardedPointCount != null)
@@ -1119,6 +1169,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<String?>? title,
     Value<String?>? description,
     Value<String>? visibility,
+    Value<int>? hideEdgesMeters,
     Value<int?>? lastHeartbeatMs,
     Value<bool>? heartbeatPaused,
     Value<int>? discardedPointCount,
@@ -1143,6 +1194,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       title: title ?? this.title,
       description: description ?? this.description,
       visibility: visibility ?? this.visibility,
+      hideEdgesMeters: hideEdgesMeters ?? this.hideEdgesMeters,
       lastHeartbeatMs: lastHeartbeatMs ?? this.lastHeartbeatMs,
       heartbeatPaused: heartbeatPaused ?? this.heartbeatPaused,
       discardedPointCount: discardedPointCount ?? this.discardedPointCount,
@@ -1211,6 +1263,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (visibility.present) {
       map['visibility'] = Variable<String>(visibility.value);
     }
+    if (hideEdgesMeters.present) {
+      map['hide_edges_meters'] = Variable<int>(hideEdgesMeters.value);
+    }
     if (lastHeartbeatMs.present) {
       map['last_heartbeat_ms'] = Variable<int>(lastHeartbeatMs.value);
     }
@@ -1247,6 +1302,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('title: $title, ')
           ..write('description: $description, ')
           ..write('visibility: $visibility, ')
+          ..write('hideEdgesMeters: $hideEdgesMeters, ')
           ..write('lastHeartbeatMs: $lastHeartbeatMs, ')
           ..write('heartbeatPaused: $heartbeatPaused, ')
           ..write('discardedPointCount: $discardedPointCount, ')
@@ -2164,6 +2220,21 @@ class $SettingsRowsTable extends SettingsRows
         ),
         defaultValue: const Constant(false),
       );
+  static const VerificationMeta _hideOnServerMeta = const VerificationMeta(
+    'hideOnServer',
+  );
+  @override
+  late final GeneratedColumn<bool> hideOnServer = GeneratedColumn<bool>(
+    'hide_on_server',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("hide_on_server" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2171,6 +2242,7 @@ class $SettingsRowsTable extends SettingsRows
     autoPauseEnabled,
     weightKg,
     reliabilityChecklistSeen,
+    hideOnServer,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2217,6 +2289,15 @@ class $SettingsRowsTable extends SettingsRows
         ),
       );
     }
+    if (data.containsKey('hide_on_server')) {
+      context.handle(
+        _hideOnServerMeta,
+        hideOnServer.isAcceptableOrUnknown(
+          data['hide_on_server']!,
+          _hideOnServerMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2246,6 +2327,10 @@ class $SettingsRowsTable extends SettingsRows
         DriftSqlType.bool,
         data['${effectivePrefix}reliability_checklist_seen'],
       )!,
+      hideOnServer: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}hide_on_server'],
+      )!,
     );
   }
 
@@ -2266,12 +2351,16 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
 
   /// Checklist "Gravacao confiavel" ja mostrado antes da primeira gravacao.
   final bool reliabilityChecklistSeen;
+
+  /// Privacidade (F02): o FIT enviado ao servidor sai sem os pontos ocultos.
+  final bool hideOnServer;
   const SettingsRow({
     required this.id,
     required this.useMetric,
     required this.autoPauseEnabled,
     this.weightKg,
     required this.reliabilityChecklistSeen,
+    required this.hideOnServer,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2285,6 +2374,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     map['reliability_checklist_seen'] = Variable<bool>(
       reliabilityChecklistSeen,
     );
+    map['hide_on_server'] = Variable<bool>(hideOnServer);
     return map;
   }
 
@@ -2297,6 +2387,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ? const Value.absent()
           : Value(weightKg),
       reliabilityChecklistSeen: Value(reliabilityChecklistSeen),
+      hideOnServer: Value(hideOnServer),
     );
   }
 
@@ -2313,6 +2404,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       reliabilityChecklistSeen: serializer.fromJson<bool>(
         json['reliabilityChecklistSeen'],
       ),
+      hideOnServer: serializer.fromJson<bool>(json['hideOnServer']),
     );
   }
   @override
@@ -2326,6 +2418,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       'reliabilityChecklistSeen': serializer.toJson<bool>(
         reliabilityChecklistSeen,
       ),
+      'hideOnServer': serializer.toJson<bool>(hideOnServer),
     };
   }
 
@@ -2335,6 +2428,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     bool? autoPauseEnabled,
     Value<double?> weightKg = const Value.absent(),
     bool? reliabilityChecklistSeen,
+    bool? hideOnServer,
   }) => SettingsRow(
     id: id ?? this.id,
     useMetric: useMetric ?? this.useMetric,
@@ -2342,6 +2436,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     weightKg: weightKg.present ? weightKg.value : this.weightKg,
     reliabilityChecklistSeen:
         reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
+    hideOnServer: hideOnServer ?? this.hideOnServer,
   );
   SettingsRow copyWithCompanion(SettingsRowsCompanion data) {
     return SettingsRow(
@@ -2354,6 +2449,9 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
       reliabilityChecklistSeen: data.reliabilityChecklistSeen.present
           ? data.reliabilityChecklistSeen.value
           : this.reliabilityChecklistSeen,
+      hideOnServer: data.hideOnServer.present
+          ? data.hideOnServer.value
+          : this.hideOnServer,
     );
   }
 
@@ -2364,7 +2462,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           ..write('useMetric: $useMetric, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
           ..write('weightKg: $weightKg, ')
-          ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen')
+          ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
+          ..write('hideOnServer: $hideOnServer')
           ..write(')'))
         .toString();
   }
@@ -2376,6 +2475,7 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
     autoPauseEnabled,
     weightKg,
     reliabilityChecklistSeen,
+    hideOnServer,
   );
   @override
   bool operator ==(Object other) =>
@@ -2385,7 +2485,8 @@ class SettingsRow extends DataClass implements Insertable<SettingsRow> {
           other.useMetric == this.useMetric &&
           other.autoPauseEnabled == this.autoPauseEnabled &&
           other.weightKg == this.weightKg &&
-          other.reliabilityChecklistSeen == this.reliabilityChecklistSeen);
+          other.reliabilityChecklistSeen == this.reliabilityChecklistSeen &&
+          other.hideOnServer == this.hideOnServer);
 }
 
 class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
@@ -2394,12 +2495,14 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
   final Value<bool> autoPauseEnabled;
   final Value<double?> weightKg;
   final Value<bool> reliabilityChecklistSeen;
+  final Value<bool> hideOnServer;
   const SettingsRowsCompanion({
     this.id = const Value.absent(),
     this.useMetric = const Value.absent(),
     this.autoPauseEnabled = const Value.absent(),
     this.weightKg = const Value.absent(),
     this.reliabilityChecklistSeen = const Value.absent(),
+    this.hideOnServer = const Value.absent(),
   });
   SettingsRowsCompanion.insert({
     this.id = const Value.absent(),
@@ -2407,6 +2510,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     this.autoPauseEnabled = const Value.absent(),
     this.weightKg = const Value.absent(),
     this.reliabilityChecklistSeen = const Value.absent(),
+    this.hideOnServer = const Value.absent(),
   });
   static Insertable<SettingsRow> custom({
     Expression<int>? id,
@@ -2414,6 +2518,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Expression<bool>? autoPauseEnabled,
     Expression<double>? weightKg,
     Expression<bool>? reliabilityChecklistSeen,
+    Expression<bool>? hideOnServer,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2422,6 +2527,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       if (weightKg != null) 'weight_kg': weightKg,
       if (reliabilityChecklistSeen != null)
         'reliability_checklist_seen': reliabilityChecklistSeen,
+      if (hideOnServer != null) 'hide_on_server': hideOnServer,
     });
   }
 
@@ -2431,6 +2537,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
     Value<bool>? autoPauseEnabled,
     Value<double?>? weightKg,
     Value<bool>? reliabilityChecklistSeen,
+    Value<bool>? hideOnServer,
   }) {
     return SettingsRowsCompanion(
       id: id ?? this.id,
@@ -2439,6 +2546,7 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
       weightKg: weightKg ?? this.weightKg,
       reliabilityChecklistSeen:
           reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
+      hideOnServer: hideOnServer ?? this.hideOnServer,
     );
   }
 
@@ -2462,6 +2570,9 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
         reliabilityChecklistSeen.value,
       );
     }
+    if (hideOnServer.present) {
+      map['hide_on_server'] = Variable<bool>(hideOnServer.value);
+    }
     return map;
   }
 
@@ -2472,7 +2583,8 @@ class SettingsRowsCompanion extends UpdateCompanion<SettingsRow> {
           ..write('useMetric: $useMetric, ')
           ..write('autoPauseEnabled: $autoPauseEnabled, ')
           ..write('weightKg: $weightKg, ')
-          ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen')
+          ..write('reliabilityChecklistSeen: $reliabilityChecklistSeen, ')
+          ..write('hideOnServer: $hideOnServer')
           ..write(')'))
         .toString();
   }
@@ -3619,6 +3731,726 @@ class RecordingGapsCompanion extends UpdateCompanion<RecordingGapRow> {
   }
 }
 
+class $PrivacyZonesTable extends PrivacyZones
+    with TableInfo<$PrivacyZonesTable, PrivacyZoneRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PrivacyZonesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _radiusMetersMeta = const VerificationMeta(
+    'radiusMeters',
+  );
+  @override
+  late final GeneratedColumn<double> radiusMeters = GeneratedColumn<double>(
+    'radius_meters',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMsMeta = const VerificationMeta(
+    'createdAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtMs = GeneratedColumn<int>(
+    'created_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    latitude,
+    longitude,
+    radiusMeters,
+    label,
+    createdAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'privacy_zones';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PrivacyZoneRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_latitudeMeta);
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_longitudeMeta);
+    }
+    if (data.containsKey('radius_meters')) {
+      context.handle(
+        _radiusMetersMeta,
+        radiusMeters.isAcceptableOrUnknown(
+          data['radius_meters']!,
+          _radiusMetersMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_radiusMetersMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('created_at_ms')) {
+      context.handle(
+        _createdAtMsMeta,
+        createdAtMs.isAcceptableOrUnknown(
+          data['created_at_ms']!,
+          _createdAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PrivacyZoneRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PrivacyZoneRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      latitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}latitude'],
+      )!,
+      longitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}longitude'],
+      )!,
+      radiusMeters: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}radius_meters'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      createdAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $PrivacyZonesTable createAlias(String alias) {
+    return $PrivacyZonesTable(attachedDatabase, alias);
+  }
+}
+
+class PrivacyZoneRow extends DataClass implements Insertable<PrivacyZoneRow> {
+  final int id;
+  final double latitude;
+  final double longitude;
+  final double radiusMeters;
+  final String label;
+  final int createdAtMs;
+  const PrivacyZoneRow({
+    required this.id,
+    required this.latitude,
+    required this.longitude,
+    required this.radiusMeters,
+    required this.label,
+    required this.createdAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['latitude'] = Variable<double>(latitude);
+    map['longitude'] = Variable<double>(longitude);
+    map['radius_meters'] = Variable<double>(radiusMeters);
+    map['label'] = Variable<String>(label);
+    map['created_at_ms'] = Variable<int>(createdAtMs);
+    return map;
+  }
+
+  PrivacyZonesCompanion toCompanion(bool nullToAbsent) {
+    return PrivacyZonesCompanion(
+      id: Value(id),
+      latitude: Value(latitude),
+      longitude: Value(longitude),
+      radiusMeters: Value(radiusMeters),
+      label: Value(label),
+      createdAtMs: Value(createdAtMs),
+    );
+  }
+
+  factory PrivacyZoneRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PrivacyZoneRow(
+      id: serializer.fromJson<int>(json['id']),
+      latitude: serializer.fromJson<double>(json['latitude']),
+      longitude: serializer.fromJson<double>(json['longitude']),
+      radiusMeters: serializer.fromJson<double>(json['radiusMeters']),
+      label: serializer.fromJson<String>(json['label']),
+      createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'latitude': serializer.toJson<double>(latitude),
+      'longitude': serializer.toJson<double>(longitude),
+      'radiusMeters': serializer.toJson<double>(radiusMeters),
+      'label': serializer.toJson<String>(label),
+      'createdAtMs': serializer.toJson<int>(createdAtMs),
+    };
+  }
+
+  PrivacyZoneRow copyWith({
+    int? id,
+    double? latitude,
+    double? longitude,
+    double? radiusMeters,
+    String? label,
+    int? createdAtMs,
+  }) => PrivacyZoneRow(
+    id: id ?? this.id,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    radiusMeters: radiusMeters ?? this.radiusMeters,
+    label: label ?? this.label,
+    createdAtMs: createdAtMs ?? this.createdAtMs,
+  );
+  PrivacyZoneRow copyWithCompanion(PrivacyZonesCompanion data) {
+    return PrivacyZoneRow(
+      id: data.id.present ? data.id.value : this.id,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      radiusMeters: data.radiusMeters.present
+          ? data.radiusMeters.value
+          : this.radiusMeters,
+      label: data.label.present ? data.label.value : this.label,
+      createdAtMs: data.createdAtMs.present
+          ? data.createdAtMs.value
+          : this.createdAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PrivacyZoneRow(')
+          ..write('id: $id, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('radiusMeters: $radiusMeters, ')
+          ..write('label: $label, ')
+          ..write('createdAtMs: $createdAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, latitude, longitude, radiusMeters, label, createdAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PrivacyZoneRow &&
+          other.id == this.id &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.radiusMeters == this.radiusMeters &&
+          other.label == this.label &&
+          other.createdAtMs == this.createdAtMs);
+}
+
+class PrivacyZonesCompanion extends UpdateCompanion<PrivacyZoneRow> {
+  final Value<int> id;
+  final Value<double> latitude;
+  final Value<double> longitude;
+  final Value<double> radiusMeters;
+  final Value<String> label;
+  final Value<int> createdAtMs;
+  const PrivacyZonesCompanion({
+    this.id = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.radiusMeters = const Value.absent(),
+    this.label = const Value.absent(),
+    this.createdAtMs = const Value.absent(),
+  });
+  PrivacyZonesCompanion.insert({
+    this.id = const Value.absent(),
+    required double latitude,
+    required double longitude,
+    required double radiusMeters,
+    required String label,
+    required int createdAtMs,
+  }) : latitude = Value(latitude),
+       longitude = Value(longitude),
+       radiusMeters = Value(radiusMeters),
+       label = Value(label),
+       createdAtMs = Value(createdAtMs);
+  static Insertable<PrivacyZoneRow> custom({
+    Expression<int>? id,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<double>? radiusMeters,
+    Expression<String>? label,
+    Expression<int>? createdAtMs,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (radiusMeters != null) 'radius_meters': radiusMeters,
+      if (label != null) 'label': label,
+      if (createdAtMs != null) 'created_at_ms': createdAtMs,
+    });
+  }
+
+  PrivacyZonesCompanion copyWith({
+    Value<int>? id,
+    Value<double>? latitude,
+    Value<double>? longitude,
+    Value<double>? radiusMeters,
+    Value<String>? label,
+    Value<int>? createdAtMs,
+  }) {
+    return PrivacyZonesCompanion(
+      id: id ?? this.id,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      radiusMeters: radiusMeters ?? this.radiusMeters,
+      label: label ?? this.label,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (radiusMeters.present) {
+      map['radius_meters'] = Variable<double>(radiusMeters.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (createdAtMs.present) {
+      map['created_at_ms'] = Variable<int>(createdAtMs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PrivacyZonesCompanion(')
+          ..write('id: $id, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('radiusMeters: $radiusMeters, ')
+          ..write('label: $label, ')
+          ..write('createdAtMs: $createdAtMs')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $DismissedZoneSuggestionsTable extends DismissedZoneSuggestions
+    with TableInfo<$DismissedZoneSuggestionsTable, DismissedZoneSuggestionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DismissedZoneSuggestionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _latitudeMeta = const VerificationMeta(
+    'latitude',
+  );
+  @override
+  late final GeneratedColumn<double> latitude = GeneratedColumn<double>(
+    'latitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _longitudeMeta = const VerificationMeta(
+    'longitude',
+  );
+  @override
+  late final GeneratedColumn<double> longitude = GeneratedColumn<double>(
+    'longitude',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMsMeta = const VerificationMeta(
+    'createdAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtMs = GeneratedColumn<int>(
+    'created_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, latitude, longitude, createdAtMs];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'dismissed_zone_suggestions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DismissedZoneSuggestionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('latitude')) {
+      context.handle(
+        _latitudeMeta,
+        latitude.isAcceptableOrUnknown(data['latitude']!, _latitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_latitudeMeta);
+    }
+    if (data.containsKey('longitude')) {
+      context.handle(
+        _longitudeMeta,
+        longitude.isAcceptableOrUnknown(data['longitude']!, _longitudeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_longitudeMeta);
+    }
+    if (data.containsKey('created_at_ms')) {
+      context.handle(
+        _createdAtMsMeta,
+        createdAtMs.isAcceptableOrUnknown(
+          data['created_at_ms']!,
+          _createdAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DismissedZoneSuggestionRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DismissedZoneSuggestionRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      latitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}latitude'],
+      )!,
+      longitude: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}longitude'],
+      )!,
+      createdAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $DismissedZoneSuggestionsTable createAlias(String alias) {
+    return $DismissedZoneSuggestionsTable(attachedDatabase, alias);
+  }
+}
+
+class DismissedZoneSuggestionRow extends DataClass
+    implements Insertable<DismissedZoneSuggestionRow> {
+  final int id;
+  final double latitude;
+  final double longitude;
+  final int createdAtMs;
+  const DismissedZoneSuggestionRow({
+    required this.id,
+    required this.latitude,
+    required this.longitude,
+    required this.createdAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['latitude'] = Variable<double>(latitude);
+    map['longitude'] = Variable<double>(longitude);
+    map['created_at_ms'] = Variable<int>(createdAtMs);
+    return map;
+  }
+
+  DismissedZoneSuggestionsCompanion toCompanion(bool nullToAbsent) {
+    return DismissedZoneSuggestionsCompanion(
+      id: Value(id),
+      latitude: Value(latitude),
+      longitude: Value(longitude),
+      createdAtMs: Value(createdAtMs),
+    );
+  }
+
+  factory DismissedZoneSuggestionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DismissedZoneSuggestionRow(
+      id: serializer.fromJson<int>(json['id']),
+      latitude: serializer.fromJson<double>(json['latitude']),
+      longitude: serializer.fromJson<double>(json['longitude']),
+      createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'latitude': serializer.toJson<double>(latitude),
+      'longitude': serializer.toJson<double>(longitude),
+      'createdAtMs': serializer.toJson<int>(createdAtMs),
+    };
+  }
+
+  DismissedZoneSuggestionRow copyWith({
+    int? id,
+    double? latitude,
+    double? longitude,
+    int? createdAtMs,
+  }) => DismissedZoneSuggestionRow(
+    id: id ?? this.id,
+    latitude: latitude ?? this.latitude,
+    longitude: longitude ?? this.longitude,
+    createdAtMs: createdAtMs ?? this.createdAtMs,
+  );
+  DismissedZoneSuggestionRow copyWithCompanion(
+    DismissedZoneSuggestionsCompanion data,
+  ) {
+    return DismissedZoneSuggestionRow(
+      id: data.id.present ? data.id.value : this.id,
+      latitude: data.latitude.present ? data.latitude.value : this.latitude,
+      longitude: data.longitude.present ? data.longitude.value : this.longitude,
+      createdAtMs: data.createdAtMs.present
+          ? data.createdAtMs.value
+          : this.createdAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DismissedZoneSuggestionRow(')
+          ..write('id: $id, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('createdAtMs: $createdAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, latitude, longitude, createdAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DismissedZoneSuggestionRow &&
+          other.id == this.id &&
+          other.latitude == this.latitude &&
+          other.longitude == this.longitude &&
+          other.createdAtMs == this.createdAtMs);
+}
+
+class DismissedZoneSuggestionsCompanion
+    extends UpdateCompanion<DismissedZoneSuggestionRow> {
+  final Value<int> id;
+  final Value<double> latitude;
+  final Value<double> longitude;
+  final Value<int> createdAtMs;
+  const DismissedZoneSuggestionsCompanion({
+    this.id = const Value.absent(),
+    this.latitude = const Value.absent(),
+    this.longitude = const Value.absent(),
+    this.createdAtMs = const Value.absent(),
+  });
+  DismissedZoneSuggestionsCompanion.insert({
+    this.id = const Value.absent(),
+    required double latitude,
+    required double longitude,
+    required int createdAtMs,
+  }) : latitude = Value(latitude),
+       longitude = Value(longitude),
+       createdAtMs = Value(createdAtMs);
+  static Insertable<DismissedZoneSuggestionRow> custom({
+    Expression<int>? id,
+    Expression<double>? latitude,
+    Expression<double>? longitude,
+    Expression<int>? createdAtMs,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (createdAtMs != null) 'created_at_ms': createdAtMs,
+    });
+  }
+
+  DismissedZoneSuggestionsCompanion copyWith({
+    Value<int>? id,
+    Value<double>? latitude,
+    Value<double>? longitude,
+    Value<int>? createdAtMs,
+  }) {
+    return DismissedZoneSuggestionsCompanion(
+      id: id ?? this.id,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (latitude.present) {
+      map['latitude'] = Variable<double>(latitude.value);
+    }
+    if (longitude.present) {
+      map['longitude'] = Variable<double>(longitude.value);
+    }
+    if (createdAtMs.present) {
+      map['created_at_ms'] = Variable<int>(createdAtMs.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DismissedZoneSuggestionsCompanion(')
+          ..write('id: $id, ')
+          ..write('latitude: $latitude, ')
+          ..write('longitude: $longitude, ')
+          ..write('createdAtMs: $createdAtMs')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RecordingDatabase extends GeneratedDatabase {
   _$RecordingDatabase(QueryExecutor e) : super(e);
   $RecordingDatabaseManager get managers => $RecordingDatabaseManager(this);
@@ -3630,6 +4462,9 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
   );
   late final $LapsTable laps = $LapsTable(this);
   late final $RecordingGapsTable recordingGaps = $RecordingGapsTable(this);
+  late final $PrivacyZonesTable privacyZones = $PrivacyZonesTable(this);
+  late final $DismissedZoneSuggestionsTable dismissedZoneSuggestions =
+      $DismissedZoneSuggestionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3641,6 +4476,8 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     remoteDeletions,
     laps,
     recordingGaps,
+    privacyZones,
+    dismissedZoneSuggestions,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3687,6 +4524,7 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<String?> title,
   Value<String?> description,
   Value<String> visibility,
+  Value<int> hideEdgesMeters,
   Value<int?> lastHeartbeatMs,
   Value<bool> heartbeatPaused,
   Value<int> discardedPointCount,
@@ -3711,6 +4549,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<String?> title,
   Value<String?> description,
   Value<String> visibility,
+  Value<int> hideEdgesMeters,
   Value<int?> lastHeartbeatMs,
   Value<bool> heartbeatPaused,
   Value<int> discardedPointCount,
@@ -3874,6 +4713,11 @@ class $$ActivitiesTableFilterComposer
 
   ColumnFilters<String> get visibility => $composableBuilder(
     column: $table.visibility,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get hideEdgesMeters => $composableBuilder(
+    column: $table.hideEdgesMeters,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4067,6 +4911,11 @@ class $$ActivitiesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get hideEdgesMeters => $composableBuilder(
+    column: $table.hideEdgesMeters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get lastHeartbeatMs => $composableBuilder(
     column: $table.lastHeartbeatMs,
     builder: (column) => ColumnOrderings(column),
@@ -4168,6 +5017,11 @@ class $$ActivitiesTableAnnotationComposer
 
   GeneratedColumn<String> get visibility => $composableBuilder(
     column: $table.visibility,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get hideEdgesMeters => $composableBuilder(
+    column: $table.hideEdgesMeters,
     builder: (column) => column,
   );
 
@@ -4312,6 +5166,7 @@ class $$ActivitiesTableTableManager
                 Value<String?> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String> visibility = const Value.absent(),
+                Value<int> hideEdgesMeters = const Value.absent(),
                 Value<int?> lastHeartbeatMs = const Value.absent(),
                 Value<bool> heartbeatPaused = const Value.absent(),
                 Value<int> discardedPointCount = const Value.absent(),
@@ -4335,6 +5190,7 @@ class $$ActivitiesTableTableManager
                 title: title,
                 description: description,
                 visibility: visibility,
+                hideEdgesMeters: hideEdgesMeters,
                 lastHeartbeatMs: lastHeartbeatMs,
                 heartbeatPaused: heartbeatPaused,
                 discardedPointCount: discardedPointCount,
@@ -4360,6 +5216,7 @@ class $$ActivitiesTableTableManager
                 Value<String?> title = const Value.absent(),
                 Value<String?> description = const Value.absent(),
                 Value<String> visibility = const Value.absent(),
+                Value<int> hideEdgesMeters = const Value.absent(),
                 Value<int?> lastHeartbeatMs = const Value.absent(),
                 Value<bool> heartbeatPaused = const Value.absent(),
                 Value<int> discardedPointCount = const Value.absent(),
@@ -4383,6 +5240,7 @@ class $$ActivitiesTableTableManager
                 title: title,
                 description: description,
                 visibility: visibility,
+                hideEdgesMeters: hideEdgesMeters,
                 lastHeartbeatMs: lastHeartbeatMs,
                 heartbeatPaused: heartbeatPaused,
                 discardedPointCount: discardedPointCount,
@@ -4980,6 +5838,7 @@ typedef $$SettingsRowsTableCreateCompanionBuilder =
       Value<bool> autoPauseEnabled,
       Value<double?> weightKg,
       Value<bool> reliabilityChecklistSeen,
+      Value<bool> hideOnServer,
     });
 typedef $$SettingsRowsTableUpdateCompanionBuilder =
     SettingsRowsCompanion Function({
@@ -4988,6 +5847,7 @@ typedef $$SettingsRowsTableUpdateCompanionBuilder =
       Value<bool> autoPauseEnabled,
       Value<double?> weightKg,
       Value<bool> reliabilityChecklistSeen,
+      Value<bool> hideOnServer,
     });
 
 class $$SettingsRowsTableFilterComposer
@@ -5021,6 +5881,11 @@ class $$SettingsRowsTableFilterComposer
 
   ColumnFilters<bool> get reliabilityChecklistSeen => $composableBuilder(
     column: $table.reliabilityChecklistSeen,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hideOnServer => $composableBuilder(
+    column: $table.hideOnServer,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5058,6 +5923,11 @@ class $$SettingsRowsTableOrderingComposer
     column: $table.reliabilityChecklistSeen,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get hideOnServer => $composableBuilder(
+    column: $table.hideOnServer,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SettingsRowsTableAnnotationComposer
@@ -5085,6 +5955,11 @@ class $$SettingsRowsTableAnnotationComposer
 
   GeneratedColumn<bool> get reliabilityChecklistSeen => $composableBuilder(
     column: $table.reliabilityChecklistSeen,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get hideOnServer => $composableBuilder(
+    column: $table.hideOnServer,
     builder: (column) => column,
   );
 }
@@ -5131,12 +6006,14 @@ class $$SettingsRowsTableTableManager
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<double?> weightKg = const Value.absent(),
                 Value<bool> reliabilityChecklistSeen = const Value.absent(),
+                Value<bool> hideOnServer = const Value.absent(),
               }) => SettingsRowsCompanion(
                 id: id,
                 useMetric: useMetric,
                 autoPauseEnabled: autoPauseEnabled,
                 weightKg: weightKg,
                 reliabilityChecklistSeen: reliabilityChecklistSeen,
+                hideOnServer: hideOnServer,
               ),
           createCompanionCallback:
               ({
@@ -5145,12 +6022,14 @@ class $$SettingsRowsTableTableManager
                 Value<bool> autoPauseEnabled = const Value.absent(),
                 Value<double?> weightKg = const Value.absent(),
                 Value<bool> reliabilityChecklistSeen = const Value.absent(),
+                Value<bool> hideOnServer = const Value.absent(),
               }) => SettingsRowsCompanion.insert(
                 id: id,
                 useMetric: useMetric,
                 autoPauseEnabled: autoPauseEnabled,
                 weightKg: weightKg,
                 reliabilityChecklistSeen: reliabilityChecklistSeen,
+                hideOnServer: hideOnServer,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -6053,6 +6932,446 @@ typedef $$RecordingGapsTableProcessedTableManager =
       RecordingGapRow,
       PrefetchHooks Function({bool activityGuid})
     >;
+typedef $$PrivacyZonesTableCreateCompanionBuilder =
+    PrivacyZonesCompanion Function({
+      Value<int> id,
+      required double latitude,
+      required double longitude,
+      required double radiusMeters,
+      required String label,
+      required int createdAtMs,
+    });
+typedef $$PrivacyZonesTableUpdateCompanionBuilder =
+    PrivacyZonesCompanion Function({
+      Value<int> id,
+      Value<double> latitude,
+      Value<double> longitude,
+      Value<double> radiusMeters,
+      Value<String> label,
+      Value<int> createdAtMs,
+    });
+
+class $$PrivacyZonesTableFilterComposer
+    extends Composer<_$RecordingDatabase, $PrivacyZonesTable> {
+  $$PrivacyZonesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get radiusMeters => $composableBuilder(
+    column: $table.radiusMeters,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PrivacyZonesTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $PrivacyZonesTable> {
+  $$PrivacyZonesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get radiusMeters => $composableBuilder(
+    column: $table.radiusMeters,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PrivacyZonesTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $PrivacyZonesTable> {
+  $$PrivacyZonesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<double> get radiusMeters => $composableBuilder(
+    column: $table.radiusMeters,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$PrivacyZonesTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $PrivacyZonesTable,
+          PrivacyZoneRow,
+          $$PrivacyZonesTableFilterComposer,
+          $$PrivacyZonesTableOrderingComposer,
+          $$PrivacyZonesTableAnnotationComposer,
+          $$PrivacyZonesTableCreateCompanionBuilder,
+          $$PrivacyZonesTableUpdateCompanionBuilder,
+          (
+            PrivacyZoneRow,
+            BaseReferences<
+              _$RecordingDatabase,
+              $PrivacyZonesTable,
+              PrivacyZoneRow
+            >,
+          ),
+          PrivacyZoneRow,
+          PrefetchHooks Function()
+        > {
+  $$PrivacyZonesTableTableManager(
+    _$RecordingDatabase db,
+    $PrivacyZonesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PrivacyZonesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PrivacyZonesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PrivacyZonesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<double> latitude = const Value.absent(),
+                Value<double> longitude = const Value.absent(),
+                Value<double> radiusMeters = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<int> createdAtMs = const Value.absent(),
+              }) => PrivacyZonesCompanion(
+                id: id,
+                latitude: latitude,
+                longitude: longitude,
+                radiusMeters: radiusMeters,
+                label: label,
+                createdAtMs: createdAtMs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required double latitude,
+                required double longitude,
+                required double radiusMeters,
+                required String label,
+                required int createdAtMs,
+              }) => PrivacyZonesCompanion.insert(
+                id: id,
+                latitude: latitude,
+                longitude: longitude,
+                radiusMeters: radiusMeters,
+                label: label,
+                createdAtMs: createdAtMs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PrivacyZonesTable, PrivacyZoneRow>(table),
+                  BaseReferences<
+                    _$RecordingDatabase,
+                    $PrivacyZonesTable,
+                    PrivacyZoneRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PrivacyZonesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $PrivacyZonesTable,
+      PrivacyZoneRow,
+      $$PrivacyZonesTableFilterComposer,
+      $$PrivacyZonesTableOrderingComposer,
+      $$PrivacyZonesTableAnnotationComposer,
+      $$PrivacyZonesTableCreateCompanionBuilder,
+      $$PrivacyZonesTableUpdateCompanionBuilder,
+      (
+        PrivacyZoneRow,
+        BaseReferences<_$RecordingDatabase, $PrivacyZonesTable, PrivacyZoneRow>,
+      ),
+      PrivacyZoneRow,
+      PrefetchHooks Function()
+    >;
+typedef $$DismissedZoneSuggestionsTableCreateCompanionBuilder =
+    DismissedZoneSuggestionsCompanion Function({
+      Value<int> id,
+      required double latitude,
+      required double longitude,
+      required int createdAtMs,
+    });
+typedef $$DismissedZoneSuggestionsTableUpdateCompanionBuilder =
+    DismissedZoneSuggestionsCompanion Function({
+      Value<int> id,
+      Value<double> latitude,
+      Value<double> longitude,
+      Value<int> createdAtMs,
+    });
+
+class $$DismissedZoneSuggestionsTableFilterComposer
+    extends Composer<_$RecordingDatabase, $DismissedZoneSuggestionsTable> {
+  $$DismissedZoneSuggestionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DismissedZoneSuggestionsTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $DismissedZoneSuggestionsTable> {
+  $$DismissedZoneSuggestionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get latitude => $composableBuilder(
+    column: $table.latitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get longitude => $composableBuilder(
+    column: $table.longitude,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DismissedZoneSuggestionsTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $DismissedZoneSuggestionsTable> {
+  $$DismissedZoneSuggestionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<double> get latitude =>
+      $composableBuilder(column: $table.latitude, builder: (column) => column);
+
+  GeneratedColumn<double> get longitude =>
+      $composableBuilder(column: $table.longitude, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$DismissedZoneSuggestionsTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $DismissedZoneSuggestionsTable,
+          DismissedZoneSuggestionRow,
+          $$DismissedZoneSuggestionsTableFilterComposer,
+          $$DismissedZoneSuggestionsTableOrderingComposer,
+          $$DismissedZoneSuggestionsTableAnnotationComposer,
+          $$DismissedZoneSuggestionsTableCreateCompanionBuilder,
+          $$DismissedZoneSuggestionsTableUpdateCompanionBuilder,
+          (
+            DismissedZoneSuggestionRow,
+            BaseReferences<
+              _$RecordingDatabase,
+              $DismissedZoneSuggestionsTable,
+              DismissedZoneSuggestionRow
+            >,
+          ),
+          DismissedZoneSuggestionRow,
+          PrefetchHooks Function()
+        > {
+  $$DismissedZoneSuggestionsTableTableManager(
+    _$RecordingDatabase db,
+    $DismissedZoneSuggestionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DismissedZoneSuggestionsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$DismissedZoneSuggestionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DismissedZoneSuggestionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<double> latitude = const Value.absent(),
+                Value<double> longitude = const Value.absent(),
+                Value<int> createdAtMs = const Value.absent(),
+              }) => DismissedZoneSuggestionsCompanion(
+                id: id,
+                latitude: latitude,
+                longitude: longitude,
+                createdAtMs: createdAtMs,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required double latitude,
+                required double longitude,
+                required int createdAtMs,
+              }) => DismissedZoneSuggestionsCompanion.insert(
+                id: id,
+                latitude: latitude,
+                longitude: longitude,
+                createdAtMs: createdAtMs,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $DismissedZoneSuggestionsTable,
+                    DismissedZoneSuggestionRow
+                  >(table),
+                  BaseReferences<
+                    _$RecordingDatabase,
+                    $DismissedZoneSuggestionsTable,
+                    DismissedZoneSuggestionRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DismissedZoneSuggestionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $DismissedZoneSuggestionsTable,
+      DismissedZoneSuggestionRow,
+      $$DismissedZoneSuggestionsTableFilterComposer,
+      $$DismissedZoneSuggestionsTableOrderingComposer,
+      $$DismissedZoneSuggestionsTableAnnotationComposer,
+      $$DismissedZoneSuggestionsTableCreateCompanionBuilder,
+      $$DismissedZoneSuggestionsTableUpdateCompanionBuilder,
+      (
+        DismissedZoneSuggestionRow,
+        BaseReferences<
+          _$RecordingDatabase,
+          $DismissedZoneSuggestionsTable,
+          DismissedZoneSuggestionRow
+        >,
+      ),
+      DismissedZoneSuggestionRow,
+      PrefetchHooks Function()
+    >;
 
 class $RecordingDatabaseManager {
   final _$RecordingDatabase _db;
@@ -6068,4 +7387,11 @@ class $RecordingDatabaseManager {
   $$LapsTableTableManager get laps => $$LapsTableTableManager(_db, _db.laps);
   $$RecordingGapsTableTableManager get recordingGaps =>
       $$RecordingGapsTableTableManager(_db, _db.recordingGaps);
+  $$PrivacyZonesTableTableManager get privacyZones =>
+      $$PrivacyZonesTableTableManager(_db, _db.privacyZones);
+  $$DismissedZoneSuggestionsTableTableManager get dismissedZoneSuggestions =>
+      $$DismissedZoneSuggestionsTableTableManager(
+        _db,
+        _db.dismissedZoneSuggestions,
+      );
 }

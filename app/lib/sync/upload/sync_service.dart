@@ -8,6 +8,7 @@
 library;
 
 import 'package:strava_estudo_app/persistence/database.dart';
+import 'package:strava_estudo_app/privacy/privacy_repository.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/sync/upload/activity_uploader.dart';
 import 'package:strava_estudo_app/sync/upload/fit_activity_builder.dart';
@@ -71,12 +72,19 @@ class SyncService {
   }
 
   /// Envia uma atividade: marca uploading, monta o FIT, envia e marca synced.
+  /// Privacidade (F02): com "Ocultar tambem no servidor" (padrao), o FIT sai
+  /// sem as pontas dentro das zonas e sem os metros ocultos da atividade; a
+  /// distancia e o tempo totais seguem inteiros nos metadados. A leitura e
+  /// feita no banco a cada envio, entao vale tambem para o sync de fundo.
   /// Em qualquer falha, marca failed e relanca para o chamador (processPending
   /// apenas conta; um worker avulso pode decidir o retry).
   Future<void> syncOne(Activity a) async {
     await _db.setSyncState(a.guid, SyncState.uploading);
     try {
-      final fitBytes = await buildActivityFit(_db, a);
+      final fitBytes = buildFitFromWaypoints(
+        a,
+        await PrivacyRepository(_db).uploadWaypoints(a),
+      );
       final remoteId = await _uploader.upload(
         fitBytes,
         activityGuid: a.guid,

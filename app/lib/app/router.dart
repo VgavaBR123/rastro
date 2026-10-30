@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../persistence/database.dart';
 import '../persistence/recording_repository.dart';
+import '../recording/domain/geo.dart';
 import '../recording/domain/recording_models.dart';
 import '../ui/activity_detail_screen.dart';
 import '../ui/components/app_nav_bar.dart';
@@ -16,6 +17,8 @@ import '../ui/auth_screen.dart';
 import '../ui/history_screen.dart';
 import '../ui/home_screen.dart';
 import '../ui/password_reset_screen.dart';
+import '../ui/privacy/add_zone_screen.dart';
+import '../ui/privacy/privacy_zones_screen.dart';
 import '../ui/profile_screen.dart';
 import '../ui/record_setup_screen.dart';
 import '../ui/reliability_checklist_screen.dart';
@@ -44,6 +47,12 @@ abstract final class AppRoutes {
   /// O mesmo checklist antes da primeira gravacao: com "Continuar para
   /// gravar", que devolve true no pop.
   static const String reliabilityBeforeRecording = '/reliability?first=1';
+
+  /// Zonas de privacidade (F02), pelas Configuracoes.
+  static const String privacy = '/privacy';
+
+  /// Novo local protegido no mapa. O centro inicial (GeoPoint) vai em `extra`.
+  static const String privacyAddZone = '/privacy/add';
   static const String auth = '/auth';
 
   /// Gravacao de [type]. Para retomar uma interrompida, passe-a em `extra`.
@@ -121,6 +130,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
       ),
       GoRoute(path: AppRoutes.settings, builder: (_, _) => const SettingsScreen()),
       reliabilityRoute(),
+      ...privacyRoutes(),
       GoRoute(
         path: AppRoutes.auth,
         builder: (_, _) => const AuthScreen(),
@@ -144,6 +154,20 @@ GoRoute reliabilityRoute() => GoRoute(
     beforeFirstRecording: state.uri.queryParameters['first'] == '1',
   ),
 );
+
+/// Rotas da privacidade (F02), por cima do shell.
+List<GoRoute> privacyRoutes() => [
+  GoRoute(
+    path: AppRoutes.privacy,
+    builder: (_, _) => const PrivacyZonesScreen(),
+    routes: [
+      GoRoute(
+        path: 'add',
+        builder: (_, state) => AddZoneScreen(initialCenter: state.extra as GeoPoint?),
+      ),
+    ],
+  ),
+];
 
 /// Moldura das abas: o conteudo do ramo com a AppNavBar flutuando por cima.
 /// As telas deixam `AppNavBar.reservedHeight` livre no fim da rolagem.

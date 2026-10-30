@@ -19,6 +19,12 @@ abstract final class AppShape {
   static const double gutter = 16;
 }
 
+/// Tamanhos de icone fora do padrao (24) do tema.
+abstract final class AppIconSize {
+  /// Mira fixa no centro de um mapa de escolha de local.
+  static const double crosshair = 40;
+}
+
 abstract final class AppTheme {
   static ThemeData get dark => _build(AppColors.dark, Brightness.dark);
   static ThemeData get light => _build(AppColors.light, Brightness.light);

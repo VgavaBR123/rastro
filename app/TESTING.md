@@ -53,6 +53,36 @@ Com `integration_test`:
 - Em `flutter test` o heartbeat e o probe do checklist caem nas versoes Noop
   (`heartbeatTickerProvider`, `reliabilityProbeProvider`).
 
+## Privacidade automatica (F02)
+- Unit (dominio puro em `lib/privacy/domain`): `privacy/domain/route_trim_test.dart`
+  (raio de 200 a 600 m pelo guid, corte do inicio/fim por zona e por metros,
+  meio da rota intacto, rota toda oculta), `zone_detection_test.dart`
+  (agrupamento de ~150 m, >= 3 ocorrencias, casa x trabalho, zona existente e
+  sugestao ignorada nao voltam) e `routine_test.dart` (4 de 6 no mesmo lugar e
+  +-30 min, virada da meia-noite, janela de 6; `isRoutinePredictableFor` so
+  avisa se a atividade compartilhada faz parte da rotina).
+- Persistencia: `persistence/privacy_persistence_test.dart` (zonas, ignoradas,
+  pontas das atividades, "so eu" por padrao, corte por atividade, waypoints de
+  upload/exportacao, atividades sem GPS fora da janela da rotina, aviso por
+  atividade, migracao 7 -> 8 e 5 -> 8 sobre arquivo real; as antigas mantem
+  "todos").
+- Sync: `sync/upload/privacy_upload_test.dart` (FIT sem as pontas com "Ocultar
+  tambem no servidor", completo sem ele, totais nos metadados).
+- Widget: `ui/save_activity_privacy_test.dart`, `ui/share_privacy_test.dart`
+  (etiqueta, alavanca, trecho completo com confirmacao, dica de rotina),
+  `ui/privacy_zones_screen_test.dart` (Configuracoes > Privacidade, sugestoes,
+  adicionar no mapa/por atividade so com rota, sem nome vira "Local
+  protegido", falha ao salvar libera o botao, toque duplo),
+  `ui/add_zone_screen_test.dart` (gestos do mapa ganham da lista que rola,
+  salvar exige ponto escolhido de perto), `ui/home_zone_suggestion_test.dart`
+  (sugestao de casa/trabalho na Inicio) e o Salvar em
+  `ui/recording_screen_extras_test.dart` (inicio do cabecalho, falha da
+  consulta de rotina nao quebra a tela).
+- Integracao: `integration/privacy_flow_test.dart` (tres gravacoes saindo de
+  casa -> sugestao -> aceitar -> imagem e upload cortados).
+- Fora do celular o mapa de "Adicionar no mapa" vira campos de latitude e
+  longitude; o mapa nativo (mira no centro) fica para o E2E no emulador.
+
 ## Fixtures
 Rotas gravadas (sequencias de `LocationSample`) viram fixtures versionadas em
 `test/fixtures/`, inclusive casos dificeis: tunel (perda de sinal), salto de GPS,

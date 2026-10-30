@@ -11,23 +11,29 @@ class AppSettings {
   /// Checklist "Gravacao confiavel" ja mostrado antes da primeira gravacao.
   final bool reliabilityChecklistSeen;
 
+  /// Privacidade (F02): o upload sai sem as pontas ocultas. Padrao ligado.
+  final bool hideOnServer;
+
   const AppSettings({
     this.useMetric = true,
     this.autoPauseEnabled = true,
     this.weightKg,
     this.reliabilityChecklistSeen = false,
+    this.hideOnServer = true,
   });
 
   AppSettings copyWith({
     bool? useMetric,
     bool? autoPauseEnabled,
     bool? reliabilityChecklistSeen,
+    bool? hideOnServer,
   }) => AppSettings(
     useMetric: useMetric ?? this.useMetric,
     autoPauseEnabled: autoPauseEnabled ?? this.autoPauseEnabled,
     weightKg: weightKg,
     reliabilityChecklistSeen:
         reliabilityChecklistSeen ?? this.reliabilityChecklistSeen,
+    hideOnServer: hideOnServer ?? this.hideOnServer,
   );
 
   /// Troca o peso (null apaga).
@@ -36,5 +42,6 @@ class AppSettings {
     autoPauseEnabled: autoPauseEnabled,
     weightKg: value,
     reliabilityChecklistSeen: reliabilityChecklistSeen,
+    hideOnServer: hideOnServer,
   );
 }

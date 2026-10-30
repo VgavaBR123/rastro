@@ -16,6 +16,7 @@ import '../sync/background/background_sync_provider.dart';
 import 'components/activity_card.dart';
 import 'components/app_nav_bar.dart';
 import 'components/week_summary_card.dart';
+import 'privacy/zone_suggestion_card.dart';
 import 'recovery_dialog.dart';
 import 'share_activity.dart';
 import 'theme/app_colors.dart';
@@ -56,7 +57,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
       switch (choice) {
         case RecoveryChoice.resume:
-          await context.push(AppRoutes.record(it.activity.activityType), extra: it);
+          await context.push(
+            AppRoutes.record(it.activity.activityType),
+            extra: it,
+          );
           return;
         case RecoveryChoice.save:
           await repo.finishInterrupted(it);
@@ -86,6 +90,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final children = <Widget>[
       _Header(onSettings: () => context.push(AppRoutes.settings)),
       const SizedBox(height: 16),
+      // Privacidade automatica (F02): "parece que aqui e sua casa".
+      const HomeZoneSuggestion(),
       if (week != null) ...[
         WeekSummaryCard(summary: week, useMetric: metric, todayIndex: today),
         const SizedBox(height: 24),
@@ -100,13 +106,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         error: (e, _) => [
           Padding(
             padding: const EdgeInsets.all(32),
-            child: Text('Erro: $e', style: AppText.body.copyWith(color: c.danger)),
+            child: Text(
+              'Erro: $e',
+              style: AppText.body.copyWith(color: c.danger),
+            ),
           ),
         ],
         data: (list) => list.isEmpty
             ? [const _EmptyFeed()]
             : [
-                Text('Atividades recentes', style: AppText.sectionTitle.copyWith(color: c.text)),
+                Text(
+                  'Atividades recentes',
+                  style: AppText.sectionTitle.copyWith(color: c.text),
+                ),
                 const SizedBox(height: 12),
                 for (final a in list) ...[
                   RoutedActivityCard(
@@ -158,16 +170,25 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Nome provisorio: a marca ainda nao foi escolhida.
-              Text('Atividades', style: AppText.label.copyWith(color: c.primaryText)),
+              Text(
+                'Atividades',
+                style: AppText.label.copyWith(color: c.primaryText),
+              ),
               const SizedBox(height: 2),
-              Text('Inicio', style: AppText.screenTitle.copyWith(color: c.text)),
+              Text(
+                'Inicio',
+                style: AppText.screenTitle.copyWith(color: c.text),
+              ),
             ],
           ),
         ),
         TextButton.icon(
           key: const Key('settings'),
           onPressed: onSettings,
-          style: TextButton.styleFrom(foregroundColor: c.textMuted, minimumSize: const Size(44, 44)),
+          style: TextButton.styleFrom(
+            foregroundColor: c.textMuted,
+            minimumSize: const Size(44, 44),
+          ),
           icon: const Icon(Icons.tune_rounded),
           label: const Text('Ajustes'),
         ),
@@ -195,7 +216,10 @@ class _EmptyFeed extends StatelessWidget {
         children: [
           Icon(Icons.route_rounded, size: 40, color: c.dist.fg),
           const SizedBox(height: 12),
-          Text('Nenhuma atividade ainda', style: AppText.sectionTitle.copyWith(color: c.text)),
+          Text(
+            'Nenhuma atividade ainda',
+            style: AppText.sectionTitle.copyWith(color: c.text),
+          ),
           const SizedBox(height: 6),
           Text(
             'Grave sua primeira corrida, pedal ou caminhada.',
