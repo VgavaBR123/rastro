@@ -20,9 +20,14 @@ class ChapterShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: AppTheme.dark,
-      child: Builder(builder: (context) => _content(AppColors.of(context))),
+    // Tamanho fixo (vira PNG 1080 x 1920): a fonte grande do sistema nao pode
+    // empurrar marcos e marca d'agua para fora. A previa ja escala o cartao
+    // inteiro pelo FittedBox.
+    return MediaQuery.withNoTextScaling(
+      child: Theme(
+        data: AppTheme.dark,
+        child: Builder(builder: (context) => _content(AppColors.of(context))),
+      ),
     );
   }
 
