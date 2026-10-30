@@ -188,6 +188,24 @@ void main() {
         expect(find.byKey(const Key('profile_settings')), findsOneWidget);
         expect(find.byKey(const Key('profile_logout')), findsNothing);
       });
+
+      testWidgets('Voce com Modo Gentil: sem o recorde de pace', (tester) async {
+        await pump(tester, const ProfileScreen(), theme: theme);
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(ProfileScreen)),
+        );
+        await tester.runAsync(
+          () => container.read(settingsProvider.notifier).setGentleMode(true),
+        );
+        await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('profile_record_ride_longestDistance')),
+          200,
+        );
+        expect(find.byKey(const Key('profile_record_run_bestPace')), findsNothing);
+        expect(find.textContaining('/km'), findsNothing);
+        expect(find.text('Pedal mais longo'), findsOneWidget);
+      });
     });
   }
 

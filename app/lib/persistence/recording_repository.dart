@@ -295,6 +295,13 @@ class RecordingRepository {
   Future<List<Activity>> recent({int limit = 50}) =>
       db.recentActivities(limit: limit);
 
+  /// Ja houve atividade de [type] antes de [beforeMs], alem de [exceptGuid]?
+  Future<bool> hasFinishedOfTypeBefore(
+    ActivityType type,
+    int beforeMs, {
+    required String exceptGuid,
+  }) => db.hasFinishedOfTypeBefore(type, beforeMs, exceptGuid: exceptGuid);
+
   /// Remove uma atividade do historico (cabecalho + pontos).
   /// Se ela ja estava no servidor, a exclusao de la entra na fila do sync.
   Future<void> deleteActivity(String guid, {int? nowMs}) async {

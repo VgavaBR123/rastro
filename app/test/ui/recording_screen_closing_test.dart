@@ -42,6 +42,33 @@ class _FakeClosing extends ClosingService {
   }
 }
 
+/// Fotografa a linha no instante em que ela entra na fila de upload: um sync
+/// que ja estivesse rodando leria exatamente isto.
+class _SnapshotOnFinish extends RecordingRepository {
+  Activity? atFinish;
+  _SnapshotOnFinish(super.db);
+
+  @override
+  Future<void> finish(
+    String guid,
+    int endTimestampMs, {
+    int? endBattery,
+    double? distanceMeters,
+    int? timerTimeMs,
+    double? calories,
+  }) async {
+    await super.finish(
+      guid,
+      endTimestampMs,
+      endBattery: endBattery,
+      distanceMeters: distanceMeters,
+      timerTimeMs: timerTimeMs,
+      calories: calories,
+    );
+    atFinish = await (db.select(db.activities)..where((t) => t.guid.equals(guid))).getSingle();
+  }
+}
+
 void main() {
   late RecordingDatabase db;
   late FakeLocationSource source;
@@ -73,6 +100,7 @@ void main() {
     WidgetTester tester, {
     bool gentle = false,
     ClosingService Function(RecordingRepository repo)? closing,
+    RecordingRepository Function(RecordingDatabase db)? repo,
   }) async {
     db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -88,6 +116,7 @@ void main() {
           settingsProvider.overrideWith(
             (ref) => _FixedSettings(db, AppSettings(gentleMode: gentle)),
           ),
+          if (repo != null) recordingRepositoryProvider.overrideWithValue(repo(db)),
           if (closing != null)
             closingServiceProvider.overrideWith(
               (ref) => closing(ref.watch(recordingRepositoryProvider)),
@@ -162,6 +191,25 @@ void main() {
     await tester.tap(find.byKey(const Key('closing_done')));
     await drain(tester);
     expect(find.byType(RecordingScreen), findsNothing);
+  });
+
+  testWidgets('RPE, humor e detalhes ja estao gravados quando a atividade entra na fila', (tester) async {
+    late _SnapshotOnFinish snap;
+    await pump(
+      tester,
+      closing: (repo) => _FakeClosing(repo, const ['Frase um.', 'Frase dois.']),
+      repo: (db) => snap = _SnapshotOnFinish(db),
+    );
+    await openSave(tester);
+    await tapVisible(tester, const Key('rpe_8'));
+    await tapVisible(tester, const Key('mood_tired'));
+    await tapVisible(tester, const Key('save_activity'));
+    await drain(tester);
+
+    final row = snap.atFinish!;
+    expect(row.isFinished, isTrue);
+    expect(row.rpe, 8);
+    expect(Mood.fromDb(row.mood), Mood.tired);
   });
 
   testWidgets('sem RPE: fechamento sem bloco de esforco; voltar do sistema fecha', (tester) async {

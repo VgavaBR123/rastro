@@ -489,8 +489,27 @@ class RecordingDatabase extends _$RecordingDatabase {
             ..limit(limit))
           .get();
 
+  /// Existe atividade finalizada de [type] que comecou antes de [beforeMs]
+  /// (fora [exceptGuid])? Sem limite de historico, ao contrario de
+  /// [recentActivities].
+  Future<bool> hasFinishedOfTypeBefore(
+    ActivityType type,
+    int beforeMs, {
+    required String exceptGuid,
+  }) async {
+    final q = selectOnly(activities)
+      ..addColumns([activities.guid])
+      ..where(activities.isFinished.equals(true) &
+          activities.activityType.equalsValue(type) &
+          activities.startTimestampMs.isSmallerThanValue(beforeMs) &
+          activities.guid.equals(exceptGuid).not())
+      ..limit(1);
+    return (await q.get()).isNotEmpty;
+  }
+
   /// Grava o que o usuario preencheu na tela Salvar. Titulo e descricao
-  /// vazios (ou so espacos) viram null.
+  /// vazios (ou so espacos) viram null. RPE e humor sao sempre gravados
+  /// (null apaga): quem so quiser trocar o titulo precisa repassar os dois.
   Future<void> saveActivityDetails(
     String guid, {
     String? title,

@@ -60,13 +60,12 @@ class NarrationComposer {
     };
   }
 
-  /// Preferencias sem nada de ritmo. "So o essencial" sai porque as frases
-  /// curtas dele sao montadas em volta do pace.
+  /// Preferencias sem nada de ritmo. "So o essencial" fica: volta, marca de
+  /// tempo e fim curtos nao citam pace; so o split tem versao gentil propria.
   static NarratorSettings _gentlePrefs(NarratorSettings s) => s.copyWith(
     sayAvgPace: false,
     saySplitPace: false,
     contextPhrases: false,
-    essentialOnly: false,
   );
 
   /// Split no modo so o essencial com o Modo Gentil: marca e tempo total.

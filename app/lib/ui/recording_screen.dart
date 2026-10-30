@@ -175,17 +175,24 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     final wasActive = ref.read(recordingControllerProvider).isActive;
     final guid = ctrl.activityGuid;
     final timerMs = ref.read(recordingControllerProvider).timerMs;
-    await ctrl.stop();
-    if (wasActive && guid != null) {
-      await repo.saveDetails(
-        guid,
-        title: draft.title,
-        description: draft.description,
-        visibility: draft.visibility,
-        hideEdgesMeters: draft.hideEdgesMeters,
-        rpe: draft.rpe,
-        mood: draft.mood,
-      );
+    // Detalhes antes do stop: o stop poe a atividade na fila de upload, e um
+    // sync ja em andamento subiria sem RPE, humor e corte das pontas (o
+    // servidor e idempotente por guid e nao atualiza depois). Se gravar os
+    // detalhes falhar, a gravacao termina mesmo assim.
+    try {
+      if (wasActive && guid != null) {
+        await repo.saveDetails(
+          guid,
+          title: draft.title,
+          description: draft.description,
+          visibility: draft.visibility,
+          hideEdgesMeters: draft.hideEdgesMeters,
+          rpe: draft.rpe,
+          mood: draft.mood,
+        );
+      }
+    } finally {
+      await ctrl.stop();
     }
     if (!mounted) return;
     // A atividade ja esta salva: o upload nao espera o Concluir.

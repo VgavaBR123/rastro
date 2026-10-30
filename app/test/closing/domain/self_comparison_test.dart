@@ -95,6 +95,42 @@ void main() {
     expect(out, contains('Seu ritmo mais constante das ultimas 4 semanas.'));
   });
 
+  test('Modo Gentil tambem nao fala de constancia (vem do pace)', () {
+    final history = [e(daysAgo(2), splitsS: [300, 330, 290, 350])];
+    final out = phrases(
+      e(now, km: 4, min: 21, splitsS: [310, 312, 309, 311]),
+      history,
+      gentle: true,
+    );
+    expect(out.any((p) => p.contains('ritmo') || p.contains('constante')), isFalse);
+  });
+
+  test('treino curto: segundos; zero: so "Treino salvo."', () {
+    SelfEntry short(int ms) => SelfEntry(
+      guid: 'curto$ms',
+      type: ActivityType.run,
+      startMs: now.millisecondsSinceEpoch,
+      distanceMeters: 0,
+      timerMs: ms,
+      splitDurationsMs: const [],
+    );
+    expect(phrases(short(20000), []), [
+      'Sua primeira corrida registrada aqui. Bom comeco.',
+      'Foram 20 s em movimento.',
+    ]);
+    expect(phrases(short(0), []).last, 'Treino salvo.');
+    expect(phrases(short(0), []).any((p) => p.contains('0 min')), isFalse);
+  });
+
+  test('primeira do esporte considera o que ficou fora do historico', () {
+    final out = selfComparisonPhrases(
+      current: e(now, type: ActivityType.ride),
+      history: [e(daysAgo(2))],
+      hadEarlierOfSport: true,
+    );
+    expect(out.any((p) => p.contains('primeiro pedal')), isFalse);
+  });
+
   test('constancia precisa de 3 splits dos dois lados', () {
     final history = [e(daysAgo(2), splitsS: [300, 330])];
     final out = phrases(e(now, splitsS: [310, 311, 309]), history);

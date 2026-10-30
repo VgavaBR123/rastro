@@ -69,6 +69,31 @@ void main() {
       expect(Mood.fromDb(after.mood), Mood.tired);
     });
 
+    test('hasFinishedOfTypeBefore: tipo, inicio, finalizada e exceto', () async {
+      await seed(repo, 'antiga', startMs: 1000, type: ActivityType.ride);
+      await seed(repo, 'atual', startMs: 50 * _dayMs, type: ActivityType.ride);
+      await repo.startActivity(guid: 'aberta', type: ActivityType.walk, startTimestampMs: 2000);
+
+      expect(
+        await repo.hasFinishedOfTypeBefore(ActivityType.ride, 50 * _dayMs, exceptGuid: 'atual'),
+        isTrue,
+      );
+      // So a propria: nada antes.
+      expect(
+        await repo.hasFinishedOfTypeBefore(ActivityType.ride, 1000, exceptGuid: 'antiga'),
+        isFalse,
+      );
+      expect(
+        await repo.hasFinishedOfTypeBefore(ActivityType.run, 50 * _dayMs, exceptGuid: 'atual'),
+        isFalse,
+      );
+      // Nao finalizada nao conta.
+      expect(
+        await repo.hasFinishedOfTypeBefore(ActivityType.walk, 50 * _dayMs, exceptGuid: 'x'),
+        isFalse,
+      );
+    });
+
     test('RPE fora de 1 a 10 vira null', () async {
       await seed(repo, 'a', startMs: 1000);
       await repo.saveDetails('a', rpe: 14);

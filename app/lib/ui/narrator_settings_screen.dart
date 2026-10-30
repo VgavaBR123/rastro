@@ -40,19 +40,27 @@ class NarratorSettingsScreen extends ConsumerWidget {
 
     // Conteudo vale so fora do modo "so o essencial".
     final contentEnabled = !n.essentialOnly;
+    final gentle = ref.watch(settingsProvider.select((s) => s.gentleMode));
     SwitchListTile content({
       required String key,
       required String title,
       String? subtitle,
       required bool value,
       required NarratorSettings Function(NarratorSettings n, bool v) apply,
-    }) => SwitchListTile(
-      key: Key(key),
-      title: Text(title),
-      subtitle: subtitle == null ? null : Text(subtitle),
-      value: value,
-      onChanged: contentEnabled ? (v) => save((n) => apply(n, v)) : null,
-    );
+      // Fala de ritmo: o Modo Gentil (F04) a desliga, qualquer que seja o valor.
+      bool aboutRate = false,
+    }) {
+      final off = gentle && aboutRate;
+      return SwitchListTile(
+        key: Key(key),
+        title: Text(title),
+        subtitle: off
+            ? const Text('Desligado pelo Modo Gentil')
+            : subtitle == null ? null : Text(subtitle),
+        value: off ? false : value,
+        onChanged: contentEnabled && !off ? (v) => save((n) => apply(n, v)) : null,
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(),
@@ -172,6 +180,7 @@ class NarratorSettingsScreen extends ConsumerWidget {
                   subtitle: 'No pedal, velocidade media',
                   value: n.sayAvgPace,
                   apply: (n, v) => n.copyWith(sayAvgPace: v),
+                  aboutRate: true,
                 ),
                 content(
                   key: 'narrator_say_split',
@@ -179,6 +188,7 @@ class NarratorSettingsScreen extends ConsumerWidget {
                   subtitle: 'No pedal, a velocidade',
                   value: n.saySplitPace,
                   apply: (n, v) => n.copyWith(saySplitPace: v),
+                  aboutRate: true,
                 ),
                 content(
                   key: 'narrator_context',
@@ -188,6 +198,7 @@ class NarratorSettingsScreen extends ConsumerWidget {
                       : 'Ex.: sua milha mais rapida ate agora',
                   value: n.contextPhrases,
                   apply: (n, v) => n.copyWith(contextPhrases: v),
+                  aboutRate: true,
                 ),
               ],
             ),

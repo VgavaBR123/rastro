@@ -45,6 +45,12 @@ class ClosingService {
       current: await _entry(current, metric: metric, withSplits: true),
       history: history,
       gentle: gentle,
+      // O limite pode deixar de fora a ultima do esporte, muito antiga.
+      hadEarlierOfSport: await _repo.hasFinishedOfTypeBefore(
+        current.activityType,
+        current.startTimestampMs,
+        exceptGuid: current.guid,
+      ),
     );
   }
 

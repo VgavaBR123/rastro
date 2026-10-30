@@ -202,15 +202,16 @@ class _NarratorToggle extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = AppColors.of(context);
     final on = ref.watch(settingsProvider.select((s) => s.narrator.enabled));
+    final gentle = ref.watch(settingsProvider.select((s) => s.gentleMode));
     // Material proprio: a folha pinta o fundo num Container, que esconderia o
     // splash do toque.
     return Material(
       type: MaterialType.transparency,
-      child: _tile(c, on, ref),
+      child: _tile(c, on, gentle, ref),
     );
   }
 
-  Widget _tile(AppColors c, bool on, WidgetRef ref) {
+  Widget _tile(AppColors c, bool on, bool gentle, WidgetRef ref) {
     return SwitchListTile(
       key: const Key('narrator_toggle'),
       contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -221,7 +222,12 @@ class _NarratorToggle extends ConsumerWidget {
       ),
       title: Text('Narrador por voz', style: AppText.bodyStrong.copyWith(color: c.text)),
       subtitle: Text(
-        on ? 'Fala o tempo e o pace durante a gravacao' : 'Desligado',
+        !on
+            ? 'Desligado'
+            // Modo Gentil (F04): o narrador nao fala pace.
+            : gentle
+                ? 'Fala o tempo e a distancia durante a gravacao'
+                : 'Fala o tempo e o pace durante a gravacao',
         style: AppText.label.copyWith(color: c.textMuted),
       ),
       value: on,

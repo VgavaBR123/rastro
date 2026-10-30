@@ -88,6 +88,12 @@ class ProfileScreen extends ConsumerWidget {
   List<Widget> _localSections(WidgetRef ref, bool metric) {
     final stats = ref.watch(statsProvider).value;
     if (stats == null) return const [];
+    // Modo Gentil (F04): sem o recorde de pace.
+    final gentle = ref.watch(settingsProvider).gentleMode;
+    final records = [
+      for (final r in stats.records)
+        if (!(gentle && r.kind == RecordKind.bestPace)) r,
+    ];
     return [
       SectionCard(
         title: 'Esta semana',
@@ -98,14 +104,14 @@ class ProfileScreen extends ConsumerWidget {
           keyPrefix: 'profile_week',
         ),
       ),
-      if (stats.records.isNotEmpty)
+      if (records.isNotEmpty)
         SectionCard(
           title: 'Recordes pessoais',
           child: Column(
             children: [
-              for (var i = 0; i < stats.records.length; i++) ...[
+              for (var i = 0; i < records.length; i++) ...[
                 if (i > 0) const SectionDivider(),
-                _RecordRow(record: stats.records[i], metric: metric),
+                _RecordRow(record: records[i], metric: metric),
               ],
             ],
           ),

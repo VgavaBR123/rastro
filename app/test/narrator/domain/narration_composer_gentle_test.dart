@@ -76,6 +76,23 @@ void main() {
     expect(f.text, contains('Tempo'));
   });
 
+  test('so o essencial: volta e marca de tempo seguem curtas', () {
+    // Toggles de conteudo desligados nao podem esvaziar o modo essencial.
+    final ess = on.copyWith(essentialOnly: true, sayTime: false, sayDistance: false);
+    final lap = LapClosed(
+      lap: const LapMark(number: 1, durationMs: 300000, distanceMeters: 1000),
+      previous: const [],
+      totals: totals(),
+    );
+    final l = composer.compose(lap, ess, gentle: true)!;
+    expect(l.text, composer.compose(lap, ess)!.text);
+    expect(l.text, 'Volta um. Cinco minutos.');
+    final t = composer.compose(TimeMark(markMs: 600000, totals: totals()), ess, gentle: true)!;
+    expectNoRate(t.text);
+    expect(t.text, composer.compose(TimeMark(markMs: 600000, totals: totals()), ess)!.text);
+    expect(t.text, contains('Dois quilômetros'));
+  });
+
   test('exemplo das Configuracoes respeita o Modo Gentil', () {
     expectNoRate(composer.sample(on, metric: true, gentle: true).text);
   });

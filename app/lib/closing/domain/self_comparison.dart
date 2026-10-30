@@ -74,6 +74,9 @@ List<String> selfComparisonPhrases({
   required SelfEntry current,
   required List<SelfEntry> history,
   bool gentle = false,
+  // Ha atividade do mesmo esporte antes desta fora de [history] (que pode
+  // vir limitado as mais recentes).
+  bool hadEarlierOfSport = false,
 }) {
   final before = [
     for (final h in history)
@@ -87,7 +90,8 @@ List<String> selfComparisonPhrases({
   final sport = _SportWords(current.type);
   final out = <String>[];
 
-  final firstOfSport = !before.any((h) => h.type == current.type);
+  final firstOfSport =
+      !hadEarlierOfSport && !before.any((h) => h.type == current.type);
   if (firstOfSport) {
     out.add('${sport.seu} primeir${sport.o} ${sport.noun} registrad${sport.o} '
         'aqui. Bom comeco.');
@@ -117,7 +121,8 @@ List<String> selfComparisonPhrases({
 
     final cv = current._variation;
     final cvs = [for (final h in sameSport) if (h._variation != null) h._variation!];
-    if (cv != null && cvs.isNotEmpty && cvs.every((v) => cv < v)) {
+    // Constancia vem do pace dos splits: fora do Modo Gentil tambem.
+    if (!gentle && cv != null && cvs.isNotEmpty && cvs.every((v) => cv < v)) {
       out.add('Seu ritmo mais constante das ultimas 4 semanas.');
     }
   }
@@ -139,8 +144,12 @@ List<String> selfComparisonPhrases({
         'nas ultimas 4 semanas.');
   }
   if (out.length < 2) {
-    final minutes = (current.timerMs / 60000).round();
-    out.add('Foram $minutes min em movimento.');
+    final seconds = current.timerMs ~/ 1000;
+    out.add(switch (seconds) {
+      < 1 => 'Treino salvo.',
+      < 60 => 'Foram $seconds s em movimento.',
+      _ => 'Foram ${(current.timerMs / 60000).round()} min em movimento.',
+    });
   }
   return out.length > 3 ? out.sublist(0, 3) : out;
 }
