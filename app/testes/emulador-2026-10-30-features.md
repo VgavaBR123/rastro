@@ -12,6 +12,7 @@ feature fecha (commit por feature), para que uma queda de energia nao leve o his
 | F05 Capitulos mensais com marcos | `8e52f54`..`e4c0d36` + `1f03635`..`b1e41af` | 878 / 131 | 2 cenarios novos passam; F04 e sync passam de novo |
 | F06 Plano Do Zero aos 5 km | `195aa74`..`023a8e9` + `8493499`..`1c5df4d` | 982 / 131 | 1 cenario longo passa (parcial, concluidas, voltas, segundo plano, repetir semana); F04, F05 e sync passam de novo |
 | F07 Seus dados | `775fa9b`..`3ec738e` + `a500dac`..`4f54ed4` | 1101 / 131 | 1 cenario passa (importar exportacao de conta, duplicata, exportar com privacidade); F04, F05, F06 e sync passam de novo; CI do .ipa verde |
+| F08 Rastro Seguro | contrato `828c921`; backend `66d5757`..`190de5f`; app `ea76f49`..`754100b` | 1205 / 261 | 2 cenarios com duas contas passam contra o backend real; F04 a F07 e sync passam de novo; CI do .ipa verde |
 
 ## Como foi testado
 
@@ -158,3 +159,55 @@ dente de serra.
 - ZIP grande (1 a 2 GB): o `file_picker` copia o arquivo para o cache antes de devolver o caminho, dobrando o espaco
   ocupado por um tempo. Seletor nativo sem copia ficou como pendencia.
 - TalkBack real nos anuncios de progresso e de fim.
+
+## F08 Rastro Seguro
+
+Arquivo novo: `app/integration_test/rastro_seguro_test.dart`, contra o backend de verdade (Postgres) com tempos
+curtos: `SAFETY_TICK_MS=1000 SAFETY_SILENCE_MS=20000 SAFETY_STOP_MS=30000 SAFETY_CHECK_MS=15000
+SAFETY_ETA_MIN_MS=60000 PUBLIC_BASE_URL=http://localhost:8081`. Num aparelho so cabe uma conta na tela por vez,
+entao o outro lado de cada cenario e feito por chamadas HTTP diretas ao backend. O app e montado pela raiz real
+(`StravaEstudoApp`, com a caixa de entrada e o painel de alerta). Push: so o enviador de log (sem Firebase).
+
+| Cenario | Resultado | Evidencia |
+|---|---|---|
+| Dona (tela): convida a Bia em Configuracoes > Rastro Seguro; Bia aceita (HTTP) | Passou | Bia recebeu `contact_invite`; o aviso "sem push, so com o app aberto ou em ate 15 min" aparece na tela de contatos. |
+| Dona grava com Rastro Seguro (Bia, chegada em 30 min) e anda 10 s | Passou | Faixa "Rastro Seguro ativo - chegada prevista 04:35"; o backend tem a ultima posicao (com `receivedAtMs`). |
+| Para de andar (nenhuma amostra nova) | Passou | "Esta tudo bem?" em 32 a 34 s, com contagem 0:15, "Estou bem", "Estender 15 min" e "Preciso de ajuda". |
+| Nao responde | Passou | Faixa "Seus contatos foram avisados"; Bia recebeu `safety_alert` "Ana nao respondeu ... ficou sem se mover por um tempo", com o link. |
+| Link publico sem conta | Passou | `state: no_response`, primeiro nome, ultima posicao com idade e link do OpenStreetMap; o HTML nao tem o email de ninguem. |
+| Dona toca "Estou bem" depois do alerta | Passou | Bia recebeu `safety_all_clear`. |
+| Dona encerra a gravacao | Passou | `arrived`: o link passa a `state: arrived` e nao ha mais sessao ativa. |
+| Contato (tela) parado em Estatisticas; outra conta (HTTP) manda SOS | Passou | Painel por cima da tela: "Cris pediu ajuda"; vibrou; "Ver localizacao" abriu `http://localhost:8081/s/<token>` e tirou o alerta da fila; o SOS fica na caixa de entrada. |
+| Regressao: plano 5 km (com segundo plano), Seus dados, capitulos, fechamento gentil e sync | Passou | Seus dados precisou de um ajuste no teste (F08-E2E-03). |
+| CI do `.ipa` (url_launcher, flutter_local_notifications, desugaring) | Passou | Execucao `41166747569`. |
+
+### Achados
+
+Revisoes independentes separadas do backend e do app; os dois agentes corrigiram tudo com testes.
+
+| Id | Gravidade | O que | Situacao |
+|---|---|---|---|
+| F08-REV-B1 | Alta | Alerta gravado como "avisado" antes do envio: uma falha no banco no meio calava os outros contatos para sempre. | Corrigido em `afb4b55`: status e caixa de entrada na mesma transacao; push por outbox com reenvio. |
+| F08-REV-B2 | Alta | O fim automatico em eta + 6 h engolia uma checagem em curso, sem alerta. | Corrigido em `413945c`. |
+| F08-REV-B3 | Alta | Token do FCM nunca renovado: o 1o push depois de 1 h quieta se perdia. | Corrigido em `74aff81`. |
+| F08-REV-B4 | Alta | "Estender" somava ao horario ja vencido (vai e volta de alerta). | Corrigido em `5a14909`. |
+| F08-REV-B5 | Alta | Queda ou reinicio do servidor viraria alerta falso em massa por "silencio". | Corrigido em `b216ed6` (carencia). |
+| F08-REV-B6 a B10 | Media | Relogio do celular errado congelando a posicao; rotas notificando antes de salvar; vigia travado sem aviso e sem reconexao ao Postgres; contato removido sem avisar a dona (e ainda vendo o link); posicao do SOS nunca apagada. | Corrigidos em `c0f8b46`, `afb4b55`, `58d10f8`, `585ee14` e `7d3a8d0`. |
+| F08-REV-A1 | Critica | Abrir o app em outro aparelho da mesma conta encerrava a sessao de quem estava correndo (e mandava "esta bem" falso). | Corrigido em `8006a9e`/`66fc826`: cada aparelho so encerra o que criou. |
+| F08-REV-A2 a A7 | Alta | Sessao encerrada pelo backend sumia em silencio; "parado" vinha da auto-pausa e nao do deslocamento; alerta para o contato passava despercebido; SOS dependia de mandar a posicao antes; 5xx/401/400 nao apareciam. | Corrigidos em `66fc826`, `d44b537` e `15ae03c`. |
+| F08-REV-A8 a A17 | Media e baixa | "Cheguei" sem rede so em memoria; inicio depois de descartar; SOS coberto pelo aviso; "Estou bem" com um toque no bolso; contagem pelo relogio do aparelho; caixa de entrada perdendo itens; troca de conta misturando alertas; link aberto de qualquer host. | Corrigidos em `66fc826`, `d44b537`, `15ae03c`, `9694cae` e `754100b`. |
+| F08-E2E-01 | So teste | A rota falsa antiga tem horarios de 2025: o backend corrigido (B6) trata posicao de mais de 1 h antes do inicio como so sinal de vida. | O teste usa uma rota com o horario atual. |
+| F08-E2E-02 | So teste | O teste montava o app sem o `builder` raiz, onde ficam a caixa de entrada e o painel de alerta. | O teste monta `StravaEstudoApp`. |
+| F08-E2E-03 | So teste | A secao Seguranca nas Configuracoes empurrou "Seus dados" para a borda da tela no `seus_dados_test`. | Rola a lista vertical e centraliza o item. |
+| F08-E2E-04 | So ambiente | O backend limita 10 cadastros por IP (em memoria); pelo `adb reverse` todas as contas de teste vem do mesmo IP. | Reiniciar o backend entre baterias longas de E2E. |
+
+### Limitacoes conhecidas
+
+- **Sem push real** (Firebase nao configurado): o contato so e avisado com o app aberto (painel por cima de
+  qualquer tela, voz e vibracao) ou pelo sincronismo de fundo em ate ~15 min, com notificacao local. O app diz
+  isso na tela de contatos. Com o projeto Firebase, o envio real ja esta implementado no backend (`FcmPushSender`),
+  mas nunca foi chamado de verdade.
+- **iPhone:** push exige APNs e conta paga da Apple; pelo Sideloadly com Apple ID gratis nao ha push.
+- **Nao verificado no aparelho:** notificacao local do sistema de verdade (no teste ela e Noop), tick das
+  posicoes com a tela desligada por muito tempo (Doze), TalkBack, e o caminho de recuperacao apos crash na tela.
+- **Uma instancia do servidor:** travas, limites de convite e drenagem do push vivem em memoria.

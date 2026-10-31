@@ -208,8 +208,20 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('profile_settings')));
     await tester.tap(find.byKey(const Key('profile_settings')));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.byKey(const Key('your_data')), 200,
-        scrollable: find.byType(Scrollable).first);
+    // Rola a lista vertical ate o item existir e o centraliza (a secao de
+    // Seguranca da F08 empurrou o item para a borda da tela).
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('your_data')),
+      200,
+      scrollable: find
+          .byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down)
+          .first,
+    );
+    await tester.runAsync(() => Scrollable.ensureVisible(
+          tester.element(find.byKey(const Key('your_data'))),
+          alignment: 0.5,
+        ));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('your_data')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('your_data_screen')), findsOneWidget);
