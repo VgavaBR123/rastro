@@ -16,18 +16,28 @@ class SportMatch {
   /// Rotulo do esporte ignorado ("natacao"); null quando nao e "outro".
   final String? otherLabel;
 
-  const SportMatch.known(ActivityType this.type) : otherLabel = null;
-  const SportMatch.other(String this.otherLabel) : type = null;
-  const SportMatch.unknown() : type = null, otherLabel = null;
+  /// O nome esta nas nossas tabelas (dos 3 esportes ou dos "outros"
+  /// conhecidos). False em [SportMatch.unlisted]: nome que nao conhecemos.
+  final bool listed;
+
+  const SportMatch.known(ActivityType this.type) : otherLabel = null, listed = true;
+  const SportMatch.other(String this.otherLabel) : type = null, listed = true;
+
+  /// Nome fora das tabelas. No CSV, quem decide e o esporte do arquivo.
+  const SportMatch.unlisted(String this.otherLabel) : type = null, listed = false;
+  const SportMatch.unknown() : type = null, otherLabel = null, listed = true;
 
   bool get isUnknown => type == null && otherLabel == null;
 
   @override
   bool operator ==(Object other) =>
-      other is SportMatch && other.type == type && other.otherLabel == otherLabel;
+      other is SportMatch &&
+      other.type == type &&
+      other.otherLabel == otherLabel &&
+      other.listed == listed;
 
   @override
-  int get hashCode => Object.hash(type, otherLabel);
+  int get hashCode => Object.hash(type, otherLabel, listed);
 
   @override
   String toString() => 'SportMatch(${type ?? otherLabel ?? 'desconhecido'})';
@@ -37,6 +47,8 @@ const Set<String> _run = {
   'run', 'running', 'trailrun', 'trailrunning', 'virtualrun', 'treadmill',
   'treadmillrunning', 'indoorrunning', 'streetrunning', 'trackrunning',
   'corrida', 'corridaderua', 'corridaemtrilha', 'esteira',
+  // Exportacao de conta em portugues.
+  'corridavirtual', 'corridanaesteira', 'corridaindoor',
 };
 
 const Set<String> _ride = {
@@ -44,11 +56,18 @@ const Set<String> _ride = {
   'mountainbikeride', 'emountainbikeride', 'gravelride', 'roadbiking',
   'roadcycling', 'mountainbiking', 'indoorcycling', 'velomobile', 'handcycle',
   'pedal', 'ciclismo', 'bicicleta',
+  // Exportacao de conta em portugues.
+  'pedalada', 'pedaladavirtual', 'pedaladaeletrica', 'pedaladademountainbike',
+  'pedaladademountainbikeeletrica', 'pedaladaemcascalho', 'pedaladaindoor',
+  'bicicletaeletrica', 'ebike', 'mountainbike', 'ciclismovirtual',
+  'ciclismoindoor', 'handbike', 'velomovel',
 };
 
 const Set<String> _walk = {
   'walk', 'walking', 'hike', 'hiking', 'caminhada', 'trilha', 'trekking',
   'speedwalking',
+  // Exportacao de conta em portugues.
+  'caminhadavirtual', 'caminhadarapida', 'caminhadanaesteira',
 };
 
 const Set<String> _unknown = {'', 'other', 'generic', 'outro', 'outros', 'unknown'};
@@ -67,6 +86,17 @@ const Map<String, String> _otherLabels = {
   'elliptical': 'eliptico', 'stairstepper': 'escada', 'tennis': 'tenis',
   'soccer': 'futebol', 'iceskate': 'patinacao', 'inlineskate': 'patins',
   'rockclimbing': 'escalada', 'golf': 'golfe',
+  // Exportacao de conta em portugues.
+  'natacaoemaguasabertas': 'natacao', 'ioga': 'ioga', 'musculacao': 'musculacao',
+  'treinocompesos': 'musculacao', 'treinamentodeforca': 'musculacao',
+  'treino': 'treino', 'remo': 'remo', 'removirtual': 'remo',
+  'esqui': 'esqui', 'esquialpino': 'esqui', 'esquinordico': 'esqui',
+  'esquidefundo': 'esqui', 'esquicrosscountry': 'esqui', 'esquibackcountry': 'esqui',
+  'canoagem': 'canoagem', 'caiaque': 'canoagem', 'standuppaddle': 'stand up paddle',
+  'surfe': 'surfe', 'windsurf': 'windsurf', 'eliptico': 'eliptico', 'escada': 'escada',
+  'tenis': 'tenis', 'futebol': 'futebol', 'patinacao': 'patinacao',
+  'patinacaonogelo': 'patinacao', 'patins': 'patins', 'escalada': 'escalada',
+  'golfe': 'golfe',
 };
 
 final RegExp _digitsOnly = RegExp(r'^\d+$');
@@ -102,7 +132,7 @@ SportMatch matchSport(String? raw) {
   final label = _otherLabels[key];
   if (label != null) return SportMatch.other(label);
   if (_sportCode.hasMatch(key)) return const SportMatch.other('outros');
-  return SportMatch.other(raw.trim().toLowerCase());
+  return SportMatch.unlisted(raw.trim().toLowerCase());
 }
 
 /// Velocidade media em movimento (m/s) abaixo da qual a atividade sem tipo

@@ -99,6 +99,30 @@ void main() {
     expect(errors.single.reason, contains('nao esta no ZIP'));
   });
 
+  test('ZIP com CSV em portugues; com CSV, so a pasta activities/ entra', () async {
+    const csv = 'ID da atividade,Data da atividade,Nome da atividade,Tipo de atividade,Nome do arquivo\n'
+        '1,"1 de mar. de 2026",Pedal no parque,Pedalada,activities/1.gpx\n'
+        '2,"2 de mar. de 2026",Trilha da serra,Trilha,activities/2.tcx\n'
+        '3,"3 de mar. de 2026",Nadei,Natação,activities/3.fit\n';
+    final zip = zipOf({
+      'activities.csv': utf8.encode(csv),
+      'activities/1.gpx': runGpx(name: 'x'),
+      'activities/2.tcx': utf8.encode(tcxText(sport: 'Running', points: line(20, startMs: kT0 + 86400000))),
+      'activities/3.fit': fitBytes(points: line(20), sport: 5),
+      'activities/9.gpx': runGpx(startMs: kT0 + 2 * 86400000),
+      'routes/rota.gpx': runGpx(startMs: kT0 + 3 * 86400000),
+      'outra/coisa.fit': fitBytes(points: line(5), sport: 1),
+    });
+    final feed = await LocalImportFeed.open([writeTemp(dir, 'pt.zip', zip)]);
+    expect(feed.total, 4);
+    final steps = await drain(feed);
+    final acts = steps.whereType<ImportStepActivity>().toList();
+    expect(acts.map((s) => s.activity.type), [ActivityType.ride, ActivityType.walk, ActivityType.run]);
+    expect(acts.map((s) => s.activity.title), ['Pedal no parque', 'Trilha da serra', 'Corrida']);
+    expect(steps.whereType<ImportStepSkipped>().single.label, 'natacao');
+    expect(steps.whereType<ImportStepError>(), isEmpty);
+  });
+
   test('ZIP sem CSV: todos os arquivos de atividade; arquivo que nao e ZIP vira erro', () async {
     final zip = zipOf({
       'a/1.gpx': runGpx(),

@@ -127,6 +127,32 @@ void main() {
     expect(guids, isNot(contains('imp-1')));
   });
 
+  test('tipo inferido: duplicata so pelo horario (pedal lento sem tipo x pedal do app)', () async {
+    await db.upsertActivity(ActivitiesCompanion.insert(
+      guid: 'gravada',
+      activityType: ActivityType.ride,
+      startTimestampMs: kT0,
+      isFinished: const Value(true),
+      syncState: SyncState.synced,
+    ));
+    final inferred = ImportedActivity(
+      guid: 'imp-lento',
+      type: ActivityType.run, // pedal lento parece corrida pelo ritmo
+      format: ImportFormat.gpx,
+      title: null,
+      startMs: kT0 + 20000,
+      endMs: kT0 + 80000,
+      timerMs: 60000,
+      distanceMeters: 200,
+      isIndoor: true,
+      points: const [],
+      typeInferred: true,
+    );
+    final s = await service.run(ListFeed([ImportStepActivity('lento.gpx', inferred)]));
+    expect(s.duplicates, 1);
+    expect(s.imported, 0);
+  });
+
   test('ignoradas por tipo e erros com motivo; um erro nao para os outros', () async {
     final s = await service.run(ListFeed([
       const ImportStepSkipped('1.fit', 'natacao'),

@@ -34,7 +34,40 @@ void main() {
       expect(matchSport('swimming'), const SportMatch.other('natacao'));
       expect(matchSport('Yoga'), const SportMatch.other('ioga'));
       expect(matchSport('Kitesurf'), const SportMatch.other('kitesurf'));
+      expect(matchSport('Futevolei'), const SportMatch.unlisted('futevolei'));
       expect(matchSport('sport_200'), const SportMatch.other('outros'));
+    });
+
+    test('nomes da exportacao em portugues, sem diferenciar acento e caixa', () {
+      for (final s in ['Corrida', 'Corrida virtual', 'Corrida em trilha', 'CORRIDA NA ESTEIRA']) {
+        expect(matchSport(s), const SportMatch.known(ActivityType.run), reason: s);
+      }
+      for (final s in [
+        'Pedalada', 'Pedalada virtual', 'Pedalada elétrica', 'Pedalada de mountain bike',
+        'Pedalada em cascalho', 'pedalada de mountain bike elétrica', 'Ciclismo',
+      ]) {
+        expect(matchSport(s), const SportMatch.known(ActivityType.ride), reason: s);
+      }
+      for (final s in ['Caminhada', 'Trilha', 'Hiking', 'Caminhada virtual']) {
+        expect(matchSport(s), const SportMatch.known(ActivityType.walk), reason: s);
+      }
+      expect(matchSport('Natação'), const SportMatch.other('natacao'));
+      expect(matchSport('Musculação'), const SportMatch.other('musculacao'));
+      expect(matchSport('Treino com pesos'), const SportMatch.other('musculacao'));
+    });
+
+    test('tipo do CSV fora das tabelas cai para o esporte do arquivo', () {
+      final a = built(buildImportedActivity(
+        gpx(line(5), type: 'running'),
+        hash: 'x',
+        sportOverride: 'Atividade nova que nao conheco',
+      ));
+      expect(a.type, ActivityType.run);
+      // Mas um esporte conhecido no CSV continua valendo.
+      expect(
+        buildImportedActivity(gpx(line(5), type: 'running'), hash: 'x', sportOverride: 'Natação'),
+        isA<SkippedSport>(),
+      );
     });
 
     test('sem tipo (ou so numero / Other) e desconhecido', () {

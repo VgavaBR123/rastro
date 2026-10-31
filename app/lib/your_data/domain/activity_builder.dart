@@ -91,8 +91,15 @@ BuildResult buildImportedActivity(
   String? sportOverride,
   String? nameOverride,
 }) {
-  var sport = matchSport(sportOverride);
-  if (sport.isUnknown) sport = matchSport(parsed.sportName);
+  // CSV primeiro; sem tipo no CSV, ou com um nome que nao conhecemos, vale o
+  // esporte do proprio arquivo. Se o arquivo nao disser nada, o nome
+  // desconhecido do CSV e ignorado (nao inventamos o esporte).
+  final fromCsv = matchSport(sportOverride);
+  var sport = fromCsv;
+  if (fromCsv.isUnknown || !fromCsv.listed) {
+    final fromFile = matchSport(parsed.sportName);
+    if (!fromFile.isUnknown) sport = fromFile;
+  }
   if (sport.otherLabel != null) return SkippedSport(sport.otherLabel!);
 
   final title = _clean(nameOverride) ?? _clean(parsed.name);

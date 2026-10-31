@@ -3,7 +3,8 @@
 /// - Uma transacao por atividade: cabecalho + pontos entram juntos ou nada.
 /// - Duplicata: o guid deterministico ja existe (mesmo arquivo de novo), ou
 ///   ja ha atividade finalizada do mesmo tipo com inicio a menos de 60 s
-///   (inclusive gravada no app).
+///   (inclusive gravada no app). Com o tipo inferido pelo ritmo, qualquer
+///   tipo conta.
 /// - A importada nasce finalizada, "so eu" e pendente de sync: sobe pela fila
 ///   normal depois (com o corte de privacidade do upload). Nada sobe aqui.
 /// - Cancelar: para antes do proximo item; o que ja entrou fica.
@@ -141,7 +142,10 @@ class ImportService {
     final near = await (db.selectOnly(db.activities)
           ..addColumns([db.activities.guid])
           ..where(db.activities.isFinished.equals(true) &
-              db.activities.activityType.equalsValue(a.type) &
+              // Tipo inferido pelo ritmo nao e confiavel: so o horario conta.
+              (a.typeInferred
+                  ? const Constant(true)
+                  : db.activities.activityType.equalsValue(a.type)) &
               db.activities.startTimestampMs.isBiggerThanValue(a.startMs - kDuplicateWindowMs) &
               db.activities.startTimestampMs.isSmallerThanValue(a.startMs + kDuplicateWindowMs))
           ..limit(1))

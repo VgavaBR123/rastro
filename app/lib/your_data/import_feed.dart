@@ -198,7 +198,11 @@ class LocalImportFeed implements ImportFeed {
     if (rows == null) {
       return [for (final e in activityEntries) _ZipFile(zip, e)];
     }
-    final byName = {for (final e in activityEntries) e.name: e};
+    // Com o CSV, so a pasta activities/ da exportacao: routes/, media/ e as
+    // outras ficam de fora, sem erro.
+    final folder = '${prefix}activities/';
+    final inFolder = [for (final e in activityEntries) if (e.name.startsWith(folder)) e];
+    final byName = {for (final e in inFolder) e.name: e};
     final used = <String>{};
     final items = <_Item>[];
     for (final r in rows) {
@@ -206,7 +210,7 @@ class LocalImportFeed implements ImportFeed {
         items.add(_Ready(ImportStepSkipped(r.name?.trim() ?? '', kNoFileLabel)));
         continue;
       }
-      final entry = byName['$prefix${r.file}'] ?? byName[r.file];
+      final entry = byName['$prefix${r.file}'];
       if (entry == null) {
         items.add(_Ready(ImportStepError(r.file, 'citado no CSV, mas nao esta no ZIP')));
         continue;
@@ -214,7 +218,7 @@ class LocalImportFeed implements ImportFeed {
       used.add(entry.name);
       items.add(_ZipFile(zip, entry, csvName: r.name, csvType: r.type));
     }
-    for (final e in activityEntries) {
+    for (final e in inFolder) {
       if (!used.contains(e.name)) items.add(_ZipFile(zip, e));
     }
     return items;
