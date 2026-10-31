@@ -45,6 +45,8 @@ class SafetyConfig {
     this.invitesPerHour = 20,
     this.pushMaxAttempts = 5,
     this.pushRetryBaseMs = 15000,
+    this.maxClockAheadMs = 2 * 60 * 1000,
+    this.maxPositionBeforeStartMs = 60 * 60 * 1000,
   });
 
   /// Le as variaveis do contrato; ausentes ou invalidas ficam no padrao.
@@ -96,6 +98,12 @@ class SafetyConfig {
 
   /// Espera antes da 2a tentativa; dobra a cada falha (base, 2x, 4x...).
   final int pushRetryBaseMs;
+
+  /// recordedAtMs mais que isto depois do recebimento e cortado.
+  final int maxClockAheadMs;
+
+  /// recordedAtMs mais que isto antes do inicio da sessao vira batimento.
+  final int maxPositionBeforeStartMs;
 }
 
 /// Formato do token do link: 32 bytes em base64url sem padding = 43 chars.
@@ -601,12 +609,21 @@ class SafetyService {
       _exigirAberta(s);
       final int agora = _now();
       s.lastSignalAtMs = agora;
-      if (!semPosicao) {
+      int registro = (rec as num?)?.toInt() ?? agora;
+      // Relogio do aparelho adiantado: mais de 2 min no futuro vira o
+      // instante do recebimento.
+      if (registro > agora + config.maxClockAheadMs) registro = agora;
+      // Muito antes do inicio da sessao (ex.: 0, relogio zerado): nao e uma
+      // posicao desta atividade; conta so como sinal de vida.
+      final bool antigaDemais =
+          registro < s.startedAtMs - config.maxPositionBeforeStartMs;
+      if (!semPosicao && !antigaDemais) {
         final SafetyPosition nova = SafetyPosition(
           lat: (lat as num).toDouble(),
           lon: (lon as num).toDouble(),
           accuracyM: (acc as num?)?.toDouble(),
-          recordedAtMs: (rec as num?)?.toInt() ?? agora,
+          recordedAtMs: registro,
+          receivedAtMs: agora,
         );
         // Envio atrasado (fila offline) nao troca a posicao mais recente.
         if (s.lastPosition == null ||
@@ -990,8 +1007,10 @@ class PublicSessionView {
   final int lastSignalAtMs;
   final int nowMs;
 
-  int? get lastPositionAgeMs =>
-      lastPosition == null ? null : max(0, nowMs - lastPosition!.recordedAtMs);
+  int? get lastPositionAgeMs => lastPosition == null
+      ? null
+      : max(0, nowMs - lastPosition!.ageReferenceMs);
+
 
   String? get mapUrl {
     final SafetyPosition? p = lastPosition;

@@ -81,7 +81,11 @@ void suite(String nome, Future<SafetyStore> Function() criar,
       ss
         ..status = 'checking'
         ..lastPosition = const SafetyPosition(
-            lat: -23.5, lon: -46.6, accuracyM: 4.5, recordedAtMs: 1500)
+            lat: -23.5,
+            lon: -46.6,
+            accuracyM: 4.5,
+            recordedAtMs: 1500,
+            receivedAtMs: 1510)
         ..stillSinceMs = 1200
         ..checkReason = 'stopped'
         ..checkStartedAtMs = 1600
@@ -94,6 +98,7 @@ void suite(String nome, Future<SafetyStore> Function() criar,
       expect(lido.lastPosition!.lat, -23.5);
       expect(lido.lastPosition!.accuracyM, 4.5);
       expect(lido.lastPosition!.recordedAtMs, 1500);
+      expect(lido.lastPosition!.receivedAtMs, 1510);
       expect(lido.stillSinceMs, 1200);
       expect(lido.checkReason, 'stopped');
       expect(lido.checkDeadlineMs, 1700);

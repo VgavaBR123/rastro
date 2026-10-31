@@ -80,6 +80,8 @@ const List<String> safetySchemaSql = <String>[
       'next_attempt_at BIGINT NOT NULL, '
       'created_at BIGINT NOT NULL)',
   'CREATE INDEX IF NOT EXISTS idx_push_outbox_next ON push_outbox (next_attempt_at)',
+  // Instante em que o servidor recebeu a ultima posicao.
+  'ALTER TABLE safety_sessions ADD COLUMN IF NOT EXISTS last_received_at BIGINT NULL',
 ];
 
 class PostgresSafetyStore implements SafetyStore {
@@ -110,7 +112,7 @@ class PostgresSafetyStore implements SafetyStore {
   static const String _colsSessao =
       'id, owner_id, activity_guid, status, eta_ms, started_at, ended_at, '
       'end_reason, last_signal_at, last_lat, last_lon, last_accuracy_m, '
-      'last_recorded_at, still_since, contact_ids, check_reason, '
+      'last_recorded_at, last_received_at, still_since, contact_ids, check_reason, '
       'check_started_at, check_deadline, alerted_at, eta_recheck_after, '
       'share_token, share_expires_at';
 
@@ -204,6 +206,7 @@ class PostgresSafetyStore implements SafetyStore {
         'lon': s.lastPosition?.lon,
         'acc': s.lastPosition?.accuracyM,
         'rec': s.lastPosition?.recordedAtMs,
+        'recv': s.lastPosition?.receivedAtMs,
         'still': s.stillSinceMs,
         'contacts': jsonEncode(s.contactIds),
         'check_reason': s.checkReason,
@@ -223,7 +226,8 @@ class PostgresSafetyStore implements SafetyStore {
       'INSERT INTO safety_sessions ($_colsSessao) VALUES ('
       '@id, @owner, @guid, @status, @eta, @started, @ended, @end_reason, '
       '@signal, @lat::double precision, @lon::double precision, '
-      '@acc::double precision, @rec::bigint, @still::bigint, @contacts::jsonb, '
+      '@acc::double precision, @rec::bigint, @recv::bigint, @still::bigint, '
+      '@contacts::jsonb, '
       '@check_reason, @check_started::bigint, @check_deadline::bigint, '
       '@alerted::bigint, @recheck::bigint, @token, @share_exp::bigint) '
       "ON CONFLICT (owner_id) WHERE status <> 'ended' DO NOTHING RETURNING id",
@@ -240,7 +244,8 @@ class PostgresSafetyStore implements SafetyStore {
       'last_signal_at = @signal, last_lat = @lat::double precision, '
       'last_lon = @lon::double precision, '
       'last_accuracy_m = @acc::double precision, '
-      'last_recorded_at = @rec::bigint, still_since = @still::bigint, '
+      'last_recorded_at = @rec::bigint, last_received_at = @recv::bigint, '
+      'still_since = @still::bigint, '
       'contact_ids = @contacts::jsonb, check_reason = @check_reason::text, '
       'check_started_at = @check_started::bigint, '
       'check_deadline = @check_deadline::bigint, alerted_at = @alerted::bigint, '
@@ -310,6 +315,9 @@ class PostgresSafetyStore implements SafetyStore {
               lon: lon,
               accuracyM: (m['last_accuracy_m'] as num?)?.toDouble(),
               recordedAtMs: m['last_recorded_at'] as int,
+              receivedAtMs: (m['last_received_at'] as int?) ??
+                  (m['last_recorded_at'] as int),
+
             ),
       stillSinceMs: m['still_since'] as int?,
       contactIds: [for (final x in (lista as List? ?? const [])) x as String],

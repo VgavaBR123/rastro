@@ -186,7 +186,13 @@ void main() {
       final r = await h.posicao(ana, s['id'], lat: -23.5, lon: -46.6);
       expect(r['lastSignalAt'], h.agora);
       expect(r['lastPosition'],
-          {'lat': -23.5, 'lon': -46.6, 'accuracyM': 5, 'recordedAtMs': h.agora});
+          {
+            'lat': -23.5,
+            'lon': -46.6,
+            'accuracyM': 5,
+            'recordedAtMs': h.agora,
+            'receivedAtMs': h.agora
+          });
     });
 
     test('lat/lon null = batimento: sinal de vida sem trocar a posicao',
@@ -215,6 +221,64 @@ void main() {
           token: ana.token);
       expect(r['lastPosition']['lat'], 1);
       expect(r['lastSignalAt'], h.agora);
+    });
+
+    Future<Map<String, dynamic>> comHorario(String sessao, int rec,
+            {double lat = 1}) =>
+        h.json('POST', '/safety/sessions/$sessao/positions',
+            body: {
+              'lat': lat,
+              'lon': 2,
+              'recordedAtMs': rec,
+              'moving': true,
+              'paused': false
+            },
+            token: ana.token);
+
+    test('guarda o instante de recebimento junto da posicao', () async {
+      final s = await h.criarSessao(ana, [ctBia]);
+      h.agora += minuto;
+      final r = await comHorario(s['id'], h.agora - 10 * seg);
+      expect(r['lastPosition']['recordedAtMs'], h.agora - 10 * seg);
+      expect(r['lastPosition']['receivedAtMs'], h.agora);
+    });
+
+    test('recordedAtMs mais de 2 min no futuro e cortado para o recebimento',
+        () async {
+      final s = await h.criarSessao(ana, [ctBia]);
+      final r = await comHorario(s['id'], h.agora + hora);
+      expect(r['lastPosition']['recordedAtMs'], h.agora);
+      // Ate 2 min no futuro passa (relogio do aparelho um pouco adiantado).
+      h.agora += minuto;
+      final r2 = await comHorario(s['id'], h.agora + 2 * minuto, lat: 3);
+      expect(r2['lastPosition']['recordedAtMs'], h.agora + 2 * minuto);
+      // E uma posicao futura cortada nao trava as seguintes.
+      h.agora += 5 * minuto;
+      final r3 = await comHorario(s['id'], h.agora, lat: 4);
+      expect(r3['lastPosition']['lat'], 4);
+    });
+
+    test('recordedAtMs mais de 1 h antes do inicio vira so batimento',
+        () async {
+      final s = await h.criarSessao(ana, [ctBia]);
+      final inicio = s['startedAt'] as int;
+      h.agora += minuto;
+      for (final rec in [0, inicio - hora - 1]) {
+        final r = await comHorario(s['id'], rec);
+        expect(r['lastPosition'], isNull, reason: '$rec');
+        expect(r['lastSignalAt'], h.agora);
+      }
+      final ok = await comHorario(s['id'], inicio - hora);
+      expect(ok['lastPosition']['recordedAtMs'], inicio - hora);
+    });
+
+    test('idade no link usa o menor entre registro e recebimento', () async {
+      final s = await h.criarSessao(ana, [ctBia]);
+      await comHorario(s['id'], h.agora + 90 * seg);
+      h.agora += 2 * minuto;
+      final token = (s['shareUrl'] as String).split('/').last;
+      final j = await h.json('GET', '/s/$token.json');
+      expect(j['lastPositionAgeMs'], 2 * minuto);
     });
 
     test('400 com dados invalidos', () async {

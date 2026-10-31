@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS safety_sessions (
   last_lon          DOUBLE PRECISION NULL,
   last_accuracy_m   DOUBLE PRECISION NULL,
   last_recorded_at  BIGINT NULL,
+  last_received_at  BIGINT NULL,
   still_since       BIGINT NULL,
   contact_ids       JSONB NOT NULL DEFAULT '[]'::jsonb,
   check_reason      TEXT NULL,
@@ -165,3 +166,6 @@ CREATE TABLE IF NOT EXISTS push_outbox (
 );
 CREATE INDEX IF NOT EXISTS idx_push_outbox_next ON push_outbox (next_attempt_at);
 
+
+-- Volumes criados antes da coluna de recebimento da posicao.
+ALTER TABLE safety_sessions ADD COLUMN IF NOT EXISTS last_received_at BIGINT NULL;

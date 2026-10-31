@@ -49,19 +49,33 @@ class SafetyPosition {
     required this.lon,
     this.accuracyM,
     required this.recordedAtMs,
+    required this.receivedAtMs,
   });
 
   final double lat;
   final double lon;
   final double? accuracyM;
+
+  /// Quando o aparelho registrou (relogio do aparelho, ja cortado: nunca
+  /// mais de 2 min depois do recebimento).
   final int recordedAtMs;
+
+  /// Quando o servidor recebeu (relogio do servidor).
+  final int receivedAtMs;
+
+  /// Referencia para a idade da posicao: o menor dos dois, para um relogio
+  /// adiantado no aparelho nao fazer a posicao parecer mais nova.
+  int get ageReferenceMs =>
+      recordedAtMs < receivedAtMs ? recordedAtMs : receivedAtMs;
 
   Map<String, dynamic> toJson() => {
         'lat': lat,
         'lon': lon,
         'accuracyM': accuracyM,
         'recordedAtMs': recordedAtMs,
+        'receivedAtMs': receivedAtMs,
       };
+
 }
 
 /// Sessao do Rastro Seguro. Mutavel de proposito: o servico carrega, altera e
