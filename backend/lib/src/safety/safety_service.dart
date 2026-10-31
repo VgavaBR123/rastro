@@ -852,9 +852,23 @@ class SafetyService {
         stderr.writeln('vigia: sessao ${previa.id}: $e');
       }
     }
-    await _store.deleteSessionsEndedBefore(_now() - config.purgeAfterMs);
+    await _limparLgpd();
     await drenarPush();
     _ultimoTickMs = _now();
+  }
+
+  /// 24 h depois do fim: a sessao (posicao e link) some e as notificacoes
+  /// dela perdem lat, lon e shareUrl, numa transacao so.
+  Future<void> _limparLgpd() async {
+    final int limite = _now() - config.purgeAfterMs;
+    final List<String> ids = await _store.sessionIdsEndedBefore(limite);
+    if (ids.isEmpty) return;
+    await _store.transaction((tx) async {
+      for (final String id in ids) {
+        await tx.scrubSessionNotifications(id);
+      }
+      await tx.deleteSessionsEndedBefore(limite);
+    });
   }
 
   Future<void> _vigiar(String id, SafetyStore tx) async {

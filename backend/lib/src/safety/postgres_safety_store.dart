@@ -294,7 +294,26 @@ class PostgresSafetyStore implements SafetyStore {
     return r.length;
   }
 
+  @override
+  Future<List<String>> sessionIdsEndedBefore(int ms) async {
+    final r = await _q(
+      "SELECT id FROM safety_sessions WHERE status = 'ended' AND ended_at < @ms",
+      {'ms': ms},
+    );
+    return [for (final row in r) row.toColumnMap()['id'] as String];
+  }
+
+  @override
+  Future<void> scrubSessionNotifications(String sessionId) async {
+    await _q(
+      "UPDATE notifications SET data = data - 'lat' - 'lon' - 'shareUrl' "
+      "WHERE data->>'sessionId' = @id",
+      {'id': sessionId},
+    );
+  }
+
   SafetySessionRecord _sessao(Map<String, dynamic> m) {
+
     final double? lat = (m['last_lat'] as num?)?.toDouble();
     final double? lon = (m['last_lon'] as num?)?.toDouble();
     final Object? ids = m['contact_ids'];

@@ -154,6 +154,36 @@ void suite(String nome, Future<SafetyStore> Function() criar,
       expect(lida.readAtMs, 5);
     });
 
+    test('scrubSessionNotifications tira lat, lon e shareUrl', () async {
+      await s.addNotification(NotificationRecord(
+          id: '${a}_ntsc',
+          userId: a,
+          type: 'safety_sos',
+          title: 'titulo',
+          body: 'corpo',
+          data: {
+            'sessionId': '${a}_ssc',
+            'lat': 1.5,
+            'lon': 2.5,
+            'shareUrl': 'http://x/s/t',
+            'ownerName': 'Ana'
+          },
+          createdAtMs: 1));
+      await s.addNotification(NotificationRecord(
+          id: '${a}_ntou',
+          userId: a,
+          type: 'safety_sos',
+          title: 't',
+          body: 'b',
+          data: {'sessionId': 'outra', 'lat': 1.0},
+          createdAtMs: 2));
+      await s.scrubSessionNotifications('${a}_ssc');
+      final n = (await s.findNotification('${a}_ntsc'))!;
+      expect(n.data, {'sessionId': '${a}_ssc', 'ownerName': 'Ana'});
+      expect(n.title, 'titulo');
+      expect((await s.findNotification('${a}_ntou'))!.data['lat'], 1.0);
+    });
+
     test('tokens: upsert reatribui, delete so do dono', () async {
       final tk = '${a}_tok';
       await s.upsertPushToken(PushTokenRecord(

@@ -296,6 +296,13 @@ abstract class SafetyStore {
   /// Apaga as sessoes encerradas antes de [ms] (LGPD); devolve quantas.
   Future<int> deleteSessionsEndedBefore(int ms);
 
+  /// Ids das sessoes encerradas antes de [ms].
+  Future<List<String>> sessionIdsEndedBefore(int ms);
+
+  /// LGPD: tira lat, lon e shareUrl do data das notificacoes da sessao
+  /// (titulo e texto ficam).
+  Future<void> scrubSessionNotifications(String sessionId);
+
   // Notificacoes.
 
   Future<void> addNotification(NotificationRecord n);
@@ -470,9 +477,27 @@ class InMemorySafetyStore implements SafetyStore {
   }
 
   @override
+  Future<List<String>> sessionIdsEndedBefore(int ms) async => [
+        for (final s in _sessions.values)
+          if (s.ended && s.endedAtMs != null && s.endedAtMs! < ms) s.id
+      ];
+
+  @override
+  Future<void> scrubSessionNotifications(String sessionId) async {
+    for (final n in _notifications.values) {
+      if (n.data['sessionId'] != sessionId) continue;
+      n.data
+        ..remove('lat')
+        ..remove('lon')
+        ..remove('shareUrl');
+    }
+  }
+
+  @override
   Future<void> addNotification(NotificationRecord n) async {
     _notifications[n.id] = n.copy();
   }
+
 
   @override
   Future<NotificationRecord?> findNotification(String id) async =>

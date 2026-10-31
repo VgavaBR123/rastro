@@ -436,6 +436,30 @@ void main() {
       expect(await h.status('GET', '/s/$link'), 404);
     });
 
+    test('limpeza de 24 h tira lat, lon e shareUrl das notificacoes da sessao',
+        () async {
+      await h.posicao(ana, sid, lat: -23.5, lon: -46.6);
+      await h.json('POST', '/safety/sessions/$sid/sos', token: ana.token);
+      await h.avancar(8 * minuto); // silencio -> alerta
+      h.agora += seg;
+      await h.json('POST', '/safety/sessions/$sid/arrived', token: ana.token);
+      final antes = await h.caixa(bia);
+      expect(antes.any((n) => n['data']['lat'] != null), isTrue);
+      await h.avancar(24 * hora + minuto);
+      final depois = await h.caixa(bia);
+      expect(depois.length, antes.length);
+      for (final n in depois.where((n) => n['data']['sessionId'] == sid)) {
+        expect(n['data'].keys, isNot(contains('lat')), reason: n['type']);
+        expect(n['data'].keys, isNot(contains('lon')), reason: n['type']);
+        expect(n['data'].keys, isNot(contains('shareUrl')), reason: n['type']);
+        expect(n['data']['sessionId'], sid);
+        expect(n['title'], isNotEmpty);
+        expect(n['body'], isNotEmpty);
+      }
+      final sos = depois.firstWhere((n) => n['type'] == 'safety_sos');
+      expect(sos['body'], contains('SOS'));
+    });
+
     test('sessao encerrada por arrived tambem some 24 h depois', () async {
       await h.json('POST', '/safety/sessions/$sid/arrived', token: ana.token);
       await h.avancar(24 * hora + seg);
