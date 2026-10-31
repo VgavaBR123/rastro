@@ -16,6 +16,11 @@ abstract class ActivitySharer {
   /// o arquivo precisa estar em `cache/share/` (FileProvider). Lanca como
   /// [shareText].
   Future<void> shareImage(String path, {String? text});
+
+  /// Abre a folha com um arquivo qualquer (ZIP, GPX) em [path], do tipo
+  /// [mimeType] (F07, Seus dados). No Android o arquivo precisa estar em
+  /// `cache/share/` (FileProvider). Lanca como [shareText].
+  Future<void> shareFile(String path, {required String mimeType});
 }
 
 class MethodChannelActivitySharer implements ActivitySharer {
@@ -33,6 +38,10 @@ class MethodChannelActivitySharer implements ActivitySharer {
   @override
   Future<void> shareImage(String path, {String? text}) =>
       channel.invokeMethod<void>('shareImage', {'path': path, 'text': ?text});
+
+  @override
+  Future<void> shareFile(String path, {required String mimeType}) => channel
+      .invokeMethod<void>('shareFile', {'path': path, 'mimeType': mimeType});
 }
 
 final activitySharerProvider = Provider<ActivitySharer>(

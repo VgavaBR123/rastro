@@ -22,6 +22,18 @@ void main() {
     expect(calls.single.arguments, {'text': 'oi'});
   });
 
+  test('compartilha arquivo generico com o tipo MIME (F07)', () async {
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return null;
+    });
+
+    await const MethodChannelActivitySharer().shareFile('/c/share/export/a.zip', mimeType: 'application/zip');
+    expect(calls.single.method, 'shareFile');
+    expect(calls.single.arguments, {'path': '/c/share/export/a.zip', 'mimeType': 'application/zip'});
+  });
+
   test('erro da plataforma sobe como PlatformException', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
       throw PlatformException(code: 'share_failed');

@@ -61,7 +61,8 @@ enum ClockChannel {
 }
 
 /// Canal `stravaestudo/share`: abre o UIActivityViewController com um texto
-/// (`shareText`) ou com o PNG gerado pelo app (`shareImage`, texto opcional).
+/// (`shareText`), com o PNG gerado pelo app (`shareImage`, texto opcional) ou
+/// com um arquivo qualquer da exportacao (`shareFile`, F07: ZIP ou GPX).
 /// No iPad a folha e um popover; ancora no centro da tela de cima.
 enum ShareChannel {
   static let name = "stravaestudo/share"
@@ -88,6 +89,13 @@ enum ShareChannel {
         if let text = args?["text"] as? String, !text.isEmpty {
           items.append(text)
         }
+      case "shareFile":
+        guard let path = args?["path"] as? String,
+              FileManager.default.fileExists(atPath: path) else {
+          result(FlutterError(code: "bad_args", message: "arquivo inexistente", details: nil))
+          return
+        }
+        items = [URL(fileURLWithPath: path)]
       default:
         result(FlutterMethodNotImplemented)
         return

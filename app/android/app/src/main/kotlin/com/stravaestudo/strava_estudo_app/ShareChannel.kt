@@ -14,6 +14,8 @@ import java.io.File
  * - `shareImage`: PNG gerado pelo app em cache/share/, exposto por
  *   FileProvider (res/xml/share_paths.xml) com permissao de leitura
  *   temporaria; o texto opcional vai junto em EXTRA_TEXT.
+ * - `shareFile` (F07, Seus dados): arquivo qualquer (ZIP, GPX) tambem em
+ *   cache/share/ (subpastas valem), com o tipo MIME que o Dart informar.
  */
 object ShareChannel {
     const val CHANNEL = "stravaestudo/share"
@@ -33,12 +35,18 @@ object ShareChannel {
                     }
                     start(activity, send, result)
                 }
-                "shareImage" -> {
+                "shareImage", "shareFile" -> {
                     val path = call.argument<String>("path")
                     val file = path?.let { File(it) }
                     if (file == null || !file.isFile) {
-                        result.error("bad_args", "imagem inexistente", null)
+                        result.error("bad_args", "arquivo inexistente", null)
                         return@setMethodCallHandler
+                    }
+                    val mime = if (call.method == "shareImage") {
+                        "image/png"
+                    } else {
+                        call.argument<String>("mimeType")?.takeIf { it.isNotEmpty() }
+                            ?: "application/octet-stream"
                     }
                     val uri = try {
                         FileProvider.getUriForFile(
@@ -50,7 +58,7 @@ object ShareChannel {
                         return@setMethodCallHandler
                     }
                     val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "image/png"
+                        type = mime
                         putExtra(Intent.EXTRA_STREAM, uri)
                         call.argument<String>("text")?.takeIf { it.isNotEmpty() }?.let {
                             putExtra(Intent.EXTRA_TEXT, it)
