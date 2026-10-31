@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import '../plan5k/plan_providers.dart';
 import '../recording/presentation/recording_ui_state.dart';
 import 'narrator.dart';
 import 'recording_narration.dart';
@@ -49,6 +50,8 @@ final recordingNarrationProvider = Provider<RecordingNarration>((ref) {
     useMetric: () => ref.read(settingsProvider).useMetric,
     // Modo Gentil (F04): sem pace nem velocidade nas falas.
     gentle: () => ref.read(settingsProvider).gentleMode,
+    // Plano 5 km (F06): as voltas dos blocos sao do plano, nao da pessoa.
+    skipLaps: () => ref.read(guidedSessionProvider.notifier).isRunning,
   );
   ref.listen<RecordingUiState>(
     recordingControllerProvider,

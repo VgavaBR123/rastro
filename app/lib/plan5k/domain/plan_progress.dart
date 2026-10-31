@@ -125,7 +125,16 @@ class PlanProgress {
   final PlanState state;
   final List<SessionResult> results;
 
-  const PlanProgress(this.state, this.results);
+  /// Tabela do plano (a fixa; os testes de ponta a ponta passam uma curta).
+  final List<PlanSession> table;
+
+  const PlanProgress(this.state, this.results, {this.table = const []});
+
+  List<PlanSession> get _table => table.isEmpty ? kPlan5k : table;
+
+  /// Sessao [number] da semana [week] na tabela em uso.
+  PlanSession sessionOf(int week, int number) =>
+      _table[(week - 1) * kSessionsPerWeek + (number - 1)];
 
   int get round => state.round;
 
@@ -147,7 +156,7 @@ class PlanProgress {
     if (!state.started || state.finished || weekComplete) return null;
     final done = _doneNumbers;
     for (var n = 1; n <= kSessionsPerWeek; n++) {
-      if (!done.contains(n)) return sessionAt(state.currentWeek, n);
+      if (!done.contains(n)) return sessionOf(state.currentWeek, n);
     }
     return null;
   }
