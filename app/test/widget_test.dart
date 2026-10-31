@@ -56,7 +56,8 @@ void main() {
     addTearDown(db.close);
     await pumpHome(tester, db);
 
-    expect(find.text('Atividades'), findsOneWidget);
+    expect(find.text('Rastro'), findsOneWidget);
+    expect(find.text('Atividades'), findsNothing);
     expect(find.text('Inicio'), findsOneWidget);
     expect(find.byKey(const Key('settings')), findsOneWidget);
     expect(find.byKey(const Key('home_empty')), findsOneWidget);

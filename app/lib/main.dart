@@ -63,7 +63,7 @@ class StravaEstudoApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
       routerConfig: ref.watch(appRouterProvider),
-      title: 'Atividades',
+      title: 'Rastro',
       // Escuro por padrao (relatorio 11); o claro existe, mas e secundario.
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

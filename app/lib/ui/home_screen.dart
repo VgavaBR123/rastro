@@ -157,8 +157,8 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Nome provisorio: a marca ainda nao foi escolhida.
-              Text('Atividades', style: AppText.label.copyWith(color: c.primaryText)),
+              // Nome do app.
+              Text('Rastro', style: AppText.label.copyWith(color: c.primaryText)),
               const SizedBox(height: 2),
               Text('Inicio', style: AppText.screenTitle.copyWith(color: c.text)),
             ],
