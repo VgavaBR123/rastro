@@ -10,7 +10,7 @@ SessionResult r(int week, int number, SessionStatus status, {int round = 0, int?
       number: number,
       round: round,
       status: status,
-      plannedMs: 1,
+      requiredMs: 1,
       movingMs: 1,
       rpe: rpe,
     );
@@ -131,10 +131,11 @@ void main() {
     expect(p.markOf(10, 3), SessionMark.done);
   });
 
-  test('resultado: concluida com >= 90% do tempo planejado', () {
-    expect(statusFor(movingMs: 900, plannedMs: 1000), SessionStatus.done);
-    expect(statusFor(movingMs: 899, plannedMs: 1000), SessionStatus.partial);
-    expect(statusFor(movingMs: 5000, plannedMs: 1000), SessionStatus.done);
+  test('resultado: concluida ao chegar no desaquecimento (corridas todas feitas)', () {
+    final s = sessionAt(1, 1);
+    expect(statusFor(movingMs: s.requiredMs, requiredMs: s.requiredMs), SessionStatus.done);
+    expect(statusFor(movingMs: s.requiredMs - 1, requiredMs: s.requiredMs), SessionStatus.partial);
+    expect(statusFor(movingMs: s.totalMs, requiredMs: s.requiredMs), SessionStatus.done);
   });
 
   test('repeticoes por semana em texto (persistencia) e de volta', () {

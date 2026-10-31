@@ -42,7 +42,7 @@ class PlanRepository {
     required int week,
     required int number,
     required int round,
-    required int plannedMs,
+    required int requiredMs,
     required String guid,
     required int nowMs,
   }) => _db.insertPlan5kSession(
@@ -51,7 +51,7 @@ class PlanRepository {
       number: number,
       round: Value(round),
       status: SessionStatus.inProgress.dbValue,
-      plannedMs: plannedMs,
+      plannedMs: requiredMs,
       activityGuid: Value(guid),
       startedAtMs: nowMs,
     ),
@@ -112,7 +112,7 @@ class PlanRepository {
       await finishSession(
         guid,
         movingMs: moving,
-        status: statusFor(movingMs: moving, plannedMs: row.plannedMs),
+        status: statusFor(movingMs: moving, requiredMs: row.plannedMs),
         nowMs: nowMs,
       );
     }
@@ -123,7 +123,7 @@ class PlanRepository {
     number: r.number,
     round: r.round,
     status: SessionStatus.fromDb(r.status),
-    plannedMs: r.plannedMs,
+    requiredMs: r.plannedMs,
     movingMs: r.movingMs,
     rpe: a?.rpe,
     activityGuid: r.activityGuid,

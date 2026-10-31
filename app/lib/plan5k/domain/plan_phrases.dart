@@ -40,7 +40,8 @@ String? planPhrase(GuidedEvent e) => switch (e) {
     resumed
         ? 'Sessao retomada. Caminhe por mais '
               '${spokenPlanDuration(remainingMs)} para desacelerar.'
-        : 'Sessao concluida. Caminhe para desacelerar.',
+        : 'Corridas de hoje concluidas. Caminhe '
+              '${spokenPlanDuration(remainingMs)} para desacelerar.',
   SessionCompleted() => 'Plano de hoje concluido.',
 };
 

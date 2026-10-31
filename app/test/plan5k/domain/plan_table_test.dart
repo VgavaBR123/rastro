@@ -37,6 +37,14 @@ void main() {
     }
   });
 
+  test('tempo necessario para concluir: tudo menos o desaquecimento', () {
+    expect(plan.first.requiredMs, plan.first.totalMs - 5 * 60000);
+    expect(plan.first.requiredMs, 1410 * 1000);
+    for (final s in plan) {
+      expect(s.requiredMs, s.totalMs - s.blocks.last.durationMs);
+    }
+  });
+
   test('comeca leve: 60 s correndo e 90 s caminhando', () {
     final first = plan.first.blocks;
     expect(first[1].durationMs, 60000);

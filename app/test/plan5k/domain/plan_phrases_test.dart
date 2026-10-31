@@ -38,7 +38,7 @@ void main() {
     expect(planPhrase(const TenSecondsLeft(PlanBlock(BlockKind.walk, 1))), 'Faltam 10 segundos para caminhar.');
     expect(planPhrase(const TenSecondsLeft(PlanBlock(BlockKind.cooldown, 1))), 'Faltam 10 segundos para caminhar.');
     expect(planPhrase(const Halfway()), 'Metade da sessao.');
-    expect(planPhrase(const RunPhaseDone(remainingMs: 300000)), 'Sessao concluida. Caminhe para desacelerar.');
+    expect(planPhrase(const RunPhaseDone(remainingMs: 300000)), 'Corridas de hoje concluidas. Caminhe 5 minutos para desacelerar.');
     expect(planPhrase(const SessionCompleted()), 'Plano de hoje concluido.');
   });
 

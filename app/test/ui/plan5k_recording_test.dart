@@ -207,7 +207,7 @@ void main() {
   testWidgets('3a sessao concluida com RPE 9: pergunta se repete a semana (padrao Repetir)', (tester) async {
     await pump(tester, seed: (repo) async {
       for (var n = 1; n <= 2; n++) {
-        await repo.beginSession(week: 1, number: n, round: 0, plannedMs: 150 * s, guid: 'old_$n', nowMs: n);
+        await repo.beginSession(week: 1, number: n, round: 0, requiredMs: 150 * s, guid: 'old_$n', nowMs: n);
         await repo.finishSession('old_$n', movingMs: 150 * s, status: SessionStatus.done, nowMs: n);
       }
     });
@@ -231,7 +231,7 @@ void main() {
   testWidgets('3a sessao concluida sem RPE: segue sozinho para a semana 2', (tester) async {
     await pump(tester, seed: (repo) async {
       for (var n = 1; n <= 2; n++) {
-        await repo.beginSession(week: 1, number: n, round: 0, plannedMs: 150 * s, guid: 'old_$n', nowMs: n);
+        await repo.beginSession(week: 1, number: n, round: 0, requiredMs: 150 * s, guid: 'old_$n', nowMs: n);
         await repo.finishSession('old_$n', movingMs: 150 * s, status: SessionStatus.done, nowMs: n);
       }
     });

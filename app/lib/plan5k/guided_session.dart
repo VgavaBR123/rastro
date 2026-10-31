@@ -1,4 +1,5 @@
-// Sessao guiada do plano 5 km (F06) durante a gravacao. Costura o motor de
+// Sessao guiada do plano 5 km (F06) durante a gravacao. A sessao conta como
+// concluida ao chegar no desaquecimento (ver statusFor). Costura o motor de
 // blocos (dominio puro) com a gravacao (voltas, notificacao), a voz (mesma
 // fila do Narrador, prioridade alta), a vibracao e o banco.
 //
@@ -160,7 +161,7 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
       week: session.week,
       number: session.number,
       round: round,
-      plannedMs: session.totalMs,
+      requiredMs: session.requiredMs,
       guid: guid,
       nowMs: _wallNow(),
     );
@@ -302,7 +303,7 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
       await _repo.discardSession(guid);
       if (mounted) state = null;
     } else {
-      status = statusFor(movingMs: planMs, plannedMs: engine.session.totalMs);
+      status = statusFor(movingMs: planMs, requiredMs: engine.session.requiredMs);
       await _repo.finishSession(guid, movingMs: planMs, status: status, nowMs: _wallNow());
       final s = state;
       if (s != null && mounted) {

@@ -43,6 +43,16 @@ class PlanSession {
 
   int get totalMs => blocks.fold(0, (a, b) => a + b.durationMs);
 
+  /// Tempo de plano para a sessao contar como concluida: todos os blocos de
+  /// corrida e caminhada terminados, isto e, a chegada no desaquecimento. O
+  /// desaquecimento e recomendado, mas nao obrigatorio.
+  int get requiredMs {
+    final last = blocks.isEmpty ? null : blocks.last;
+    return last != null && last.kind == BlockKind.cooldown
+        ? totalMs - last.durationMs
+        : totalMs;
+  }
+
   int get runMs => blocks
       .where((b) => b.kind.isRun)
       .fold(0, (a, b) => a + b.durationMs);

@@ -126,7 +126,7 @@ void main() {
   testWidgets('sessao parcial aparece como parcial e continua sendo a proxima', (tester) async {
     await pump(tester, theme: AppTheme.light, seed: () async {
       await repo.saveState(const PlanState(started: true));
-      await repo.beginSession(week: 1, number: 1, round: 0, plannedMs: 100, guid: 'g1', nowMs: 1);
+      await repo.beginSession(week: 1, number: 1, round: 0, requiredMs: 100, guid: 'g1', nowMs: 1);
       await repo.finishSession('g1', movingMs: 10, status: SessionStatus.partial, nowMs: 2);
     });
     await tester.scrollUntilVisible(find.byKey(const Key('plan_session_status_1_1')), 200);
@@ -148,7 +148,7 @@ void main() {
       ));
       for (var n = 1; n <= 3; n++) {
         final guid = n == 2 ? 'pesada' : 'g$n';
-        await repo.beginSession(week: 1, number: n, round: 0, plannedMs: 100, guid: guid, nowMs: n);
+        await repo.beginSession(week: 1, number: n, round: 0, requiredMs: 100, guid: guid, nowMs: n);
         await repo.finishSession(guid, movingMs: 100, status: SessionStatus.done, nowMs: n);
       }
     });
@@ -164,7 +164,7 @@ void main() {
     await pump(tester, seed: () async {
       await repo.saveState(const PlanState(started: true));
       for (var n = 1; n <= 3; n++) {
-        await repo.beginSession(week: 1, number: n, round: 0, plannedMs: 100, guid: 'g$n', nowMs: n);
+        await repo.beginSession(week: 1, number: n, round: 0, requiredMs: 100, guid: 'g$n', nowMs: n);
         await repo.finishSession('g$n', movingMs: 100, status: SessionStatus.done, nowMs: n);
       }
     });

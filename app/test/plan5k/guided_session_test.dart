@@ -148,7 +148,7 @@ void main() {
     await tickFor(15); // 90 s: ultima corrida
     expect(voice.spoken.last, 'Ultimo bloco de corrida. Corra por 30 segundos.');
     await tickFor(30); // 120 s: fim das corridas
-    expect(voice.spoken.last, 'Sessao concluida. Caminhe para desacelerar.');
+    expect(voice.spoken.last, 'Corridas de hoje concluidas. Caminhe 30 segundos para desacelerar.');
     await tickFor(30); // 150 s: fim
     expect(voice.spoken.last, 'Plano de hoje concluido.');
     expect(container.read(recordingControllerProvider).completedLaps, 5);
@@ -245,9 +245,16 @@ void main() {
     expect(progress.markOf(1, 1), SessionMark.partial);
   });
 
-  test('90% do tempo planejado ja conta como concluida', () async {
+  test('um segundo antes do desaquecimento ainda e parcial', () async {
     final g = await startGuided();
-    await tickFor(135);
+    await tickFor(119);
+    await container.read(recordingControllerProvider.notifier).stop();
+    expect(await g.whenFinished, SessionStatus.partial);
+  });
+
+  test('chegar no desaquecimento (sem terminar) ja conta como concluida', () async {
+    final g = await startGuided();
+    await tickFor(120);
     await container.read(recordingControllerProvider.notifier).stop();
     expect(await g.whenFinished, SessionStatus.done);
   });

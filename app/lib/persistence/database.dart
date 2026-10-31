@@ -239,6 +239,8 @@ class Plan5kSessions extends Table {
 
   /// 'inProgress' | 'done' | 'partial' (SessionStatus).
   TextColumn get status => text()();
+  /// Tempo de plano necessario para a sessao contar como concluida (ate o
+  /// desaquecimento; ver PlanSession.requiredMs).
   IntColumn get plannedMs => integer()();
 
   /// Tempo de plano andado (salvo durante a sessao e no fim).

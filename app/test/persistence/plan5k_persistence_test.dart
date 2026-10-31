@@ -47,7 +47,7 @@ void main() {
       await repo.saveState(s.advanceWeek());
       expect((await repo.loadState()).currentWeek, 4);
 
-      final id = await repo.beginSession(week: 4, number: 1, round: 0, plannedMs: 100, guid: 'a', nowMs: 1);
+      final id = await repo.beginSession(week: 4, number: 1, round: 0, requiredMs: 100, guid: 'a', nowMs: 1);
       expect(id, isPositive);
       await repo.reset();
       expect((await repo.loadState()).started, isFalse);
@@ -56,7 +56,7 @@ void main() {
 
     test('sessao ligada a atividade: em andamento, depois concluida com o RPE da atividade', () async {
       await seed(db, 'act_1', rpe: 9);
-      await repo.beginSession(week: 1, number: 1, round: 0, plannedMs: 1000, guid: 'act_1', nowMs: 5);
+      await repo.beginSession(week: 1, number: 1, round: 0, requiredMs: 1000, guid: 'act_1', nowMs: 5);
       var rs = await repo.results();
       expect(rs.single.status, SessionStatus.inProgress);
       expect(rs.single.activityGuid, 'act_1');
@@ -72,7 +72,7 @@ void main() {
 
     test('excluir a atividade de uma sessao concluida: a sessao continua concluida', () async {
       await seed(db, 'act_1', rpe: 9);
-      await repo.beginSession(week: 1, number: 1, round: 0, plannedMs: 1000, guid: 'act_1', nowMs: 5);
+      await repo.beginSession(week: 1, number: 1, round: 0, requiredMs: 1000, guid: 'act_1', nowMs: 5);
       await repo.finishSession('act_1', movingMs: 1000, status: SessionStatus.done, nowMs: 9);
       await db.deleteActivity('act_1', nowMs: 10);
       final r = (await repo.results()).single;
@@ -82,24 +82,24 @@ void main() {
     });
 
     test('descartar a gravacao apaga a sessao ligada', () async {
-      await repo.beginSession(week: 1, number: 1, round: 0, plannedMs: 1000, guid: 'act_1', nowMs: 5);
+      await repo.beginSession(week: 1, number: 1, round: 0, requiredMs: 1000, guid: 'act_1', nowMs: 5);
       await repo.discardSession('act_1');
       expect(await repo.results(), isEmpty);
     });
 
     test('tempo de plano salvo durante a sessao (para a retomada)', () async {
-      await repo.beginSession(week: 1, number: 2, round: 0, plannedMs: 1000, guid: 'act_1', nowMs: 5);
+      await repo.beginSession(week: 1, number: 2, round: 0, requiredMs: 1000, guid: 'act_1', nowMs: 5);
       await repo.saveProgress('act_1', movingMs: 420);
       expect((await repo.sessionForGuid('act_1'))!.movingMs, 420);
     });
 
     test('sessao em andamento sem gravacao aberta: fecha pela atividade ou some', () async {
       await seed(db, 'fim'); // finalizada (ex.: "Salvar e encerrar" da recuperacao)
-      await repo.beginSession(week: 1, number: 1, round: 0, plannedMs: 1000, guid: 'fim', nowMs: 1);
+      await repo.beginSession(week: 1, number: 1, round: 0, requiredMs: 1000, guid: 'fim', nowMs: 1);
       await repo.saveProgress('fim', movingMs: 300);
-      await repo.beginSession(week: 1, number: 2, round: 0, plannedMs: 1000, guid: 'sumiu', nowMs: 2);
+      await repo.beginSession(week: 1, number: 2, round: 0, requiredMs: 1000, guid: 'sumiu', nowMs: 2);
       await repo.saveProgress('sumiu', movingMs: 950);
-      await repo.beginSession(week: 1, number: 3, round: 0, plannedMs: 1000, guid: 'aberta', nowMs: 3);
+      await repo.beginSession(week: 1, number: 3, round: 0, requiredMs: 1000, guid: 'aberta', nowMs: 3);
       await db.upsertActivity(ActivitiesCompanion.insert(
         guid: 'aberta',
         activityType: ActivityType.run,
@@ -162,7 +162,7 @@ void main() {
     final repo = PlanRepository(fileDb);
     expect((await repo.loadState()).started, isFalse);
     await repo.saveState(const PlanState(started: true));
-    await repo.beginSession(week: 1, number: 1, round: 0, plannedMs: 1, guid: 'old', nowMs: 1);
+    await repo.beginSession(week: 1, number: 1, round: 0, requiredMs: 1, guid: 'old', nowMs: 1);
     expect((await repo.results()).single.rpe, 6);
   });
 }

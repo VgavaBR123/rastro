@@ -2,8 +2,10 @@
 // repeticoes) + resultados das sessoes -> proxima sessao, marcas para a tela
 // e a regra "pesada demais repete a semana".
 //
-// - Sessao concluida: o tempo em movimento cobriu >= 90% do planejado.
-//   Parcial nao avanca: a proxima continua sendo a mesma.
+// - Sessao concluida: o tempo do plano chegou no desaquecimento (todas as
+//   corridas e caminhadas do meio terminadas; o desaquecimento e recomendado,
+//   nao obrigatorio). Abaixo disso, parcial, que nao avanca: a proxima
+//   continua sendo a mesma.
 // - Semana completa (3 concluidas na rodada atual): se alguma concluida dessa
 //   rodada teve RPE >= 8, sugere repetir; sem RPE informado, segue.
 // - Repetir abre uma rodada nova da mesma semana (as 3 sessoes de novo) e soma
@@ -24,14 +26,12 @@ enum SessionStatus {
       SessionStatus.values.firstWhere((s) => s.name == v, orElse: () => partial);
 }
 
-/// Fracao do tempo planejado que conta como sessao concluida.
-const double kDoneFraction = 0.9;
-
 /// RPE a partir do qual a semana e "pesada demais".
 const int kHeavyRpe = 8;
 
-SessionStatus statusFor({required int movingMs, required int plannedMs}) =>
-    movingMs >= plannedMs * kDoneFraction ? SessionStatus.done : SessionStatus.partial;
+/// [requiredMs]: [PlanSession.requiredMs] da sessao (ate o desaquecimento).
+SessionStatus statusFor({required int movingMs, required int requiredMs}) =>
+    movingMs >= requiredMs ? SessionStatus.done : SessionStatus.partial;
 
 class SessionResult {
   final int week;
@@ -40,7 +40,8 @@ class SessionResult {
   /// Rodada da semana: 0 na primeira vez, 1 na primeira repeticao...
   final int round;
   final SessionStatus status;
-  final int plannedMs;
+  /// Tempo de plano necessario para concluir ([PlanSession.requiredMs]).
+  final int requiredMs;
   final int movingMs;
 
   /// Esforco (F04) da atividade ligada; null sem RPE ou atividade apagada.
@@ -52,7 +53,7 @@ class SessionResult {
     required this.number,
     required this.round,
     required this.status,
-    required this.plannedMs,
+    required this.requiredMs,
     required this.movingMs,
     this.rpe,
     this.activityGuid,
