@@ -152,6 +152,7 @@ class SafetyService {
         _now = nowMs ?? (() => DateTime.now().millisecondsSinceEpoch),
         _genId = genId ?? _idAleatorio,
         _genToken = genShareToken ?? gerarTokenLink {
+    _carenciaDesdeMs = _now();
     _convites = RateLimiter(
         maxAttempts: config.invitesPerHour,
         window: const Duration(hours: 1),
@@ -735,6 +736,15 @@ class SafetyService {
   Timer? _timer;
   bool _rodando = false;
 
+  /// Inicio da carencia de silencio: o instante em que o processo subiu, ou
+  /// o tick que voltou depois de um intervalo grande (servidor travado ou
+  /// suspenso). Ninguem e cobrado por um silencio que pode ter sido do
+  /// servidor: a regra do silencio conta de max(lastSignalAt, isto).
+  late int _carenciaDesdeMs;
+
+  /// Fim do ultimo tick concluido.
+  int? _ultimoTickMs;
+
   /// Liga o timer do vigia (a cada [SafetyConfig.tickMs]).
   void start() {
     _timer ??= Timer.periodic(Duration(milliseconds: config.tickMs), (_) async {
@@ -757,6 +767,14 @@ class SafetyService {
 
   /// Uma passada do vigia sobre as sessoes abertas, mais a limpeza LGPD.
   Future<void> tick() async {
+    final int inicio = _now();
+    final int? anterior = _ultimoTickMs;
+    if (anterior != null && inicio - anterior > config.silenceMs ~/ 2) {
+      stderr.writeln('vigia: ${inicio - anterior} ms desde o ultimo tick '
+          '(servidor travado ou suspenso?); carencia de silencio a partir de '
+          'agora');
+      _carenciaDesdeMs = inicio;
+    }
     for (final SafetySessionRecord previa in await _store.openSessions()) {
       try {
         // Cada sessao numa transacao: a mudanca de status e as notificacoes
@@ -769,6 +787,7 @@ class SafetyService {
     }
     await _store.deleteSessionsEndedBefore(_now() - config.purgeAfterMs);
     await drenarPush();
+    _ultimoTickMs = _now();
   }
 
   Future<void> _vigiar(String id, SafetyStore tx) async {
@@ -841,7 +860,10 @@ class SafetyService {
 
   /// Primeira regra que dispara, na ordem do contrato.
   String? _motivo(SafetySessionRecord s, int agora) {
-    if (agora - s.lastSignalAtMs > config.silenceMs) return 'silence';
+    if (agora - max(s.lastSignalAtMs, _carenciaDesdeMs) > config.silenceMs) {
+      return 'silence';
+    }
+
     final int? parada = s.stillSinceMs;
     if (parada != null && agora - parada >= config.stopMs) return 'stopped';
     final int limite = max(s.etaMs, s.etaRecheckAfterMs ?? 0);

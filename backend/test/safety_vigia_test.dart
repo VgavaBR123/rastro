@@ -92,6 +92,45 @@ void main() {
     });
   });
 
+  group('carencia de silencio', () {
+    test('processo reiniciado: sem silencio falso logo depois da volta',
+        () async {
+      // Servidor fora do ar por 10 min (sem ticks); a dona continua sem
+      // conseguir mandar posicao porque nao havia servidor.
+      h.agora += 10 * minuto;
+      final novo = h.novoServico();
+      await novo.tick();
+      expect((await sessao())['status'], 'active');
+      // A carencia conta da volta: silencio de verdade depois dela dispara.
+      for (var i = 0; i < 5; i++) {
+        h.agora += minuto;
+        await novo.tick();
+      }
+      expect((await sessao())['status'], 'active');
+      h.agora += seg;
+      await novo.tick();
+      expect((await sessao())['check']['reason'], 'silence');
+    });
+
+    test('intervalo entre ticks maior que silencio/2 aplica a carencia',
+        () async {
+      await h.avancar(minuto);
+      await h.posicao(ana, sid);
+      h.agora += 10 * minuto; // servidor travado ou suspenso
+      await h.service.tick();
+      expect((await sessao())['status'], 'active');
+      await h.avancar(5 * minuto);
+      expect((await sessao())['status'], 'active');
+      await h.avancar(minuto);
+      expect((await sessao())['check']['reason'], 'silence');
+    });
+
+    test('intervalo normal entre ticks nao muda nada', () async {
+      await h.avancar(5 * minuto + seg);
+      expect((await sessao())['check']['reason'], 'silence');
+    });
+  });
+
   group('parada', () {
     test('10 min de amostras paradas sem pausa dispara stopped', () async {
       await h.posicao(ana, sid, moving: false);

@@ -82,17 +82,8 @@ class Harness {
           checkMs: 2 * minuto,
           publicBaseUrl: 'https://rastro.exemplo',
         );
-    var n = 0;
-    var tok = 0;
-    service = SafetyService(
-      store: safety,
-      users: users,
-      config: cfg,
-      push: push,
-      nowMs: () => agora,
-      genId: (p) => '${p}_${++n}',
-      genShareToken: () => 'link${++tok}'.padRight(43, 'x'),
-    );
+    this.config = cfg;
+    service = novoServico();
     var u = 0;
     api = createApi(
       InMemoryActivityStore(),
@@ -109,7 +100,22 @@ class Harness {
   final StoreFalhavel safety = StoreFalhavel();
   final InMemoryUserStore users = InMemoryUserStore();
   final PushFalso push = PushFalso();
+  late final SafetyConfig config;
   late final SafetyService service;
+  int _n = 0;
+  int _tok = 0;
+
+  /// Um servico novo sobre os mesmos stores: o que acontece quando o
+  /// processo reinicia (a API dos testes continua com o primeiro).
+  SafetyService novoServico() => SafetyService(
+        store: safety,
+        users: users,
+        config: config,
+        push: push,
+        nowMs: () => agora,
+        genId: (p) => '${p}_${++_n}',
+        genShareToken: () => 'link${++_tok}'.padRight(43, 'x'),
+      );
   late final Handler api;
   int agora = t0;
 
@@ -192,8 +198,13 @@ class Harness {
       [for (final n in await caixa(c)) n['type'] as String];
 
   /// Avanca o relogio em [ms] e roda um tick do vigia.
+  /// Avanca o relogio em [ms] com ticks de no maximo 1 min (um servidor
+  /// saudavel roda o vigia o tempo todo).
   Future<void> avancar(int ms) async {
-    agora += ms;
-    await service.tick();
+    final int fim = agora + ms;
+    while (agora < fim) {
+      agora = (fim - agora > minuto) ? agora + minuto : fim;
+      await service.tick();
+    }
   }
 }
