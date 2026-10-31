@@ -19,6 +19,9 @@ import 'auth/rate_limiter.dart';
 import 'auth/tokens.dart';
 import 'fit_decoder.dart';
 import 'mailer.dart';
+import 'safety/safety_api.dart';
+import 'safety/safety_service.dart';
+import 'safety/safety_store.dart';
 import 'user_store.dart';
 
 Response _json(Object data, {int status = 200}) => Response(
@@ -244,6 +247,7 @@ Handler createApi(
   int passwordIterations = defaultPbkdf2Iterations,
   AuthRateLimits rateLimits = const AuthRateLimits(),
   String Function(Request)? clientIp,
+  SafetyService? safety,
 }) {
   final newId = genId ?? () => _defaultId('up');
   final newUserId = genUserId ?? () => _defaultId('usr');
@@ -252,6 +256,10 @@ Handler createApi(
   final Mailer correio = mailer ?? ConsoleMailer();
   final Random rndSeguro = Random.secure();
   final router = Router();
+  // Rastro Seguro (F08). Sem servico injetado, um em memoria (testes antigos
+  // e USE_INMEMORY=1); o vigia so roda se o chamador der start().
+  final SafetyService seguro = safety ??
+      SafetyService(store: InMemorySafetyStore(), users: users, nowMs: now);
 
   // Limites em memoria (instancia unica do servidor; ver rate_limiter.dart).
   // Um limitador por regra, entao chaves de email e de IP nao se misturam.
@@ -543,6 +551,9 @@ Handler createApi(
     if (negado != null) return negado;
     // No Postgres o delete do usuario leva sessoes, codigos e uploads numa
     // so instrucao (FK em cascata); o segundo passo cobre o store em memoria.
+    // O Rastro Seguro vem antes: tira a pessoa das sessoes de quem a tinha
+    // como contato.
+    await seguro.deleteAllForUser(u.id);
     await users.deleteUser(u.id);
     await store.deleteAllForUser(u.id);
     return Response(204);
@@ -686,6 +697,8 @@ Handler createApi(
       'nextCursor': temMais ? _codificarCursor(pagina.last) : null,
     });
   }));
+
+  montarRotasRastroSeguro(router, seguro, autenticar);
 
   return router.call;
 }
