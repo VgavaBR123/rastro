@@ -89,15 +89,17 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   /// nova e fecha a tela, uma vez so.
   void _onFinished() {
     if (_closed || _finishing) return;
-    _close(sync: true);
+    _close(sync: true, savedGuid: ref.read(recordingControllerProvider.notifier).activityGuid);
   }
 
-  void _close({required bool sync}) {
+  /// Fecha a tela devolvendo [savedGuid] (a atividade salva, ou null se nada
+  /// foi salvo) para quem abriu avisar "Atividade salva" (E2E-04).
+  void _close({required bool sync, String? savedGuid}) {
     _closed = true;
     if (sync) ref.read(backgroundSyncSchedulerProvider).scheduleSoon();
     ref.invalidate(recentActivitiesProvider);
     ref.invalidate(pendingCountProvider);
-    if (mounted) Navigator.of(context).pop();
+    if (mounted) Navigator.of(context).pop(savedGuid);
   }
 
   /// Segurou Encerrar: pausa (se ainda gravando) e abre a tela Salvar.
@@ -129,7 +131,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       );
     }
     if (!mounted) return;
-    _close(sync: true);
+    _close(sync: true, savedGuid: wasActive ? guid : null);
   }
 
   Future<void> _discard() async {

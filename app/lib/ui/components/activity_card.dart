@@ -19,6 +19,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import 'metric_tile.dart';
 import 'sport_chip.dart';
+import 'visibility_badge.dart';
 
 class ActivityCard extends StatelessWidget {
   final Activity activity;
@@ -52,6 +53,7 @@ class ActivityCard extends StatelessWidget {
     final c = AppColors.of(context);
     final sport = c.sport(activity.activityType);
     final type = activity.activityType;
+    final visibility = ActivityVisibility.fromDb(activity.visibility);
 
     final (dist, distUnit) = splitMeasure(formatDistance(activity.distanceMeters, metric: useMetric));
     final seconds = activity.timerTimeMs / 1000.0;
@@ -94,6 +96,11 @@ class ActivityCard extends StatelessWidget {
                   child: SportChip(type: type, trailing: formatDateTimeMs(activity.startTimestampMs)),
                 ),
               ),
+              // E2E-05: quem pode ver, so quando nao e publica.
+              if (visibility != ActivityVisibility.everyone) ...[
+                const SizedBox(width: 8),
+                VisibilityBadge(visibility: visibility),
+              ],
               ?trailing,
             ],
           ),

@@ -16,6 +16,7 @@ import 'components/big_action_button.dart';
 import 'components/metric_tile.dart';
 import 'components/segmented_selector.dart';
 import 'components/sport_chip.dart';
+import 'components/visibility_badge.dart';
 import 'route_map.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
@@ -74,15 +75,31 @@ class SaveActivityView extends StatefulWidget {
   State<SaveActivityView> createState() => _SaveActivityViewState();
 }
 
-class _SaveActivityViewState extends State<SaveActivityView> {
+class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBindingObserver {
   late final TextEditingController _title = TextEditingController(
     text: suggestedActivityTitle(widget.type, widget.startedAt),
   );
   final TextEditingController _description = TextEditingController();
-  ActivityVisibility _visibility = ActivityVisibility.everyone;
+  // GRA-05: comeca em So eu. Publicar o trajeto (que mostra onde a pessoa
+  // mora ou corre) tem que ser escolha, nao descuido. "Ultimo usado" exigiria
+  // guardar a escolha em coluna nova (schema novo); fica para depois.
+  ActivityVisibility _visibility = ActivityVisibility.onlyMe;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// O teclado abriu ou fechou: reavalia se os botoes aparecem.
+  @override
+  void didChangeMetrics() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _title.dispose();
     _description.dispose();
     super.dispose();
@@ -134,6 +151,11 @@ class _SaveActivityViewState extends State<SaveActivityView> {
     final (pace, paceUnit) = splitMeasure(formatPace(widget.avgPaceSecondsPerMeter, metric: m));
     final (ascent, ascentUnit) = splitMeasure(formatElevation(widget.ascentMeters, metric: m));
     final muted = AppText.label.copyWith(color: c.textMuted);
+    // GRA-04: com o teclado aberto os botoes fixos somem e o formulario usa a
+    // altura toda; voltam quando o teclado fecha (tocar fora ou rolar). Le o
+    // View e nao o MediaQuery: o Scaffold de fora tira o teclado do MediaQuery
+    // do corpo.
+    final keyboardOpen = View.of(context).viewInsets.bottom > 0;
 
     return SafeArea(
       key: const Key('save_activity_view'),
@@ -260,23 +282,23 @@ class _SaveActivityViewState extends State<SaveActivityView> {
                   options: [
                     SegmentOption(
                       value: ActivityVisibility.onlyMe,
-                      label: 'So eu',
+                      label: visibilityLabel(ActivityVisibility.onlyMe),
                       role: c.subida,
-                      icon: Icons.lock_rounded,
+                      icon: visibilityIcon(ActivityVisibility.onlyMe),
                       key: const Key('visibility_only_me'),
                     ),
                     SegmentOption(
                       value: ActivityVisibility.followers,
-                      label: 'Seguidores',
+                      label: visibilityLabel(ActivityVisibility.followers),
                       role: c.pace,
-                      icon: Icons.group_rounded,
+                      icon: visibilityIcon(ActivityVisibility.followers),
                       key: const Key('visibility_followers'),
                     ),
                     SegmentOption(
                       value: ActivityVisibility.everyone,
-                      label: 'Todos',
+                      label: visibilityLabel(ActivityVisibility.everyone),
                       role: c.ciano,
-                      icon: Icons.public_rounded,
+                      icon: visibilityIcon(ActivityVisibility.everyone),
                       key: const Key('visibility_everyone'),
                     ),
                   ],
@@ -286,29 +308,30 @@ class _SaveActivityViewState extends State<SaveActivityView> {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppShape.gutter, 8, AppShape.gutter, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                BigActionButton(
-                  key: const Key('save_activity'),
-                  label: 'Salvar',
-                  icon: Icons.check_rounded,
-                  onPressed: widget.busy ? null : _save,
-                ),
-                const SizedBox(height: 12),
-                BigActionButton(
-                  key: const Key('discard_activity'),
-                  label: 'Descartar',
-                  icon: Icons.delete_outline_rounded,
-                  variant: BigActionVariant.danger,
-                  height: 56,
-                  onPressed: widget.busy ? null : _confirmDiscard,
-                ),
-              ],
+          if (!keyboardOpen)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppShape.gutter, 8, AppShape.gutter, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BigActionButton(
+                    key: const Key('save_activity'),
+                    label: 'Salvar',
+                    icon: Icons.check_rounded,
+                    onPressed: widget.busy ? null : _save,
+                  ),
+                  const SizedBox(height: 12),
+                  BigActionButton(
+                    key: const Key('discard_activity'),
+                    label: 'Descartar',
+                    icon: Icons.delete_outline_rounded,
+                    variant: BigActionVariant.danger,
+                    height: 56,
+                    onPressed: widget.busy ? null : _confirmDiscard,
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

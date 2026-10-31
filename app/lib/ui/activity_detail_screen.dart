@@ -19,6 +19,7 @@ import 'components/adaptive_controls.dart';
 import 'components/floating_map_button.dart';
 import 'components/metric_tile.dart';
 import 'components/sport_chip.dart';
+import 'components/visibility_badge.dart';
 import 'elevation_chart.dart';
 import 'laps_section.dart';
 import 'route_map.dart';
@@ -102,13 +103,19 @@ class ActivityDetailScreen extends ConsumerWidget {
                     ),
                   ],
                   const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SportChip.custom(
-                      key: const Key('detailSync'),
-                      label: syncStateLabel(activity.syncState),
-                      role: syncRole(c, activity.syncState),
-                    ),
+                  // Estado do envio e, se nao for publica, quem pode ver (E2E-05).
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SportChip.custom(
+                        key: const Key('detailSync'),
+                        label: syncStateLabel(activity.syncState),
+                        role: syncRole(c, activity.syncState),
+                      ),
+                      VisibilityBadge.fromDb(activity.visibility),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   _metricGrid(_tiles(c, profile, metric)),

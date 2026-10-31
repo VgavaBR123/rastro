@@ -57,9 +57,29 @@ Future<ProviderContainer> pumpSetup(
         routes: [
           GoRoute(
             path: ':type',
-            builder: (_, state) => Text('gravando ${state.pathParameters['type']}'),
+            // A gravacao de mentira: "salvar" fecha devolvendo o guid salvo,
+            // como a RecordingScreen.
+            builder: (context, state) => Scaffold(
+              body: Column(
+                children: [
+                  Text('gravando ${state.pathParameters['type']}'),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop('g1'),
+                    child: const Text('salvar'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('fechar'),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
+      ),
+      GoRoute(
+        path: '/history/:guid',
+        builder: (_, state) => Text('detalhe ${state.pathParameters['guid']}'),
       ),
     ],
   );
@@ -112,6 +132,46 @@ void main() {
     await tester.tap(find.byKey(const Key('record_start')));
     await tester.pumpAndSettle();
     expect(find.text('gravando ride'), findsOneWidget);
+  });
+
+  testWidgets('depois de Salvar avisa "Atividade salva" e Ver abre o Detalhe (E2E-04)', (tester) async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await pumpSetup(tester, db: db);
+
+    await tester.tap(find.byKey(const Key('record_start')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('salvar'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RecordSetupScreen), findsOneWidget);
+    expect(find.text('Atividade salva'), findsOneWidget);
+
+    await tester.tap(find.text('Ver'));
+    await tester.pumpAndSettle();
+    expect(find.text('detalhe g1'), findsOneWidget);
+  });
+
+  testWidgets('o aviso some sozinho e nao aparece sem atividade salva', (tester) async {
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    await pumpSetup(tester, db: db);
+
+    await tester.tap(find.byKey(const Key('record_start')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('salvar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Atividade salva'), findsOneWidget);
+    // Com acao o SnackBar ficaria ate alguem fechar; este some sozinho.
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+    expect(find.text('Atividade salva'), findsNothing);
+
+    // Descartou (fecha sem guid): nenhum aviso.
+    await tester.tap(find.byKey(const Key('record_start')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('fechar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Atividade salva'), findsNothing);
   });
 
   testWidgets('o ultimo esporte usado vem marcado', (tester) async {

@@ -292,7 +292,12 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(600, 2400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final repo = RecordingRepository(db);
-    await repo.saveDetails('a', title: 'Tiro na pista', description: 'Seis voltas fortes');
+    await repo.saveDetails(
+      'a',
+      title: 'Tiro na pista',
+      description: 'Seis voltas fortes',
+      visibility: ActivityVisibility.followers,
+    );
     final activity = (await repo.recent()).first;
     final sharer = FakeActivitySharer();
     await tester.pumpWidget(
@@ -324,6 +329,9 @@ void main() {
     expect(tester.widget<Text>(find.byKey(const Key('detailTitle'))).data, 'Tiro na pista');
     expect(find.byKey(const Key('detailDescription')), findsOneWidget);
     expect(find.text('Seis voltas fortes'), findsOneWidget);
+    // E2E-05: quem pode ver, ao lado do estado do envio.
+    expect(find.byKey(const Key('visibility_badge')), findsOneWidget);
+    expect(find.text('Seguidores'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('detailShare')));
     await tester.pumpAndSettle();

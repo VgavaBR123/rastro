@@ -32,6 +32,30 @@ IconData sportIcon(ActivityType t) => switch (t) {
   ActivityType.walk => Icons.directions_walk_rounded,
 };
 
+/// Abre a gravacao em [location] (ver [AppRoutes.record]). Se ela fechar com
+/// uma atividade salva, avisa "Atividade salva" com Ver, que abre o Detalhe
+/// (E2E-04): sem isso o app voltava ao preparo sem nenhuma confirmacao.
+Future<void> pushRecording(BuildContext context, String location, {Object? extra}) async {
+  // Pegos antes do await: o messenger e o router sao da raiz do app.
+  final router = GoRouter.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final guid = await router.push<String>(location, extra: extra);
+  if (guid == null) return;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: const Text('Atividade salva'),
+        // Com acao o SnackBar ficaria na tela ate alguem fechar.
+        persist: false,
+        action: SnackBarAction(
+          label: 'Ver',
+          onPressed: () => router.push(AppRoutes.activity(guid)),
+        ),
+      ),
+    );
+}
+
 /// Estado do GPS antes de gravar.
 enum GpsStatus {
   /// Esperando a permissao ou o primeiro fix.
@@ -172,7 +196,7 @@ class _RecordSetupScreenState extends ConsumerState<RecordSetupScreen> {
               type: type,
               lastUsed: last,
               onPicked: (t) => setState(() => _picked = t),
-              onStart: () => context.push(AppRoutes.record(type)),
+              onStart: () => pushRecording(context, AppRoutes.record(type)),
             ),
           ),
         ],

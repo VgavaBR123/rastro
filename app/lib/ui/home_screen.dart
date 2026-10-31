@@ -16,6 +16,7 @@ import '../sync/background/background_sync_provider.dart';
 import 'components/activity_card.dart';
 import 'components/app_nav_bar.dart';
 import 'components/week_summary_card.dart';
+import 'record_setup_screen.dart' show pushRecording;
 import 'recovery_dialog.dart';
 import 'share_activity.dart';
 import 'theme/app_colors.dart';
@@ -56,7 +57,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
       switch (choice) {
         case RecoveryChoice.resume:
-          await context.push(AppRoutes.record(it.activity.activityType), extra: it);
+          await pushRecording(context, AppRoutes.record(it.activity.activityType), extra: it);
           return;
         case RecoveryChoice.save:
           await repo.finishInterrupted(it);

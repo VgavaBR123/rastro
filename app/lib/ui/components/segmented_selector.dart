@@ -73,32 +73,36 @@ class _Segment<T> extends StatelessWidget {
         customBorder: const StadiumBorder(),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          height: 44,
+          // Minimo de 44 (toque); cresce com a fonte do sistema.
+          constraints: const BoxConstraints(minHeight: 44),
           decoration: ShapeDecoration(
             color: selected ? option.role.tint : Colors.transparent,
             shape: const StadiumBorder(),
           ),
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (option.icon != null) ...[
-                Icon(option.icon, size: 18, color: fg),
-                const SizedBox(width: 6),
-              ],
-              Flexible(
-                child: Text(
+          // GRA-08: em vez de reticencias ("Caminh..."), icone e rotulo
+          // encolhem juntos ate caber no segmento (iPhone de 390 pt, fonte
+          // maior). Com espaco sobrando ficam no tamanho do tema.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (option.icon != null) ...[
+                  Icon(option.icon, size: 18, color: fg),
+                  const SizedBox(width: 6),
+                ],
+                Text(
                   option.label,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: AppText.bodyStrong.copyWith(
                     color: fg,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -12,7 +12,7 @@ import 'package:strava_estudo_app/ui/route_preview.dart';
 import 'package:strava_estudo_app/ui/theme/app_colors.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
-Activity activity(ActivityType t, {int hour = 7, String? title}) => Activity(
+Activity activity(ActivityType t, {int hour = 7, String? title, String visibility = 'everyone'}) => Activity(
       guid: 'g1',
       title: title,
       activityType: t,
@@ -23,7 +23,7 @@ Activity activity(ActivityType t, {int hour = 7, String? title}) => Activity(
       isFinished: true,
       syncState: SyncState.pending,
       autoPauseEnabled: true,
-      visibility: 'everyone',
+      visibility: visibility,
     );
 
 const route = [
@@ -124,6 +124,35 @@ void main() {
     expect(find.byKey(const Key('extra')), findsOneWidget);
     await tester.tap(find.text('Caminhada da manha'));
     expect(opened, 1);
+  });
+
+  // E2E-05: quem pode ver aparece quando nao e publica, inclusive no compacto.
+  for (final (db, label, compact) in [
+    ('private', 'So eu', false),
+    ('followers', 'Seguidores', false),
+    ('private', 'So eu', true),
+  ]) {
+    testWidgets('visibilidade $db aparece no cartao (compacto: $compact)', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pump(
+        tester,
+        ActivityCard(
+          activity: activity(ActivityType.run, visibility: db),
+          useMetric: true,
+          route: route,
+          compact: compact,
+        ),
+      );
+      expect(find.byKey(const Key('visibility_badge')), findsOneWidget);
+      // No compacto o cartao inteiro e um botao e junta os rotulos num no so.
+      expect(find.bySemanticsLabel(RegExp('Quem pode ver: $label')), findsOneWidget);
+      semantics.dispose();
+    });
+  }
+
+  testWidgets('publica nao mostra selo de visibilidade', (tester) async {
+    await pump(tester, ActivityCard(activity: activity(ActivityType.run), useMetric: true, route: route));
+    expect(find.byKey(const Key('visibility_badge')), findsNothing);
   });
 
   testWidgets('titulo salvo pelo usuario substitui o sugerido', (tester) async {

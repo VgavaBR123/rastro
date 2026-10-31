@@ -87,6 +87,10 @@ class RecordingRepository {
       autoPauseEnabled: Value(autoPauseEnabled),
       startBatteryLevel: Value(startBatteryLevel),
       ownerUserId: Value(ownerUserId),
+      // Nasce privada (GRA-05): encerrar pela notificacao ou salvar uma
+      // interrompida nao passa pela tela Salvar, e o padrao da coluna
+      // ('everyone') publicaria sem ninguem escolher.
+      visibility: Value(ActivityVisibility.onlyMe.dbValue),
     ));
   }
 
@@ -127,7 +131,7 @@ class RecordingRepository {
     String guid, {
     String? title,
     String? description,
-    ActivityVisibility visibility = ActivityVisibility.everyone,
+    ActivityVisibility visibility = ActivityVisibility.onlyMe,
   }) =>
       db.saveActivityDetails(
         guid,
