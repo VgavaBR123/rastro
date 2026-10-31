@@ -20,6 +20,7 @@ import 'components/big_action_button.dart';
 import 'components/floating_map_button.dart';
 import 'components/segmented_selector.dart';
 import 'map_style.dart';
+import 'plan5k/plan_entry.dart';
 import 'route_map.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
@@ -380,6 +381,8 @@ class _SetupSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const _NarratorToggle(),
+          // Plano 5 km (F06): proxima sessao guiada.
+          const PlanEntry(),
           const SizedBox(height: 8),
           BigActionButton(
             key: const Key('record_start'),
