@@ -23,7 +23,38 @@ Future<void> seed(RecordingDatabase db, String guid, {int? rpe}) => db.upsertAct
   ),
 );
 
+/// Banco que roda [afterRead] logo depois de o reconcile ler as sessoes: simula
+/// o GuidedSessionController fechando a sessao no meio do reconcile.
+class _RacyDb extends RecordingDatabase {
+  Future<void> Function()? afterRead;
+  _RacyDb() : super(NativeDatabase.memory());
+
+  @override
+  Future<List<({Plan5kSessionRow row, Activity? activity})>> plan5kSessionsWithActivity() async {
+    final rows = await super.plan5kSessionsWithActivity();
+    final hook = afterRead;
+    afterRead = null;
+    if (hook != null) await hook();
+    return rows;
+  }
+}
+
 void main() {
+  test('corrida: o fechamento da sessao guiada vence o reconcile', () async {
+    final db = _RacyDb();
+    addTearDown(db.close);
+    final repo = PlanRepository(db);
+    await seed(db, 'act_1'); // ja finalizada (Encerrar pela notificacao)
+    await repo.beginSession(week: 1, number: 1, round: 0, requiredMs: 1000, guid: 'act_1', nowMs: 1);
+    await repo.saveProgress('act_1', movingMs: 10); // salvo ha pouco: daria parcial
+    db.afterRead = () =>
+        repo.finishSession('act_1', movingMs: 1000, status: SessionStatus.done, nowMs: 2);
+    await repo.reconcile(activeGuid: null, nowMs: 3);
+    final r = (await repo.results()).single;
+    expect(r.status, SessionStatus.done);
+    expect(r.movingMs, 1000);
+  });
+
   group('em memoria', () {
     late RecordingDatabase db;
     late PlanRepository repo;

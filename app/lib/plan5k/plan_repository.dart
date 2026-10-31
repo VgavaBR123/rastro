@@ -103,17 +103,22 @@ class PlanRepository {
       if (guid == null || guid == activeGuid) continue;
       if (row.status != SessionStatus.inProgress.dbValue) continue;
       final a = r.activity;
+      // As escritas daqui so valem se a sessao AINDA estiver em andamento:
+      // o GuidedSessionController que esta fechando a mesma sessao (ex.:
+      // Encerrar pela notificacao) tem prioridade.
       if (a == null) {
-        await discardSession(guid);
+        await _db.deletePlan5kSessionIfInProgress(guid);
         continue;
       }
       if (!a.isFinished) continue;
       final moving = a.timerTimeMs > row.movingMs ? a.timerTimeMs : row.movingMs;
-      await finishSession(
+      await _db.updatePlan5kSessionIfInProgress(
         guid,
-        movingMs: moving,
-        status: statusFor(movingMs: moving, requiredMs: row.plannedMs),
-        nowMs: nowMs,
+        Plan5kSessionsCompanion(
+          movingMs: Value(moving),
+          status: Value(statusFor(movingMs: moving, requiredMs: row.plannedMs).dbValue),
+          endedAtMs: Value(nowMs),
+        ),
       );
     }
   }

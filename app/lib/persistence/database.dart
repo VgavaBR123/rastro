@@ -406,6 +406,20 @@ class RecordingDatabase extends _$RecordingDatabase {
     Plan5kSessionsCompanion row,
   ) => (update(plan5kSessions)..where((t) => t.activityGuid.equals(guid))).write(row);
 
+  /// Como [updatePlan5kSessionByGuid], mas so se a sessao ainda estiver em
+  /// andamento NO MOMENTO da escrita (o fechamento da sessao guiada vence).
+  Future<int> updatePlan5kSessionIfInProgress(
+    String guid,
+    Plan5kSessionsCompanion row,
+  ) => (update(plan5kSessions)
+        ..where((t) => t.activityGuid.equals(guid) & t.status.equals('inProgress')))
+      .write(row);
+
+  /// Apaga a sessao de [guid] so se ela ainda estiver em andamento.
+  Future<int> deletePlan5kSessionIfInProgress(String guid) => (delete(plan5kSessions)
+        ..where((t) => t.activityGuid.equals(guid) & t.status.equals('inProgress')))
+      .go();
+
   Future<void> deletePlan5kSessionByGuid(String guid) =>
       (delete(plan5kSessions)..where((t) => t.activityGuid.equals(guid))).go();
 
