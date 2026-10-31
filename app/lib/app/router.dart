@@ -27,6 +27,8 @@ import '../ui/profile_screen.dart';
 import '../ui/record_setup_screen.dart';
 import '../ui/reliability_checklist_screen.dart';
 import '../ui/recording_screen.dart';
+import '../ui/safety/inbox_screen.dart';
+import '../ui/safety/safety_contacts_screen.dart';
 import '../ui/settings_screen.dart';
 import '../ui/stats_screen.dart';
 import '../ui/theme/app_theme.dart';
@@ -65,6 +67,12 @@ abstract final class AppRoutes {
   /// Narrador por voz (F03), pelas Configuracoes.
   static const String narrator = '/narrator';
   static const String auth = '/auth';
+
+  /// Rastro Seguro (F08): contatos de confianca, pelas Configuracoes.
+  static const String safety = '/safety';
+
+  /// Caixa de entrada (F08), pelo sino do Inicio.
+  static const String inbox = '/inbox';
 
   /// Plano Do Zero aos 5 km (F06), por cima do shell.
   static const String plan5k = '/plan5k';
@@ -158,6 +166,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
       yourDataRoute(),
       ...chapterRoutes(),
       plan5kRoute(),
+      ...safetyRoutes(),
       GoRoute(
         path: AppRoutes.auth,
         builder: (_, _) => const AuthScreen(),
@@ -211,6 +220,12 @@ GoRoute plan5kRoute() => GoRoute(
     ),
   ],
 );
+
+/// Rastro Seguro (F08): contatos e caixa de entrada, por cima do shell.
+List<GoRoute> safetyRoutes() => [
+  GoRoute(path: AppRoutes.safety, builder: (_, _) => const SafetyContactsScreen()),
+  GoRoute(path: AppRoutes.inbox, builder: (_, _) => const InboxScreen()),
+];
 
 /// Seus dados (F07), por cima do shell.
 GoRoute yourDataRoute() => GoRoute(

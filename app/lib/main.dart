@@ -10,6 +10,7 @@ import 'app/providers.dart' show kSyncBaseUrl;
 import 'sync/background/background_sync_provider.dart';
 import 'sync/background/background_sync_scheduler.dart';
 import 'app/router.dart';
+import 'ui/safety/inbox_poller.dart';
 import 'ui/theme/app_theme.dart';
 
 /// DSN do Sentry (relatorio 07: observabilidade com Sentry, open source).
@@ -70,6 +71,8 @@ class StravaEstudoApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.dark,
+      // Caixa de entrada do Rastro Seguro (F08): busca em primeiro plano.
+      builder: (_, child) => InboxPoller(child: child ?? const SizedBox.shrink()),
     );
   }
 }

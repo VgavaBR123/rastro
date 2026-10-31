@@ -4,6 +4,8 @@
 // so em memoria: o backend e a fonte.
 library;
 
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 

@@ -22,6 +22,7 @@ import 'components/segmented_selector.dart';
 import 'map_style.dart';
 import 'plan5k/plan_entry.dart';
 import 'route_map.dart';
+import 'safety/safety_setup.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
@@ -383,6 +384,8 @@ class _SetupSheet extends StatelessWidget {
           const _NarratorToggle(),
           // Plano 5 km (F06): proxima sessao guiada.
           const PlanEntry(),
+          // Rastro Seguro (F08): contatos e chegada prevista.
+          const SafetyEntry(),
           const SizedBox(height: 8),
           BigActionButton(
             key: const Key('record_start'),

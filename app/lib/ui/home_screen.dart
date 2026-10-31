@@ -3,6 +3,8 @@
 // morto, reboot). A escolha do esporte fica na tela Gravar.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +20,8 @@ import 'components/activity_card.dart';
 import 'components/app_nav_bar.dart';
 import 'components/week_summary_card.dart';
 import 'privacy/zone_suggestion_card.dart';
+import 'safety/inbox_screen.dart';
+import '../safety/safety_providers.dart';
 import 'recovery_dialog.dart';
 import 'share_activity.dart';
 import 'theme/app_colors.dart';
@@ -65,10 +69,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           return;
         case RecoveryChoice.save:
           await repo.finishInterrupted(it);
+          // Rastro Seguro (F08): a sessao da atividade recuperada termina.
+          unawaited(ref.read(safetySessionProvider.notifier).endFor(it.activity.guid));
           ref.read(backgroundSyncSchedulerProvider).scheduleSoon();
           changed = true;
         case RecoveryChoice.discard:
           await repo.deleteActivity(it.activity.guid);
+          unawaited(ref.read(safetySessionProvider.notifier).endFor(it.activity.guid));
           changed = true;
         case null:
           return;
@@ -185,6 +192,8 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
+        // Caixa de entrada (F08).
+        const InboxBell(),
         TextButton.icon(
           key: const Key('settings'),
           onPressed: onSettings,

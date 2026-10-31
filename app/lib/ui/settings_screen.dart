@@ -1,6 +1,6 @@
 // Tela de configuracoes: unidades (metrico ou imperial), pausa automatica,
-// peso (para calorias), Modo Gentil (F04), privacidade (F02) e Seus dados
-// (F07), em secoes de cartao.
+// peso (para calorias), Rastro Seguro (F08), Modo Gentil (F04), privacidade
+// (F02) e Seus dados (F07), em secoes de cartao.
 library;
 
 import 'package:flutter/material.dart';
@@ -138,6 +138,20 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: Text(s.narrator.enabled ? 'Ligado' : 'Desligado'),
               trailing: Icon(Icons.chevron_right_rounded, color: c.textMuted),
               onTap: () => context.push(AppRoutes.narrator),
+            ),
+          ),
+          SectionCard(
+            title: 'Seguranca',
+            child: ListTile(
+              key: const Key('safety_settings'),
+              minTileHeight: 56,
+              leading: Icon(Icons.shield_rounded, color: c.ciano.fg),
+              title: const Text('Rastro Seguro'),
+              subtitle: const Text(
+                'Contatos de confianca avisados se voce nao chegar no horario',
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: c.textMuted),
+              onTap: () => context.push(AppRoutes.safety),
             ),
           ),
           SectionCard(

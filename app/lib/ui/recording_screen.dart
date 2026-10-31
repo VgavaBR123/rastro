@@ -23,6 +23,7 @@ import '../plan5k/domain/plan_progress.dart';
 import '../plan5k/guided_session.dart';
 import '../plan5k/plan_providers.dart';
 import '../privacy/privacy_providers.dart';
+import '../safety/safety_providers.dart';
 import '../recording/domain/gap_monitor.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_health.dart';
@@ -38,6 +39,7 @@ import 'components/sport_chip.dart';
 import 'plan5k/guided_block_card.dart';
 import 'plan5k/plan_actions.dart';
 import 'route_map.dart';
+import 'safety/safety_recording.dart';
 import 'save_activity_view.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
@@ -113,12 +115,36 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         await ctrl.resumeInterrupted(resumeFrom);
         // Se era uma sessao guiada em andamento, o plano continua do ponto.
         if (mounted) await guided.resume(resumeFrom.activity.guid);
+        // Rastro Seguro (F08): a sessao desta atividade religa a faixa.
+        if (mounted) unawaited(ref.read(safetySessionProvider.notifier).reconcile());
         return;
       }
       final autoPause = ref.read(settingsProvider).autoPauseEnabled;
       await ctrl.start(widget.activityType, autoPauseEnabled: autoPause);
+      if (mounted) unawaited(_beginSafety());
       if (widget.guided && mounted) await _beginGuided();
     });
+  }
+
+  /// Rastro Seguro (F08): cria a sessao com a escolha da tela Gravar. Se nao
+  /// ligar (sem login, sem rede, horario vencido), avisa e a gravacao segue.
+  Future<void> _beginSafety() async {
+    final plan = ref.read(safetyPlanProvider);
+    if (plan == null) return;
+    ref.read(safetyPlanProvider.notifier).state = null;
+    final ctrl = ref.read(recordingControllerProvider.notifier);
+    final guid = ctrl.activityGuid;
+    if (guid == null || !ref.read(recordingControllerProvider).isActive) return;
+    final result = await ref.read(safetySessionProvider.notifier).begin(
+      guid: guid,
+      plan: plan,
+      startMs: ctrl.startTimestampMs ?? ref.read(safetyClockProvider)(),
+    );
+    final msg = safetyBeginMessage(result);
+    if (msg == null || !mounted) return;
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(key: const Key('safety_begin_notice'), content: Text(msg)),
+    );
   }
 
   /// Plano 5 km (F06): liga a proxima sessao do plano a esta gravacao. Sem
@@ -403,7 +429,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         }
         if (_saving && !_finishing) setState(() => _saving = false);
       },
-      child: Scaffold(body: body),
+      // Rastro Seguro (F08): o aviso "Esta tudo bem?" fica por cima de tudo.
+      child: Scaffold(
+        body: Stack(fit: StackFit.expand, children: [body, const SafetyCheckOverlay()]),
+      ),
     );
   }
 }
@@ -531,6 +560,8 @@ class _RecordingBody extends StatelessWidget {
                 ),
               ),
             ),
+          // Rastro Seguro (F08): faixa com Estender, Cheguei e SOS.
+          SafetyBanner(locked: locked),
           if (s.error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 8),
