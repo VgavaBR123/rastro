@@ -68,7 +68,7 @@ void main() {
     await editarPeso(tester, '72,5');
 
     expect(find.byType(AlertDialog), findsNothing);
-    expect(peso(tester), '72.5 kg');
+    expect(peso(tester), '72,5 kg');
     expect((await db.loadSettings()).weightKg, 72.5);
   });
 
@@ -85,7 +85,7 @@ void main() {
     await tester.tap(find.byKey(const Key('weightSave')));
     await tester.pumpAndSettle();
 
-    expect(peso(tester), '81.2 kg');
+    expect(peso(tester), '81,2 kg');
   });
 
   testWidgets('campo vazio apaga o peso', (tester) async {
@@ -134,7 +134,7 @@ void main() {
     tester,
   ) async {
     final db = await abrir(tester, metric: false, weightKg: 70);
-    expect(peso(tester), '154.3 lb');
+    expect(peso(tester), '154,3 lb');
 
     await editarPeso(tester, '154');
 

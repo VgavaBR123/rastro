@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import '../core/format/measures.dart';
 import 'components/segmented_selector.dart';
 import 'section_card.dart';
 import 'theme/app_colors.dart';
@@ -123,10 +124,10 @@ String formatWeight(double? kg, {required bool metric}) {
   return '${_trim(value)} ${metric ? 'kg' : 'lb'}';
 }
 
-/// Uma casa decimal, sem o ".0" quando inteiro.
+/// Uma casa decimal com virgula (INI-04), sem o ",0" quando inteiro.
 String _trim(double v) {
-  final s = v.toStringAsFixed(1);
-  return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+  final s = formatDecimal(v, 1);
+  return s.endsWith(',0') ? s.substring(0, s.length - 2) : s;
 }
 
 /// Dialogo de edicao do peso. Mostra e recebe o valor na unidade das
