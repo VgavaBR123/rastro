@@ -115,12 +115,12 @@ String formatElevation(double meters, {bool metric = true}) {
 // Palavras para o leitor de tela, (singular, plural) por abreviacao.
 const Map<String, (String, String)> _unidadesFaladas = {
   'm': ('metro', 'metros'),
-  'km': ('quilometro', 'quilometros'),
+  'km': ('quilômetro', 'quilômetros'),
   'mi': ('milha', 'milhas'),
-  'ft': ('pe', 'pes'),
-  'km/h': ('quilometro por hora', 'quilometros por hora'),
+  'ft': ('pé', 'pés'),
+  'km/h': ('quilômetro por hora', 'quilômetros por hora'),
   'mph': ('milha por hora', 'milhas por hora'),
-  '/km': ('por quilometro', 'por quilometro'),
+  '/km': ('por quilômetro', 'por quilômetro'),
   '/mi': ('por milha', 'por milha'),
   's': ('segundo', 'segundos'),
   'min': ('minuto', 'minutos'),

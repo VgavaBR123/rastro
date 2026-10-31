@@ -41,7 +41,7 @@ class _FakeSource implements LocationSource {
 }
 
 void main() {
-  testWidgets('RecordingScreen inicia e mostra metricas e controles', (
+  testWidgets('RecordingScreen inicia e mostra métricas e controles', (
     tester,
   ) async {
     final db = RecordingDatabase(NativeDatabase.memory());
@@ -64,9 +64,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     // Rotulos das metricas e controles presentes.
-    expect(find.text('Distancia'), findsOneWidget);
+    expect(find.text('Distância'), findsOneWidget);
     expect(find.text('Tempo'), findsOneWidget);
-    expect(find.text('Pace medio'), findsOneWidget);
+    expect(find.text('Pace médio'), findsOneWidget);
     // Pace atual e subida sairam da tela de gravacao (3 numeros grandes).
     expect(find.text('Pace atual'), findsNothing);
     expect(find.text('Subida'), findsNothing);
@@ -77,7 +77,7 @@ void main() {
   });
 
   testWidgets(
-      'app recem-aberto: a gravacao espera as configuracoes (auto-pausa off)',
+      'app recem-aberto: a gravação espera as configurações (auto-pausa off)',
       (tester) async {
     // Regressao vista no emulador: tocar em Correr logo apos abrir o app
     // gravava com os PADROES (auto-pausa ligada, sem peso), porque as
@@ -286,7 +286,7 @@ void main() {
     expect(find.byKey(const Key('save_activity_view')), findsOneWidget);
   }
 
-  testWidgets('Encerrar exige segurar: toque curto nao abre Salvar', (
+  testWidgets('Encerrar exige segurar: toque curto não abre Salvar', (
     tester,
   ) async {
     final source = await pumpScreen(tester, metric: true);
@@ -299,7 +299,7 @@ void main() {
     expect(find.byKey(const Key('resume')), findsOneWidget);
   });
 
-  testWidgets('Salvar: titulo sugerido, finaliza no banco e fecha a tela', (
+  testWidgets('Salvar: título sugerido, finaliza no banco e fecha a tela', (
     tester,
   ) async {
     final db = RecordingDatabase(NativeDatabase.memory());
@@ -340,7 +340,7 @@ void main() {
     expect(popped, [rows.single.guid]);
   });
 
-  testWidgets('Voltar a gravacao sai da tela Salvar e segue pausado', (
+  testWidgets('Voltar à gravação sai da tela Salvar e segue pausado', (
     tester,
   ) async {
     final source = await pumpScreen(tester, metric: true);
@@ -385,7 +385,7 @@ void main() {
     await tester.tap(find.byKey(const Key('toggle_map')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('recording_map')), findsOneWidget);
-    expect(find.text('Metricas'), findsOneWidget);
+    expect(find.text('Métricas'), findsOneWidget);
   });
 
   for (final (nome, tema) in [('escuro', AppTheme.dark), ('claro', AppTheme.light)]) {

@@ -32,7 +32,7 @@ List<ElevationSample> serie(int n, double Function(int i) alt) => [
 
 void main() {
   group('extracao', () {
-    test('ignora pontos sem altitude e pontos nao aceitos', () {
+    test('ignora pontos sem altitude e pontos não aceitos', () {
       final s = elevationSamplesFromWaypoints([
         row(0, 0, 100),
         row(1, 10, null),
@@ -48,7 +48,7 @@ void main() {
       expect(buildElevationProfile([row(0, 0, 100), row(1, 10, null)]), isNull);
     });
 
-    test('perfil traz min, max, faixa de distancia e ganho', () {
+    test('perfil traz min, max, faixa de distância e ganho', () {
       final p = buildElevationProfile([
         row(0, 0, 100),
         row(1, 100, 120),
@@ -71,7 +71,7 @@ void main() {
       expect(reduceElevationSamples(s, 300), hasLength(50));
     });
 
-    test('respeita o limite e mantem primeiro e ultimo', () {
+    test('respeita o limite e mantem primeiro e último', () {
       final s = serie(10000, (i) => math.sin(i / 50) * 100);
       final r = reduceElevationSamples(s, 300);
       expect(r.length, lessThanOrEqualTo(300));
@@ -93,7 +93,7 @@ void main() {
       expect(alts.reduce(math.min), -50);
     });
 
-    test('mantem a ordem por distancia', () {
+    test('mantem a ordem por distância', () {
       final rnd = math.Random(7);
       final s = serie(3001, (_) => rnd.nextDouble() * 500);
       final r = reduceElevationSamples(s, 301);
@@ -114,7 +114,7 @@ void main() {
   });
 
   group('voltas', () {
-    test('resumo calcula distancia, tempo e pace', () {
+    test('resumo calcula distância, tempo e pace', () {
       final l = LapSummary.fromLap(
         const Lap(
           activityGuid: 'a',
@@ -131,7 +131,7 @@ void main() {
       expect(l.paceSecondsPerMeter, closeTo(0.3, 1e-12));
     });
 
-    test('volta sem distancia nao tem pace', () {
+    test('volta sem distância não tem pace', () {
       final l = LapSummary.fromLap(
         const Lap(
           activityGuid: 'a',

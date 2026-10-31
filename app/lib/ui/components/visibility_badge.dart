@@ -10,7 +10,7 @@ import '../theme/app_typography.dart';
 
 /// Rotulo curto, o mesmo do seletor da tela Salvar.
 String visibilityLabel(ActivityVisibility v) => switch (v) {
-  ActivityVisibility.onlyMe => 'So eu',
+  ActivityVisibility.onlyMe => 'Só eu',
   ActivityVisibility.followers => 'Seguidores',
   ActivityVisibility.everyone => 'Todos',
 };

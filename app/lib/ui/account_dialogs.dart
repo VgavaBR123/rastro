@@ -108,7 +108,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
       Navigator.of(context).pop(ok);
       return;
     }
-    setState(() => _error = auth.error ?? 'Nao foi possivel trocar a senha');
+    setState(() => _error = auth.error ?? 'Não foi possível trocar a senha');
     ctrl.clearError();
   }
 
@@ -139,7 +139,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                 decoration: const InputDecoration(labelText: 'Nova senha'),
                 obscureText: true,
                 validator: (v) => (v == null || v.length < 8)
-                    ? 'Minimo de 8 caracteres'
+                    ? 'Mínimo de 8 caracteres'
                     : null,
               ),
               _fieldGap,
@@ -151,11 +151,11 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
                 ),
                 obscureText: true,
                 validator: (v) =>
-                    v != _new.text ? 'As senhas nao conferem' : null,
+                    v != _new.text ? 'As senhas não conferem' : null,
               ),
               _fieldGap,
               _note(
-                'Os outros aparelhos conectados vao precisar entrar de novo.',
+                'Os outros aparelhos conectados vão precisar entrar de novo.',
               ),
               _errorText(_error, const Key('change_error')),
             ],
@@ -198,7 +198,7 @@ class _LogoutAllDialogState extends ConsumerState<_LogoutAllDialog> {
       Navigator.of(context).pop(true);
       return;
     }
-    setState(() => _error = auth.error ?? 'Nao foi possivel sair');
+    setState(() => _error = auth.error ?? 'Não foi possível sair');
     ctrl.clearError();
   }
 
@@ -213,7 +213,7 @@ class _LogoutAllDialogState extends ConsumerState<_LogoutAllDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Todas as sessoes da sua conta serao encerradas, inclusive esta. '
+            'Todas as sessões da sua conta serão encerradas, inclusive esta. '
             'Suas atividades continuam neste aparelho.',
           ),
           _errorText(_error, const Key('logout_all_error')),
@@ -266,7 +266,7 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
       Navigator.of(context).pop(ok);
       return;
     }
-    setState(() => _error = auth.error ?? 'Nao foi possivel excluir a conta');
+    setState(() => _error = auth.error ?? 'Não foi possível excluir a conta');
     ctrl.clearError();
   }
 
@@ -290,7 +290,7 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
             children: [
               const Text(
                 'Isto apaga sua conta e TODAS as suas atividades no servidor. '
-                'Nao da para desfazer.',
+                'Não dá para desfazer.',
                 key: Key('delete_warning'),
               ),
               const SizedBox(height: 8),

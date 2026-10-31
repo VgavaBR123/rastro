@@ -75,7 +75,7 @@ class ActivityCard extends StatelessWidget {
 
     final metrics = Row(
       children: [
-        Expanded(child: MetricTile(label: 'Distancia', value: dist, unit: distUnit, role: c.dist)),
+        Expanded(child: MetricTile(label: 'Distância', value: dist, unit: distUnit, role: c.dist)),
         Expanded(child: MetricTile(label: middleLabel, value: middle.$1, unit: middle.$2, role: c.pace)),
         Expanded(
           child: MetricTile(label: 'Tempo', value: formatDuration(activity.timerTimeMs), role: c.tempo),

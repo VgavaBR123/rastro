@@ -115,7 +115,7 @@ bool selected(WidgetTester tester, ActivityType t) {
 }
 
 void main() {
-  testWidgets('sem historico marca Corrida; trocar e Iniciar abre o esporte', (tester) async {
+  testWidgets('sem histórico marca Corrida; trocar e Iniciar abre o esporte', (tester) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     await pumpSetup(tester, db: db);
@@ -151,7 +151,7 @@ void main() {
     expect(find.text('detalhe g1'), findsOneWidget);
   });
 
-  testWidgets('o aviso some sozinho e nao aparece sem atividade salva', (tester) async {
+  testWidgets('o aviso some sozinho e não aparece sem atividade salva', (tester) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     await pumpSetup(tester, db: db);
@@ -174,7 +174,7 @@ void main() {
     expect(find.text('Atividade salva'), findsNothing);
   });
 
-  testWidgets('o ultimo esporte usado vem marcado', (tester) async {
+  testWidgets('o último esporte usado vem marcado', (tester) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final repo = RecordingRepository(db);
@@ -185,13 +185,13 @@ void main() {
     await pumpSetup(tester, db: db);
 
     expect(selected(tester, ActivityType.walk), isTrue);
-    expect(find.text('Ultimo usado: Caminhada'), findsOneWidget);
+    expect(find.text('Último usado: Caminhada'), findsOneWidget);
     await tester.tap(find.byKey(const Key('record_start')));
     await tester.pumpAndSettle();
     expect(find.text('gravando walk'), findsOneWidget);
   });
 
-  testWidgets('com fix, centraliza na posicao e o chip recentraliza', (tester) async {
+  testWidgets('com fix, centraliza na posição e o chip recentraliza', (tester) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final pos = FakePosition(last: const GeoPoint(latitude: -19.9, longitude: -43.9), now: _bh);
@@ -207,7 +207,7 @@ void main() {
     expect(routeMap(tester).recenterRequest, before + 1);
   });
 
-  testWidgets('sem permissao mostra Sem GPS e o toque tenta de novo', (tester) async {
+  testWidgets('sem permissão mostra Sem GPS e o toque tenta de novo', (tester) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final pos = FakePosition(access: false);
@@ -235,7 +235,7 @@ void main() {
     expect(find.text('Sem GPS'), findsOneWidget);
   });
 
-  testWidgets('Camadas troca o estilo do mapa e Automatico volta ao tema', (tester) async {
+  testWidgets('Camadas troca o estilo do mapa e Automático volta ao tema', (tester) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     final container = await pumpSetup(tester, db: db);

@@ -148,7 +148,7 @@ void main() {
     },
   );
 
-  group('HIS-03: excecao fora do envio nao trava o estado', () {
+  group('HIS-03: excecao fora do envio não trava o estado', () {
     test(
       'prepareRound lanca: running volta a false com mensagem amigavel',
       () async {
@@ -184,7 +184,7 @@ void main() {
     );
   });
 
-  test('syncErrorMessage: sem rede, sessao expirada e generico', () {
+  test('syncErrorMessage: sem rede, sessão expirada e generico', () {
     expect(
       syncErrorMessage(NetworkUploadException('dns')),
       kSyncOfflineMessage,

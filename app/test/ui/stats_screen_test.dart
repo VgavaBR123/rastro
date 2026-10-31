@@ -113,12 +113,12 @@ void main() {
     ('claro', AppTheme.light),
   ]) {
     group('tema $name', () {
-      testWidgets('mostra totais, grafico e distribuicao do periodo', (
+      testWidgets('mostra totais, grafico e distribuicao do período', (
         tester,
       ) async {
         await pump(tester, const StatsScreen(), theme: theme);
 
-        expect(find.text('Estatisticas'), findsOneWidget);
+        expect(find.text('Estatísticas'), findsOneWidget);
         // Padrao: 4 semanas (corrida e pedal).
         expect(tileValue(tester, 'stats_total_distance'), '50,00 km');
         // EST-04: total com unidade, sem o "H:MM:SS" do cronometro.
@@ -173,7 +173,7 @@ void main() {
         expect(find.byKey(const Key('stats_empty')), findsOneWidget);
       });
 
-      testWidgets('Voce deslogado: convite, semana e recordes locais', (
+      testWidgets('Você deslogado: convite, semana e recordes locais', (
         tester,
       ) async {
         await pump(tester, const ProfileScreen(), theme: theme);
@@ -231,9 +231,9 @@ void main() {
     expect(
       {dist.id, time.id, gain.id, count.id}.length,
       4,
-      reason: 'um no por bloco, nao um so para a grade',
+      reason: 'um no por bloco, não um só para a grade',
     );
-    expect(dist, isSemantics(label: 'Distancia', value: '50,00 quilometros'));
+    expect(dist, isSemantics(label: 'Distância', value: '50,00 quilômetros'));
     expect(time, isSemantics(label: 'Tempo', value: '2 horas e 20 minutos'));
     expect(gain, isSemantics(label: 'Subida', value: '0 metros'));
     expect(count, isSemantics(label: 'Treinos', value: '2'));

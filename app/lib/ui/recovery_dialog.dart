@@ -58,8 +58,8 @@ Future<RecoveryChoice?> showRecoveryDialog(
             const SizedBox(height: 10),
             Text(
               '${activityTypeLabel(a.activityType)} iniciada em '
-              '${formatDateTimeMs(a.startTimestampMs)} nao foi encerrada. '
-              'Salvo ate agora:',
+              '${formatDateTimeMs(a.startTimestampMs)} não foi encerrada. '
+              'Salvo até agora:',
               style: AppText.body.copyWith(color: c.textMuted),
             ),
             const SizedBox(height: 12),
@@ -68,7 +68,7 @@ Future<RecoveryChoice?> showRecoveryDialog(
                 Expanded(
                   child: MetricTile(
                     key: const Key('recovery_distance'),
-                    label: 'Distancia',
+                    label: 'Distância',
                     value: formatDistance(it.distanceMeters, metric: metric),
                     role: c.dist,
                     block: true,
@@ -114,7 +114,7 @@ Future<RecoveryChoice?> showRecoveryDialog(
                     key: const Key('recovery_save'),
                     onPressed: () => pick(RecoveryChoice.save),
                     icon: const Icon(Icons.check_rounded),
-                    label: const Text('Salvar como esta'),
+                    label: const Text('Salvar como está'),
                   ),
                 ),
             ],

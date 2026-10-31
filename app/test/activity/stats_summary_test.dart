@@ -91,7 +91,7 @@ void main() {
     expect(s.maxWeekTimerMs, 120 * 60000);
   });
 
-  test('totais por periodo: semana, 4 semanas e 8 semanas', () {
+  test('totais por período: semana, 4 semanas e 8 semanas', () {
     final s = buildStatsSummary([
       e(ActivityType.run, DateTime(2026, 10, 20), km: 10, min: 50, gain: 80),
       e(ActivityType.ride, DateTime(2026, 10, 1), km: 40, min: 90, gain: 300),
@@ -113,7 +113,7 @@ void main() {
     expect(s.periodStart(StatsPeriod.month), DateTime(2026, 9, 28));
   });
 
-  test('valores invalidos nao contaminam os totais', () {
+  test('valores inválidos não contaminam os totais', () {
     final t = StatTotals.of([
       const StatEntry(
         type: ActivityType.run,
@@ -152,7 +152,7 @@ void main() {
   });
 
   group('recordes', () {
-    test('maior distancia por esporte, melhor pace e maior pedal', () {
+    test('maior distância por esporte, melhor pace e maior pedal', () {
       final r = personalRecords([
         e(ActivityType.run, DateTime(2026, 1, 1), km: 10, min: 60), // 6:00/km
         e(ActivityType.run, DateTime(2026, 2, 1), km: 5, min: 25), // 5:00/km
@@ -190,7 +190,7 @@ void main() {
       );
     });
 
-    test('sem atividades com distancia nao ha recorde', () {
+    test('sem atividades com distância não ha recorde', () {
       expect(personalRecords([e(ActivityType.walk, now, km: 0)]), isEmpty);
       expect(personalRecords(const []), isEmpty);
     });

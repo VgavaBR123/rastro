@@ -131,7 +131,7 @@ Finder naLinha(String key, String texto) =>
     find.descendant(of: find.byKey(Key(key)), matching: find.text(texto));
 
 void main() {
-  testWidgets('perfil de elevacao usa so pontos aceitos com altitude', (
+  testWidgets('perfil de elevação usa só pontos aceitos com altitude', (
     tester,
   ) async {
     final db = await completa();
@@ -147,7 +147,7 @@ void main() {
     expect(textoDe(tester, const Key('elevationEndDistance')), '1,5 km');
   });
 
-  testWidgets('perfil em pes e milhas quando imperial', (tester) async {
+  testWidgets('perfil em pés e milhas quando imperial', (tester) async {
     final db = await completa();
     addTearDown(db.close);
     await db.saveSettings(useMetric: false);
@@ -158,7 +158,7 @@ void main() {
     expect(textoDe(tester, const Key('elevationEndDistance')), '0,9 mi');
   });
 
-  testWidgets('voltas com distancia, tempo e pace em km', (tester) async {
+  testWidgets('voltas com distância, tempo e pace em km', (tester) async {
     final db = await completa();
     addTearDown(db.close);
     await abrir(tester, db);
@@ -284,7 +284,7 @@ void main() {
     });
   }
 
-  testWidgets('titulo e descricao salvos; Compartilhar manda o resumo; Voltar fecha', (
+  testWidgets('título e descrição salvos; Compartilhar manda o resumo; Voltar fecha', (
     tester,
   ) async {
     final db = await completa();

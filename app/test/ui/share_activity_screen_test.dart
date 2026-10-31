@@ -75,12 +75,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('previa mostra titulo, metricas e rota; estilo troca', (tester) async {
+  testWidgets('previa mostra título, métricas e rota; estilo troca', (tester) async {
     await pumpScreen(tester);
 
     expect(find.text('Treino no parque'), findsOneWidget);
     expect(find.byKey(const Key('share_card_route')), findsOneWidget);
-    for (final label in ['Distancia', 'Pace', 'Tempo', 'Subida']) {
+    for (final label in ['Distância', 'Pace', 'Tempo', 'Subida']) {
       expect(find.byKey(Key('share_metric_$label')), findsOneWidget);
     }
     ShareCard card() => tester.widget<ShareCard>(find.byKey(const Key('share_card')));
@@ -120,7 +120,7 @@ void main() {
     expect(size, const Size(1080, 1920));
   });
 
-  testWidgets('So o texto manda o resumo sem imagem', (tester) async {
+  testWidgets('Só o texto manda o resumo sem imagem', (tester) async {
     await pumpScreen(tester);
     await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
@@ -133,6 +133,6 @@ void main() {
     await pumpScreen(tester);
     await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
-    expect(find.text('Nao foi possivel compartilhar'), findsOneWidget);
+    expect(find.text('Não foi possível compartilhar'), findsOneWidget);
   });
 }

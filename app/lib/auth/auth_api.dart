@@ -90,7 +90,7 @@ class AuthApi {
       'POST',
       '/auth/password/reset',
       data: {'email': email, 'code': code, 'newPassword': newPassword},
-      badRequestFallback: 'Codigo invalido ou expirado',
+      badRequestFallback: 'Código inválido ou expirado',
     );
     return AuthSession.fromJson(body);
   }
@@ -109,7 +109,7 @@ class AuthApi {
     String path, {
     String? token,
     Map<String, dynamic>? data,
-    String badRequestFallback = 'Dados invalidos',
+    String badRequestFallback = 'Dados inválidos',
     String forbiddenMessage = 'Senha atual incorreta',
   }) async {
     final Response<dynamic> r;
@@ -125,7 +125,7 @@ class AuthApi {
         ),
       );
     } on DioException {
-      throw const AuthException('Sem conexao com o servidor');
+      throw const AuthException('Sem conexão com o servidor');
     }
     final status = r.statusCode!;
     final body = r.data;
@@ -135,7 +135,7 @@ class AuthApi {
     final String message;
     if (status == 401 && token != null) {
       // Rota protegida: o token foi revogado/expirou (o controller desloga).
-      message = 'Sessao expirada. Entre de novo.';
+      message = 'Sessão expirada. Entre de novo.';
     } else if (status == 403) {
       message = forbiddenMessage;
     } else {
@@ -161,7 +161,7 @@ class AuthApi {
       case 401:
         return 'E-mail ou senha incorretos';
       case 409:
-        return 'Ja existe uma conta com este e-mail';
+        return 'Já existe uma conta com este e-mail';
       case 400:
         if (body is Map && body['error'] is String) {
           return _capitalize(body['error'] as String);

@@ -68,7 +68,7 @@ void main() {
 
   Future<String?> ownerOf(String guid) async => (await repo.activity(guid))!.ownerUserId;
 
-  test('gravacao guarda a conta logada como dona', () async {
+  test('gravação guarda a conta logada como dona', () async {
     final ctrl = RecordingController(
       source: _Source(),
       repo: repo,
@@ -80,7 +80,7 @@ void main() {
     expect(await ownerOf(ctrl.activityGuid!), 'ana');
   });
 
-  test('sync de B nao envia as pendentes de A e reivindica as sem dono', () async {
+  test('sync de B não envia as pendentes de A e reivindica as sem dono', () async {
     await seed(repo, 'de-ana', owner: 'ana');
     await seed(repo, 'sem-dono');
     await seed(repo, 'de-bia', owner: 'bia');
@@ -109,7 +109,7 @@ void main() {
     expect(up.guids, ['de-ana']);
   });
 
-  test('gravacao em andamento sem dono nao e reivindicada', () async {
+  test('gravação em andamento sem dono não e reivindicada', () async {
     await repo.startActivity(guid: 'rec', type: ActivityType.run, startTimestampMs: 1);
     expect(await db.claimUnownedActivities('bia'), 0);
     expect(await ownerOf('rec'), isNull);

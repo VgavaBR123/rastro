@@ -8,7 +8,7 @@ import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 void main() {
   group('splitBarSpecs', () {
     test(
-      'largura proporcional entre 55% e 100%, com mais rapida e mais lenta',
+      'largura proporcional entre 55% e 100%, com mais rápida e mais lenta',
       () {
         final specs = splitBarSpecs([3.0, 4.0, 5.0]);
         expect(specs[0], const SplitBarSpec(0.55, SplitRank.slowest));
@@ -18,7 +18,7 @@ void main() {
       },
     );
 
-    test('todas iguais ou uma so: largura cheia, sem ranking', () {
+    test('todas iguais ou uma só: largura cheia, sem ranking', () {
       expect(splitBarSpecs([4.0, 4.0]), [
         const SplitBarSpec(1.0, SplitRank.normal),
         const SplitBarSpec(1.0, SplitRank.normal),
@@ -26,7 +26,7 @@ void main() {
       expect(splitBarSpecs([2.5]), [const SplitBarSpec(1.0, SplitRank.normal)]);
     });
 
-    test('velocidade invalida fica com a minima e fora do ranking', () {
+    test('velocidade inválida fica com a minima e fora do ranking', () {
       final specs = splitBarSpecs([0.0, 2.0, double.nan, 4.0]);
       expect(specs[0], const SplitBarSpec(0.55, SplitRank.normal));
       expect(specs[1], const SplitBarSpec(0.55, SplitRank.slowest));
@@ -46,7 +46,7 @@ void main() {
     });
   });
 
-  test('splitRankRole: rapida = dist, lenta = tempo, demais = pace', () {
+  test('splitRankRole: rápida = dist, lenta = tempo, demais = pace', () {
     for (final c in [AppColors.dark, AppColors.light]) {
       expect(splitRankRole(c, SplitRank.fastest), c.dist);
       expect(splitRankRole(c, SplitRank.slowest), c.tempo);
@@ -112,7 +112,7 @@ void main() {
       expect(deco.borderRadius, BorderRadius.circular(7));
       expect((barra('b').decoration! as BoxDecoration).color, colors.dist.fill);
 
-      expect(find.text('Mais rapida'), findsOneWidget);
+      expect(find.text('Mais rápida'), findsOneWidget);
       expect(find.text('Mais lenta'), findsOneWidget);
       expect(find.text('Demais'), findsOneWidget);
     });

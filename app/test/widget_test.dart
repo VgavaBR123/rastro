@@ -50,7 +50,7 @@ Future<void> pumpHome(
 }
 
 void main() {
-  testWidgets('Inicio vazio convida a gravar', (tester) async {
+  testWidgets('Início vazio convida a gravar', (tester) async {
     // A Home consulta o banco na abertura (recuperacao pos-crash).
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -58,7 +58,7 @@ void main() {
 
     expect(find.text('Rastro'), findsOneWidget);
     expect(find.text('Atividades'), findsNothing);
-    expect(find.text('Inicio'), findsOneWidget);
+    expect(find.text('Início'), findsOneWidget);
     expect(find.byKey(const Key('settings')), findsOneWidget);
     expect(find.byKey(const Key('home_empty')), findsOneWidget);
     expect(find.text('Nenhuma atividade ainda'), findsOneWidget);
@@ -71,7 +71,7 @@ void main() {
   });
 
   for (final (name, theme) in [('escuro', AppTheme.dark), ('claro', AppTheme.light)]) {
-    testWidgets('Inicio mostra o resumo da semana e o cartao ($name)', (tester) async {
+    testWidgets('Início mostra o resumo da semana e o cartão ($name)', (tester) async {
       final db = RecordingDatabase(NativeDatabase.memory());
       addTearDown(db.close);
       final repo = RecordingRepository(db);
@@ -90,7 +90,7 @@ void main() {
       expect(find.text('Esta semana'), findsOneWidget);
       expect(find.text('1 treino'), findsOneWidget);
       expect(find.byType(ActivityCard), findsOneWidget);
-      expect(find.text('Corrida da manha'), findsOneWidget);
+      expect(find.text('Corrida da manhã'), findsOneWidget);
       expect(find.text('Ver detalhe'), findsOneWidget);
       expect(find.byKey(const Key('home_empty')), findsNothing);
       // Distancia aparece no resumo e no cartao.
@@ -103,7 +103,7 @@ void main() {
       expect(find.byKey(const Key('share_card')), findsOneWidget);
       await tester.tap(find.byKey(const Key('share_text_only')));
       await tester.pump();
-      expect(sharer.texts, ['Corrida da manha\nCorrida | 1,20 km | 6:00 | 5:00 /km']);
+      expect(sharer.texts, ['Corrida da manhã\nCorrida | 1,20 km | 6:00 | 5:00 /km']);
     });
   }
 
@@ -116,7 +116,7 @@ void main() {
     return db;
   }
 
-  testWidgets('Inicio mostra o titulo salvo e o compartilha', (tester) async {
+  testWidgets('Início mostra o título salvo e o compartilha', (tester) async {
     final db = await umaCorrida();
     addTearDown(db.close);
     await RecordingRepository(db).saveDetails(
@@ -128,7 +128,7 @@ void main() {
     await pumpHome(tester, db, sharer: sharer);
 
     expect(find.text('Treino no parque'), findsOneWidget);
-    expect(find.text('Corrida da manha'), findsNothing);
+    expect(find.text('Corrida da manhã'), findsNothing);
     await tester.ensureVisible(find.byKey(const Key('share-a')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('share-a')));
@@ -152,6 +152,6 @@ void main() {
     expect(find.byKey(const Key('share_card')), findsOneWidget);
     await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
-    expect(find.text('Nao foi possivel compartilhar'), findsOneWidget);
+    expect(find.text('Não foi possível compartilhar'), findsOneWidget);
   });
 }

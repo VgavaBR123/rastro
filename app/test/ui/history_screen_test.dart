@@ -43,7 +43,7 @@ Future<RecordingDatabase> seededDb() async {
 }
 
 void main() {
-  testWidgets('Historico lista a atividade finalizada', (tester) async {
+  testWidgets('Histórico lista a atividade finalizada', (tester) async {
     final db = await seededDb();
     addTearDown(db.close);
 
@@ -63,7 +63,7 @@ void main() {
     ('escuro', AppTheme.dark),
     ('claro', AppTheme.light),
   ]) {
-    testWidgets('Historico no visual novo, com badge de pendentes ($name)', (
+    testWidgets('Histórico no visual novo, com badge de pendentes ($name)', (
       tester,
     ) async {
       final db = await seededDb();
@@ -77,7 +77,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Historico'), findsOneWidget);
+      expect(find.text('Histórico'), findsOneWidget);
       expect(find.byKey(const Key('sync')), findsOneWidget);
       expect(find.byTooltip('Sincronizar, 1 pendente'), findsOneWidget);
       final badge = tester.widget<Badge>(find.byType(Badge));
@@ -149,7 +149,7 @@ void main() {
     expect(find.text('Entre na sua conta para sincronizar'), findsNothing);
   });
 
-  testWidgets('HIS-11: sync com rotulo unico e cartao anunciado como botao', (
+  testWidgets('HIS-11: sync com rotulo unico e cartão anunciado como botao', (
     tester,
   ) async {
     final handle = tester.ensureSemantics();
@@ -177,10 +177,10 @@ void main() {
     expect(card, findsOneWidget);
     final node = tester.getSemantics(card);
     expect(node, isSemantics(isButton: true, hasTapAction: true));
-    expect(node.label, contains('1,20 quilometros'));
+    expect(node.label, contains('1,20 quilômetros'));
     expect(node.label, contains('1 minuto'));
     // Atividade nova nasce "So eu" (GRA-05): o selo entra no rotulo unico.
-    expect(node.label, contains('quem pode ver: So eu'));
+    expect(node.label, contains('quem pode ver: Só eu'));
     // O menu do cartao continua alcancavel como elemento proprio.
     final buttons = <SemanticsNode>[];
     void collect(SemanticsNode n) {
@@ -195,7 +195,7 @@ void main() {
       collect(c);
       return true;
     });
-    expect(buttons, hasLength(1), reason: 'o botao do menu, dentro do cartao');
+    expect(buttons, hasLength(1), reason: 'o botao do menu, dentro do cartão');
     handle.dispose();
   });
 
@@ -224,7 +224,7 @@ void main() {
 
     expect(find.byType(ActivityCard), findsNothing);
     expect(find.text('Nenhuma atividade ainda'), findsOneWidget);
-    expect(find.text('Atividade excluida'), findsOneWidget);
+    expect(find.text('Atividade excluída'), findsOneWidget);
     expect(await RecordingRepository(db).recent(), isEmpty);
   });
 
@@ -280,11 +280,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ActivityCard), findsOneWidget);
-    expect(find.text('Atividade excluida'), findsNothing);
+    expect(find.text('Atividade excluída'), findsNothing);
     expect((await RecordingRepository(db).recent()).length, 1);
   });
 
-  testWidgets('Detalhe mostra metricas da atividade', (tester) async {
+  testWidgets('Detalhe mostra métricas da atividade', (tester) async {
     final db = await seededDb();
     addTearDown(db.close);
     final activity = (await RecordingRepository(db).recent()).first;
@@ -297,7 +297,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Distancia'), findsOneWidget);
+    expect(find.text('Distância'), findsOneWidget);
     expect(find.text('Tempo'), findsOneWidget);
     expect(find.text('Pace'), findsOneWidget);
     expect(find.text('1,20 km'), findsOneWidget); // 1200 m

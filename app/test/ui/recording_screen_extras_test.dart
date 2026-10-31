@@ -113,7 +113,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Salvar grava titulo, descricao e visibilidade no banco', (
+  testWidgets('Salvar grava título, descrição e visibilidade no banco', (
     tester,
   ) async {
     await pumpScreen(tester);
@@ -169,7 +169,7 @@ void main() {
     );
   });
 
-  testWidgets('pausa automatica mostra Volta e Pausar, nao Retomar', (
+  testWidgets('pausa automática mostra Volta e Pausar, não Retomar', (
     tester,
   ) async {
     await pumpScreen(tester);
@@ -177,7 +177,7 @@ void main() {
     detector.paused = true;
     await feed(tester, [3]);
 
-    expect(find.text('Pausa automatica'), findsOneWidget);
+    expect(find.text('Pausa automática'), findsOneWidget);
     expect(find.byKey(const Key('resume')), findsNothing);
     expect(find.byKey(const Key('stop')), findsNothing);
     expect(find.byKey(const Key('lap')), findsOneWidget);
@@ -201,7 +201,7 @@ void main() {
     expect(find.text('Gravando'), findsOneWidget);
   });
 
-  testWidgets('chips do topo nao transbordam em 320 de largura', (
+  testWidgets('chips do topo não transbordam em 320 de largura', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(320, 640));
@@ -213,7 +213,7 @@ void main() {
     // Rotulo mais longo do chip de estado.
     detector.paused = true;
     await feed(tester, [2]);
-    expect(find.text('Pausa automatica'), findsOneWidget);
+    expect(find.text('Pausa automática'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Com o mapa aberto o botao vira "Metricas".

@@ -106,7 +106,7 @@ void main() {
     expect(o['backoff'], BackoffPolicy.exponential);
   });
 
-  test('sem backend configurado nao inicializa nem agenda nada', () async {
+  test('sem backend configurado não inicializa nem agenda nada', () async {
     final s = scheduler('https://example.invalid');
     await s.initialize();
     await s.schedulePeriodic();
@@ -117,14 +117,14 @@ void main() {
     expect(wm.oneOff, isEmpty);
   });
 
-  test('initialize so uma vez', () async {
+  test('initialize só uma vez', () async {
     final s = scheduler('http://localhost:8081');
     await s.initialize();
     await s.initialize();
     expect(wm.initCalls, 1);
   });
 
-  test('falha no initialize nao lanca e bloqueia os agendamentos', () async {
+  test('falha no initialize não lanca e bloqueia os agendamentos', () async {
     wm.throwOnInit = true;
     final s = scheduler('http://localhost:8081');
     await s.initialize();

@@ -3,7 +3,7 @@ import 'package:strava_estudo_app/core/format/activity_share_text.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 
 void main() {
-  test('corrida em km: titulo, esporte, distancia, tempo e pace', () {
+  test('corrida em km: título, esporte, distância, tempo e pace', () {
     expect(
       activityShareText(
         title: 'Longao',

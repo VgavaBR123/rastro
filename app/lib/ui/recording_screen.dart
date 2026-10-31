@@ -270,8 +270,8 @@ class _RecordingBody extends StatelessWidget {
                 FloatingMapButton(
                   key: const Key('toggle_map'),
                   icon: page == 0 ? Icons.map_rounded : Icons.speed_rounded,
-                  tooltip: page == 0 ? 'Ver o mapa' : 'Ver as metricas',
-                  label: page == 0 ? 'Mapa' : 'Metricas',
+                  tooltip: page == 0 ? 'Ver o mapa' : 'Ver as métricas',
+                  label: page == 0 ? 'Mapa' : 'Métricas',
                   onPressed: onTogglePage,
                 ),
               ],
@@ -329,7 +329,7 @@ class _StateChip extends StatelessWidget {
     final (String label, RoleColors role) = switch (state) {
       RecordingState.recording => ('Gravando', c.tempo),
       RecordingState.manuallyPaused => ('Pausado', c.extra),
-      RecordingState.autoPaused => ('Pausa automatica', c.extra),
+      RecordingState.autoPaused => ('Pausa automática', c.extra),
       RecordingState.idle => ('Preparando', c.ciano),
       RecordingState.finished => ('Encerrada', c.ciano),
     };
@@ -369,7 +369,7 @@ class _MetricsPage extends StatelessWidget {
             _MetricDivider(color: c.line),
             _BigMetric(
               key: const Key('pace'),
-              label: 'Pace medio',
+              label: 'Pace médio',
               value: avgPace,
               unit: avgPaceUnit,
               role: c.pace,
@@ -377,7 +377,7 @@ class _MetricsPage extends StatelessWidget {
             _MetricDivider(color: c.line),
             _BigMetric(
               key: const Key('distance'),
-              label: 'Distancia',
+              label: 'Distância',
               value: dist,
               unit: distUnit,
               role: c.dist,
@@ -537,7 +537,7 @@ class _MapPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: MetricTile(
-                    label: 'Distancia',
+                    label: 'Distância',
                     value: formatDistance(state.distanceMeters, metric: metric),
                     role: c.dist,
                     block: true,

@@ -56,10 +56,10 @@ void main() {
     expect(find.text('km, m, min/km'), findsOneWidget);
   });
 
-  testWidgets('peso nao informado por padrao', (tester) async {
+  testWidgets('peso não informado por padrao', (tester) async {
     await abrir(tester);
     expect(find.text('Peso (para calorias)'), findsOneWidget);
-    expect(peso(tester), 'Nao informado');
+    expect(peso(tester), 'Não informado');
   });
 
   testWidgets('salva peso com virgula decimal', (tester) async {
@@ -93,11 +93,11 @@ void main() {
 
     await editarPeso(tester, '');
 
-    expect(peso(tester), 'Nao informado');
+    expect(peso(tester), 'Não informado');
     expect((await db.loadSettings()).weightKg, isNull);
   });
 
-  testWidgets('cancelar nao altera', (tester) async {
+  testWidgets('cancelar não altera', (tester) async {
     final db = await abrir(tester, weightKg: 70);
 
     await tester.tap(find.byKey(const Key('weight')));
@@ -110,13 +110,13 @@ void main() {
     expect((await db.loadSettings()).weightKg, 70);
   });
 
-  testWidgets('texto invalido mostra erro e mantem o dialogo', (tester) async {
+  testWidgets('texto inválido mostra erro e mantem o dialogo', (tester) async {
     final db = await abrir(tester);
 
     await editarPeso(tester, 'abc');
 
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('Informe um numero'), findsOneWidget);
+    expect(find.text('Informe um número'), findsOneWidget);
     expect((await db.loadSettings()).weightKg, isNull);
   });
 
@@ -158,7 +158,7 @@ void main() {
     final handle = tester.ensureSemantics();
     await abrir(tester);
 
-    for (final titulo in ['Unidades', 'Gravacao']) {
+    for (final titulo in ['Unidades', 'Gravação']) {
       expect(
         tester.getSemantics(find.bySemanticsLabel(titulo)),
         matchesSemantics(label: titulo, isHeader: true),
@@ -168,14 +168,14 @@ void main() {
     final pesoNo = tester.getSemantics(
       find.bySemanticsLabel(RegExp(r'^Peso \(para calorias\)')),
     );
-    expect(pesoNo.label, 'Peso (para calorias)\nNao informado');
+    expect(pesoNo.label, 'Peso (para calorias)\nNão informado');
     expect(pesoNo.flagsCollection.isButton, isTrue);
     expect(pesoNo.rect.height, lessThan(100));
 
     final pausa = tester.getSemantics(
-      find.bySemanticsLabel(RegExp(r'^Pausa automatica')),
+      find.bySemanticsLabel(RegExp(r'^Pausa automática')),
     );
-    expect(pausa.label, isNot(contains('Gravacao')));
+    expect(pausa.label, isNot(contains('Gravação')));
     expect(pausa.label, isNot(contains('Peso')));
     handle.dispose();
   });

@@ -51,7 +51,7 @@ class UploadException implements Exception {
 /// O servidor recusou a sessao (sem login, token revogado ou expirado). A
 /// atividade continua na fila; volta a subir depois que o usuario entrar.
 class UnauthorizedUploadException extends UploadException {
-  UnauthorizedUploadException() : super('sessao invalida ou ausente (401)');
+  UnauthorizedUploadException() : super('sessão inválida ou ausente (401)');
 }
 
 /// Nao chegou ao servidor (sem rede, DNS, timeout). Separada para a UI dizer

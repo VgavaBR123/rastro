@@ -162,7 +162,7 @@ class _RecordSetupScreenState extends ConsumerState<RecordSetupScreen> {
                   },
                   tooltip: switch (_gps) {
                     GpsStatus.searching => 'Procurando sinal de GPS',
-                    GpsStatus.ready => 'Centralizar na minha posicao',
+                    GpsStatus.ready => 'Centralizar na minha posição',
                     GpsStatus.unavailable => 'Tentar o GPS de novo',
                   },
                   label: switch (_gps) {
@@ -260,7 +260,7 @@ class _LayersSheet extends ConsumerWidget {
             option(
               key: const Key('map_style_auto'),
               icon: Icons.brightness_auto_rounded,
-              label: 'Automatico',
+              label: 'Automático',
               hint: 'Segue o tema (${auto.label})',
               selected: choice == null,
               onTap: () => pick(null),
@@ -299,7 +299,7 @@ class _SetupSheet extends StatelessWidget {
     final c = AppColors.of(context);
     final hint = lastUsed == null
         ? 'Escolha o esporte antes de iniciar'
-        : 'Ultimo usado: ${activityTypeLabel(lastUsed!)}';
+        : 'Último usado: ${activityTypeLabel(lastUsed!)}';
     return Container(
       key: const Key('record_setup_sheet'),
       decoration: BoxDecoration(

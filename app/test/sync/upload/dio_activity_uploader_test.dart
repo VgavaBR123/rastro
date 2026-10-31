@@ -75,7 +75,7 @@ void main() {
     expect(adapter.capturedBody, fit);
   });
 
-  test('aceita o campo id quando o backend nao manda uploadId', () async {
+  test('aceita o campo id quando o backend não manda uploadId', () async {
     final adapter = _FakeAdapter(statusCode: 200, body: {'id': 'up_xyz'});
     final uploader =
         DioActivityUploader(_dioWith(adapter), 'https://example.invalid');

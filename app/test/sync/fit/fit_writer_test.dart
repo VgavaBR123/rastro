@@ -18,7 +18,7 @@ void main() {
       expect(fitCrc16(<int>[], 0x1234), 0x1234);
     });
 
-    test('entrada nao-trivial e estavel e diferente de zero', () {
+    test('entrada não-trivial e estavel e diferente de zero', () {
       final List<int> dados = <int>[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       final int a = fitCrc16(dados);
       final int b = fitCrc16(dados);

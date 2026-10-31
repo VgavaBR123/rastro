@@ -4,14 +4,14 @@ import 'package:strava_estudo_app/core/format/measures.dart';
 
 void main() {
   group('formatDistance', () {
-    test('metrico abaixo de 1 km em metros inteiros', () {
+    test('métrico abaixo de 1 km em metros inteiros', () {
       expect(formatDistance(500), '500 m');
       expect(formatDistance(0), '0 m');
       expect(formatDistance(999.4), '999 m');
     });
 
     test(
-      'INI-04: metrico igual ou acima de 1 km em km com 2 casas e virgula',
+      'INI-04: métrico igual ou acima de 1 km em km com 2 casas e virgula',
       () {
         expect(formatDistance(1000), '1,00 km');
         expect(formatDistance(1234.5), '1,23 km');
@@ -24,7 +24,7 @@ void main() {
       expect(formatDistance(804.672, metric: false), '0,50 mi');
     });
 
-    test('EST-05: imperial abaixo de 0,1 mi em pes inteiros', () {
+    test('EST-05: imperial abaixo de 0,1 mi em pés inteiros', () {
       expect(formatDistance(0, metric: false), '0 ft');
       expect(formatDistance(100, metric: false), '328 ft');
       // 0,1 mi = 160,9344 m: dai para cima volta para milhas.
@@ -36,7 +36,7 @@ void main() {
       expect(formatDistance(-100), '0 m');
     });
 
-    test('nao finito retorna placeholder', () {
+    test('não finito retorna placeholder', () {
       expect(formatDistance(double.nan), '-- m');
       expect(formatDistance(double.infinity, metric: false), '-- mi');
     });
@@ -61,7 +61,7 @@ void main() {
   });
 
   group('formatPace', () {
-    test('metrico por km', () {
+    test('métrico por km', () {
       // 1 km em 5 min => 300 s / 1000 m = 0.3 s/m
       expect(formatPace(0.3), '5:00 /km');
       expect(formatPace(0.36), '6:00 /km');
@@ -72,7 +72,7 @@ void main() {
       expect(formatPace(0.3, metric: false), '8:03 /mi');
     });
 
-    test('null, zero, negativo e nao finito retornam placeholder', () {
+    test('null, zero, negativo e não finito retornam placeholder', () {
       expect(formatPace(null), '--:-- /km');
       expect(formatPace(0), '--:-- /km');
       expect(formatPace(-1), '--:-- /km');
@@ -82,7 +82,7 @@ void main() {
   });
 
   group('formatSpeed', () {
-    test('metrico em km/h com 1 casa', () {
+    test('métrico em km/h com 1 casa', () {
       expect(formatSpeed(10), '36,0 km/h');
       expect(formatSpeed(0), '0,0 km/h');
     });
@@ -92,23 +92,23 @@ void main() {
       expect(formatSpeed(10, metric: false), '22,4 mph');
     });
 
-    test('nao finito retorna placeholder', () {
+    test('não finito retorna placeholder', () {
       expect(formatSpeed(double.nan), '-- km/h');
     });
   });
 
   group('formatElevation', () {
-    test('metrico inteiro', () {
+    test('métrico inteiro', () {
       expect(formatElevation(123.4), '123 m');
       expect(formatElevation(123.6), '124 m');
     });
 
-    test('imperial em pes', () {
+    test('imperial em pés', () {
       // 100 m * 3.280839895 = 328.08 ft => 328
       expect(formatElevation(100, metric: false), '328 ft');
     });
 
-    test('nao finito retorna placeholder', () {
+    test('não finito retorna placeholder', () {
       expect(formatElevation(double.nan, metric: false), '-- ft');
     });
   });
@@ -147,14 +147,14 @@ void main() {
 
   group('spokenMeasure (leitor de tela)', () {
     test('troca a abreviacao pela palavra', () {
-      expect(spokenMeasure('12,4 km'), '12,4 quilometros');
+      expect(spokenMeasure('12,4 km'), '12,4 quilômetros');
       expect(spokenMeasure('500 m'), '500 metros');
       expect(spokenMeasure('1 m'), '1 metro');
       expect(spokenMeasure('0,50 mi'), '0,50 milhas');
-      expect(spokenMeasure('328 ft'), '328 pes');
-      expect(spokenMeasure('36,0 km/h'), '36,0 quilometros por hora');
+      expect(spokenMeasure('328 ft'), '328 pés');
+      expect(spokenMeasure('36,0 km/h'), '36,0 quilômetros por hora');
       expect(spokenMeasure('22,4 mph'), '22,4 milhas por hora');
-      expect(spokenMeasure('5:00 /km'), '5:00 por quilometro');
+      expect(spokenMeasure('5:00 /km'), '5:00 por quilômetro');
       expect(spokenMeasure('6 s'), '6 segundos');
       expect(spokenMeasure('1 min'), '1 minuto');
       expect(spokenMeasure('6 min'), '6 minutos');

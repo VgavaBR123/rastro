@@ -16,7 +16,7 @@ Rect _painted(WidgetTester tester, Finder f) {
 void main() {
   // Os rotulos mais longos do app: esporte no preparo e visibilidade na Salvar.
   const sports = ['Corrida', 'Pedal', 'Caminhada'];
-  const visibility = ['So eu', 'Seguidores', 'Todos'];
+  const visibility = ['Só eu', 'Seguidores', 'Todos'];
 
   Future<void> pump(WidgetTester tester, List<String> labels, double scale) async {
     tester.view.physicalSize = const Size(390, 844);

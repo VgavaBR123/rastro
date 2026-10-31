@@ -34,7 +34,7 @@ Iterable<String> paths(RouteAdapter a) =>
     a.requests.map((r) => '${r.method} ${r.uri.path}');
 
 void main() {
-  testWidgets('esqueci a senha: e-mail, codigo e nova senha, entra logado', (
+  testWidgets('esqueci a senha: e-mail, código e nova senha, entra logado', (
     tester,
   ) async {
     final adapter = RouteAdapter({
@@ -58,7 +58,7 @@ void main() {
     expect(find.byKey(const Key('reset_info')), findsOneWidget);
     expect(
       find.textContaining(
-        'Enviamos um codigo de 6 digitos se o e-mail tiver conta',
+        'Enviamos um código de 6 dígitos se o e-mail tiver conta',
       ),
       findsOneWidget,
     );
@@ -75,8 +75,8 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('reset_submit')));
     await tester.pumpAndSettle();
-    expect(find.text('O codigo tem 6 digitos'), findsOneWidget);
-    expect(find.text('As senhas nao conferem'), findsOneWidget);
+    expect(find.text('O código tem 6 dígitos'), findsOneWidget);
+    expect(find.text('As senhas não conferem'), findsOneWidget);
     expect(paths(adapter), ['POST /auth/password/forgot']);
 
     await tester.enterText(find.byKey(const Key('reset_code')), '123456');
@@ -102,7 +102,7 @@ void main() {
     });
   });
 
-  testWidgets('esqueci a senha: codigo errado mostra o erro e segue na tela', (
+  testWidgets('esqueci a senha: código errado mostra o erro e segue na tela', (
     tester,
   ) async {
     final store = await pumpApp(
@@ -111,7 +111,7 @@ void main() {
         'POST /auth/password/forgot': (202, null),
         'POST /auth/password/reset': (
           400,
-          {'error': 'codigo invalido ou expirado'},
+          {'error': 'código inválido ou expirado'},
         ),
       }),
     );
@@ -136,7 +136,7 @@ void main() {
     await tester.tap(find.byKey(const Key('reset_submit')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Codigo invalido ou expirado'), findsOneWidget);
+    expect(find.text('Código inválido ou expirado'), findsOneWidget);
     expect(find.byKey(const Key('reset_submit')), findsOneWidget);
     expect(await store.read(), isNull);
   });
@@ -150,7 +150,7 @@ void main() {
         'POST /auth/password/forgot': (202, null),
         'POST /auth/password/reset': (
           400,
-          {'error': 'codigo invalido ou expirado'},
+          {'error': 'código inválido ou expirado'},
         ),
       }),
     );
@@ -200,7 +200,7 @@ void main() {
     confirm.controller!.text = 'diferente';
     await tester.tap(find.byKey(const Key('reset_submit')));
     await tester.pumpAndSettle();
-    expect(find.text('As senhas nao conferem'), findsOneWidget);
+    expect(find.text('As senhas não conferem'), findsOneWidget);
     expect(find.byKey(const Key('reset_error')), findsNothing);
   });
 
@@ -228,8 +228,8 @@ void main() {
       await tester.enterText(find.byKey(const Key('change_confirm')), '456');
       await tester.tap(find.byKey(const Key('change_submit')));
       await tester.pumpAndSettle();
-      expect(find.text('Minimo de 8 caracteres'), findsOneWidget);
-      expect(find.text('As senhas nao conferem'), findsOneWidget);
+      expect(find.text('Mínimo de 8 caracteres'), findsOneWidget);
+      expect(find.text('As senhas não conferem'), findsOneWidget);
       expect(paths(adapter), isNot(contains('POST /auth/password/change')));
 
       await tester.enterText(find.byKey(const Key('change_new')), 'nova12345');
@@ -385,7 +385,7 @@ void main() {
     expect(paths(adapter), contains('POST /auth/logout-all'));
   });
 
-  testWidgets('aba Voce viva rele os totais quando a lista local muda', (
+  testWidgets('aba Você viva rele os totais quando a lista local muda', (
     tester,
   ) async {
     final adapter = RouteAdapter({'GET /me': (200, meJson)});

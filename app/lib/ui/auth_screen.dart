@@ -115,7 +115,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       textInputAction: TextInputAction.next,
                       onChanged: (_) => _clearError(),
                       validator: (v) => (v == null || !v.contains('@'))
-                          ? 'E-mail invalido'
+                          ? 'E-mail inválido'
                           : null,
                     ),
                     gap,
@@ -128,7 +128,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       onFieldSubmitted: (_) => _submit(),
                       validator: (v) =>
                           (_register && (v == null || v.length < 8))
-                          ? 'Minimo de 8 caracteres'
+                          ? 'Mínimo de 8 caracteres'
                           : (v == null || v.isEmpty)
                           ? 'Informe a senha'
                           : null,
@@ -168,7 +168,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         setState(() => _register = !_register);
                       },
                 child: Text(
-                  _register ? 'Ja tenho conta' : 'Nao tem conta? Criar uma',
+                  _register ? 'Já tenho conta' : 'Não tem conta? Criar uma',
                 ),
               ),
               if (!_register)

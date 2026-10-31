@@ -15,11 +15,11 @@ import 'upload/sync_service.dart';
 
 const String kSignInToSyncMessage = 'Entre na sua conta para sincronizar';
 const String kSessionExpiredMessage =
-    'Sua sessao expirou. Entre de novo para sincronizar';
+    'Sua sessão expirou. Entre de novo para sincronizar';
 const String kSyncOfflineMessage =
-    'Sem conexao com o servidor. Tente de novo mais tarde';
+    'Sem conexão com o servidor. Tente de novo mais tarde';
 const String kSyncGenericErrorMessage =
-    'Nao foi possivel sincronizar. Tente de novo';
+    'Não foi possível sincronizar. Tente de novo';
 
 /// Mensagem amigavel para uma falha da rodada (HIS-03): nunca o texto cru da
 /// excecao, que nao diz nada ao usuario.

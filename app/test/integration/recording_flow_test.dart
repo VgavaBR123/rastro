@@ -22,7 +22,7 @@ void main() {
   });
   tearDown(() async => db.close());
 
-  test('grava rota, calcula metricas, persiste e recupera', () async {
+  test('grava rota, calcula métricas, persiste e recupera', () async {
     const guid = 'route-1';
     final route = sampleRoute();
 
@@ -81,7 +81,7 @@ void main() {
     expect(pend.map((e) => e.guid), isNot(contains(guid)));
   });
 
-  test('recuperacao: atividade interrompida reconstroi distancia por replay', () async {
+  test('recuperacao: atividade interrompida reconstroi distância por replay', () async {
     const guid = 'route-crash';
     final route = sampleRoute();
 

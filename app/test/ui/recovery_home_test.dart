@@ -61,7 +61,7 @@ Future<void> pumpHome(WidgetTester tester, RecordingDatabase db) async {
 }
 
 void main() {
-  testWidgets('sem atividade interrompida nao mostra dialogo', (tester) async {
+  testWidgets('sem atividade interrompida não mostra dialogo', (tester) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
     await pumpHome(tester, db);
@@ -100,7 +100,7 @@ void main() {
     expect(await repo.recent(), isEmpty);
   });
 
-  testWidgets('Retomar abre a gravacao continuando a mesma atividade', (tester) async {
+  testWidgets('Retomar abre a gravação continuando a mesma atividade', (tester) async {
     final db = await dbWithInterrupted(const Duration(minutes: 10));
     addTearDown(db.close);
     await pumpHome(tester, db);
@@ -118,7 +118,7 @@ void main() {
     expect(container.read(recordingControllerProvider.notifier).activityGuid, 'x');
   });
 
-  testWidgets('interrompida ha muito tempo nao oferece Retomar', (tester) async {
+  testWidgets('interrompida ha muito tempo não oferece Retomar', (tester) async {
     final db = await dbWithInterrupted(const Duration(hours: 5));
     addTearDown(db.close);
     await pumpHome(tester, db);

@@ -102,14 +102,14 @@ void main() {
       expect(saved[1].endDistanceMeters, closeTo(total, 1e-9));
     });
 
-    test('sem nenhuma volta marcada, Encerrar nao cria volta', () async {
+    test('sem nenhuma volta marcada, Encerrar não cria volta', () async {
       await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
       await feed([0, 1, 2, 3]);
       await ctrl.stop();
       expect(await repo.laps(ctrl.activityGuid!), isEmpty);
     });
 
-    test('sem gravacao ativa lap nao faz nada', () async {
+    test('sem gravação ativa lap não faz nada', () async {
       expect(await ctrl.lap(), isNull);
     });
 
@@ -167,7 +167,7 @@ void main() {
   });
 
   group('notificacao (servico fake)', () {
-    test('sobe o servico no inicio e derruba no fim', () async {
+    test('sobe o servico no início e derruba no fim', () async {
       await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
       expect(service.started, hasLength(1));
       expect(service.started.single.title, 'Pedal em andamento');
@@ -205,7 +205,7 @@ void main() {
     });
 
     test(
-      'texto com distancia e tempo, atualizado no maximo a cada 3 s',
+      'texto com distância e tempo, atualizado no maximo a cada 3 s',
       () async {
         await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
         // Amostras a cada 1 s (0..10 s): atualiza em 0, 3, 6 e 9 s.
@@ -223,14 +223,14 @@ void main() {
       ctrl = build(metric: false);
       await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
       await feed([0, 1]);
-      expect(service.updates.last.text, contains('ft'), reason: 'abaixo de 0,1 mi sai em pes (EST-05)');
+      expect(service.updates.last.text, contains('ft'), reason: 'abaixo de 0,1 mi sai em pés (EST-05)');
       await ctrl.stop();
     });
   });
 
   group('acelerometro', () {
     test(
-      'corrida com pausa por movimento repassa as amostras a sessao',
+      'corrida com pausa por movimento repassa as amostras a sessão',
       () async {
         await ctrl.start(ActivityType.run, autoPauseEnabled: true);
         expect(accel.listens, 1);
@@ -244,7 +244,7 @@ void main() {
       },
     );
 
-    test('sem pausa automatica nao liga o sensor', () async {
+    test('sem pausa automática não liga o sensor', () async {
       await ctrl.start(ActivityType.run, autoPauseEnabled: false);
       expect(accel.listens, 0);
       await ctrl.stop();
@@ -252,7 +252,7 @@ void main() {
   });
 
   group('bateria e calorias no cabecalho', () {
-    test('nivel no inicio e no fim; calorias pelo peso', () async {
+    test('nivel no início e no fim; calorias pelo peso', () async {
       await ctrl.start(ActivityType.run, autoPauseEnabled: false);
       final guid = ctrl.activityGuid!;
       expect((await repo.activity(guid))!.startBatteryLevel, 87);
@@ -272,7 +272,7 @@ void main() {
       expect(a.calories, isNotNull);
     });
 
-    test('sem peso nao grava calorias', () async {
+    test('sem peso não grava calorias', () async {
       ctrl.dispose();
       ctrl = build(weight: null);
       await ctrl.start(ActivityType.run, autoPauseEnabled: false);
@@ -307,7 +307,7 @@ void main() {
       expect(a!.timerTimeMs, 7000);
     });
 
-    test('sem relogio monotonico injetado, tick nao faz nada', () async {
+    test('sem relogio monotonico injetado, tick não faz nada', () async {
       await ctrl.start(ActivityType.walk, autoPauseEnabled: false);
       ctrl.tick();
       expect(ctrl.state.timerMs, 0);

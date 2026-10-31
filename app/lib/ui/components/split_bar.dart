@@ -133,7 +133,7 @@ class SplitBarLegend extends StatelessWidget {
       spacing: 16,
       runSpacing: 8,
       children: [
-        item(SplitRank.fastest, 'Mais rapida'),
+        item(SplitRank.fastest, 'Mais rápida'),
         item(SplitRank.slowest, 'Mais lenta'),
         item(SplitRank.normal, 'Demais'),
       ],

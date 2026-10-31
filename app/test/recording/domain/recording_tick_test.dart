@@ -62,7 +62,7 @@ void main() {
     });
   });
 
-  group('tick sem pausa automatica', () {
+  group('tick sem pausa automática', () {
     test('o cronometro anda sem nenhum fix', () {
       final sess = RecordingSession(
         activityType: ActivityType.walk,
@@ -73,7 +73,7 @@ void main() {
       expect(sess.state, RecordingState.recording);
     });
 
-    test('tick no passado nao volta o relogio', () {
+    test('tick no passado não volta o relogio', () {
       final sess = RecordingSession(
         activityType: ActivityType.walk,
         autoPauseEnabled: false,
@@ -83,7 +83,7 @@ void main() {
       expect(sess.stats.timerMs, 5000);
     });
 
-    test('tick antes de iniciar ou depois de encerrar nao faz nada', () {
+    test('tick antes de iniciar ou depois de encerrar não faz nada', () {
       final sess = RecordingSession(
         activityType: ActivityType.walk,
         autoPauseEnabled: false,
@@ -98,7 +98,7 @@ void main() {
     });
   });
 
-  group('silencio do GPS com pausa automatica', () {
+  group('silencio do GPS com pausa automática', () {
     test('entre fixes o tempo corre segundo a segundo', () {
       final sess = RecordingSession(activityType: ActivityType.walk)..start(0);
       walk(sess, fromMs: 0, toMs: 10000);
@@ -107,7 +107,7 @@ void main() {
       expect(sess.state, RecordingState.recording);
     });
 
-    test('parado sem fix: pausa e o tempo parado nao conta', () {
+    test('parado sem fix: pausa e o tempo parado não conta', () {
       final sess = RecordingSession(activityType: ActivityType.walk)..start(0);
       final m = walk(sess, fromMs: 0, toMs: 60000);
       ticks(sess, fromMs: 61000, toMs: 60000 + kGpsSilencePauseMs - 1000);
@@ -148,7 +148,7 @@ void main() {
       },
     );
 
-    test('sem nenhum fix desde o inicio: pausa e nao conta a espera', () {
+    test('sem nenhum fix desde o início: pausa e não conta a espera', () {
       final sess = RecordingSession(activityType: ActivityType.walk)..start(0);
       ticks(sess, fromMs: 1000, toMs: 50000);
       expect(sess.state, RecordingState.autoPaused);
@@ -174,7 +174,7 @@ void main() {
       expect(sess.stats.distanceMeters, lessThan(3.5 * 20 + 3.5 * 5 + 2));
     });
 
-    test('sem pausa automatica o silencio nao pausa', () {
+    test('sem pausa automática o silencio não pausa', () {
       final sess = RecordingSession(
         activityType: ActivityType.walk,
         autoPauseEnabled: false,
@@ -210,7 +210,7 @@ void main() {
       }
     }
 
-    test('GRA-02: celular parado e GPS andando a 3,5 m/s soma distancia', () {
+    test('GRA-02: celular parado e GPS andando a 3,5 m/s soma distância', () {
       final sess = RecordingSession(activityType: ActivityType.run)..start(0);
       for (var t = 0; t <= 60000; t += 1000) {
         stillAccel(sess, fromMs: t, toMs: t + 900);
@@ -245,7 +245,7 @@ void main() {
     });
 
     test(
-      'correndo no tunel (acelerometro em movimento) nao pausa pelo silencio',
+      'correndo no tunel (acelerometro em movimento) não pausa pelo silencio',
       () {
         final sess = RecordingSession(activityType: ActivityType.run)..start(0);
         for (var t = 0; t <= 20000; t += 1000) {
@@ -284,7 +284,7 @@ void main() {
       }
     }
 
-    test('pausa por silencio nao recua para antes de uma pausa ja contada', () {
+    test('pausa por silencio não recua para antes de uma pausa já contada', () {
       final sess = RecordingSession(activityType: ActivityType.run)..start(0);
       runWithGps(sess, 0, 20000);
       for (var t = 21000; t <= 40000; t += 1000) {
@@ -323,7 +323,7 @@ void main() {
       expect(sess.stats.distanceMeters, greaterThan(3.5 * 100));
     });
 
-    test('fix grosseiro depois de parada sem sinal nao vira tunel', () {
+    test('fix grosseiro depois de parada sem sinal não vira tunel', () {
       final sess = RecordingSession(activityType: ActivityType.walk)..start(0);
       final m = walk(sess, fromMs: 0, toMs: 60000);
       final timer0 = sess.stats.timerMs;
@@ -339,7 +339,7 @@ void main() {
       expect(sess.stats.distanceMeters, lessThan(d0 + 5));
     });
 
-    test('volta marcada pouco antes do silencio nao fica negativa', () {
+    test('volta marcada pouco antes do silencio não fica negativa', () {
       final sess = RecordingSession(activityType: ActivityType.walk)..start(0);
       walk(sess, fromMs: 0, toMs: 60000);
       sess.tick(65000);

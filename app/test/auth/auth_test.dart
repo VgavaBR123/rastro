@@ -91,7 +91,7 @@ AuthSession session([String name = 'Ana']) => AuthSession(
 
 void main() {
   group('AuthApi', () {
-    test('register manda JSON e devolve a sessao', () async {
+    test('register manda JSON e devolve a sessão', () async {
       final a = RouteAdapter({'POST /auth/register': (201, sessionJson)});
       final s = await apiWith(a).register(
         email: 'ana@exemplo.com',
@@ -122,7 +122,7 @@ void main() {
       );
     });
 
-    test('register 409 explica que o e-mail ja existe', () async {
+    test('register 409 explica que o e-mail já existe', () async {
       final a = RouteAdapter({
         'POST /auth/register': (409, {'error': 'x'}),
       });
@@ -133,7 +133,7 @@ void main() {
           isA<AuthException>().having(
             (e) => e.message,
             'msg',
-            'Ja existe uma conta com este e-mail',
+            'Já existe uma conta com este e-mail',
           ),
         ),
       );
@@ -188,7 +188,7 @@ void main() {
   });
 
   group('AuthController', () {
-    test('sem sessao guardada: deslogado', () async {
+    test('sem sessão guardada: deslogado', () async {
       final c = AuthController(
         apiWith(RouteAdapter({})),
         InMemorySessionStore(),
@@ -197,7 +197,7 @@ void main() {
       expect(c.state.status, AuthStatus.signedOut);
     });
 
-    test('sessao guardada + /me ok: logado com o usuario atualizado', () async {
+    test('sessão guardada + /me ok: logado com o usuario atualizado', () async {
       final a = RouteAdapter({
         'GET /me': (
           200,
@@ -216,7 +216,7 @@ void main() {
     });
 
     test(
-      'sessao guardada + sem rede: continua logado (offline-first)',
+      'sessão guardada + sem rede: continua logado (offline-first)',
       () async {
         final store = InMemorySessionStore(session());
         final c = AuthController(
@@ -229,7 +229,7 @@ void main() {
       },
     );
 
-    test('token recusado (401) no /me: desloga e apaga a sessao', () async {
+    test('token recusado (401) no /me: desloga e apaga a sessão', () async {
       final store = InMemorySessionStore(session());
       final c = AuthController(
         apiWith(
@@ -244,7 +244,7 @@ void main() {
       expect(await store.read(), isNull);
     });
 
-    test('login guarda a sessao e avisa (para agendar o sync)', () async {
+    test('login guarda a sessão e avisa (para agendar o sync)', () async {
       var signedIn = 0;
       final store = InMemorySessionStore();
       final c = AuthController(
@@ -258,7 +258,7 @@ void main() {
       expect(signedIn, 1);
     });
 
-    test('login errado mostra o erro e nao guarda nada', () async {
+    test('login errado mostra o erro e não guarda nada', () async {
       final store = InMemorySessionStore();
       final c = AuthController(
         apiWith(
@@ -273,7 +273,7 @@ void main() {
       expect(await store.read(), isNull);
     });
 
-    test('logout limpa a sessao mesmo sem rede', () async {
+    test('logout limpa a sessão mesmo sem rede', () async {
       final store = InMemorySessionStore(session());
       final c = AuthController(
         apiWith(RouteAdapter({})..offline = true),
@@ -284,7 +284,7 @@ void main() {
       expect(await store.read(), isNull);
     });
 
-    test('editar nome atualiza estado e sessao', () async {
+    test('editar nome atualiza estado e sessão', () async {
       final store = InMemorySessionStore(session());
       final c = AuthController(
         apiWith(
@@ -329,7 +329,7 @@ void main() {
       });
     });
 
-    test('changePassword 403 = senha atual incorreta (nao e 401)', () async {
+    test('changePassword 403 = senha atual incorreta (não e 401)', () async {
       final a = RouteAdapter({
         'POST /auth/password/change': (403, {'error': 'x'}),
       });
@@ -345,7 +345,7 @@ void main() {
     });
 
     test(
-      'forgotPassword manda so o e-mail, sem Bearer; 202 e sucesso',
+      'forgotPassword manda só o e-mail, sem Bearer; 202 e sucesso',
       () async {
         final a = RouteAdapter({'POST /auth/password/forgot': (202, null)});
         await apiWith(a).forgotPassword('ana@exemplo.com');
@@ -375,7 +375,7 @@ void main() {
     });
 
     test(
-      'resetPassword manda email, codigo e senha e devolve a sessao',
+      'resetPassword manda email, código e senha e devolve a sessão',
       () async {
         final a = RouteAdapter({
           'POST /auth/password/reset': (200, sessionJson),
@@ -399,7 +399,7 @@ void main() {
       final comMsg = RouteAdapter({
         'POST /auth/password/reset': (
           400,
-          {'error': 'codigo invalido ou expirado'},
+          {'error': 'código inválido ou expirado'},
         ),
       });
       await expectLater(
@@ -412,7 +412,7 @@ void main() {
           isA<AuthException>().having(
             (e) => e.message,
             'msg',
-            'Codigo invalido ou expirado',
+            'Código inválido ou expirado',
           ),
         ),
       );
@@ -427,7 +427,7 @@ void main() {
           isA<AuthException>().having(
             (e) => e.message,
             'msg',
-            'Codigo invalido ou expirado',
+            'Código inválido ou expirado',
           ),
         ),
       );
@@ -457,7 +457,7 @@ void main() {
       },
     );
 
-    test('401 em rota protegida nao fala de e-mail/senha', () async {
+    test('401 em rota protegida não fala de e-mail/senha', () async {
       final a = RouteAdapter({
         'POST /auth/logout-all': (401, {'error': 'x'}),
       });
@@ -477,7 +477,7 @@ void main() {
   });
 
   group('AuthController: conta', () {
-    test('trocar senha ok: continua logado com a mesma sessao', () async {
+    test('trocar senha ok: continua logado com a mesma sessão', () async {
       final store = InMemorySessionStore(session());
       final c = AuthController(
         apiWith(RouteAdapter({'POST /auth/password/change': (204, null)})),
@@ -490,7 +490,7 @@ void main() {
       expect((await store.read())!.token, 'tok-1');
     });
 
-    test('trocar senha 403: mostra o erro e NAO desloga', () async {
+    test('trocar senha 403: mostra o erro e NÃO desloga', () async {
       final store = InMemorySessionStore(session());
       final c = AuthController(
         apiWith(
@@ -512,7 +512,7 @@ void main() {
       expect(c.state.isSignedIn, isTrue);
     });
 
-    test('trocar senha 401: desloga e apaga a sessao', () async {
+    test('trocar senha 401: desloga e apaga a sessão', () async {
       final store = InMemorySessionStore(session());
       final c = AuthController(
         apiWith(
@@ -527,7 +527,7 @@ void main() {
       expect(await store.read(), isNull);
     });
 
-    test('sair de todos: limpa a sessao local e fica deslogado', () async {
+    test('sair de todos: limpa a sessão local e fica deslogado', () async {
       final a = RouteAdapter({'POST /auth/logout-all': (204, null)});
       final store = InMemorySessionStore(session());
       final c = AuthController(apiWith(a), store);
@@ -546,11 +546,11 @@ void main() {
       await c.load();
       expect(await c.logoutAll(), isFalse);
       expect(c.state.isSignedIn, isTrue);
-      expect(c.state.error, 'Sem conexao com o servidor');
+      expect(c.state.error, 'Sem conexão com o servidor');
       expect(await store.read(), isNotNull);
     });
 
-    test('excluir conta ok: limpa a sessao e fica deslogado', () async {
+    test('excluir conta ok: limpa a sessão e fica deslogado', () async {
       final a = RouteAdapter({'DELETE /me': (204, null)});
       final store = InMemorySessionStore(session());
       final c = AuthController(apiWith(a), store);
@@ -593,7 +593,7 @@ void main() {
       expect(await store.read(), isNull);
     });
 
-    test('esqueci a senha: pede o codigo e nao mexe na sessao', () async {
+    test('esqueci a senha: pede o código e não mexe na sessão', () async {
       final store = InMemorySessionStore();
       final a = RouteAdapter({'POST /auth/password/forgot': (202, null)});
       final c = AuthController(apiWith(a), store);
@@ -605,7 +605,7 @@ void main() {
       expect(await store.read(), isNull);
     });
 
-    test('reset ok: guarda a sessao nova, fica logado e avisa', () async {
+    test('reset ok: guarda a sessão nova, fica logado e avisa', () async {
       var signedIn = 0;
       final store = InMemorySessionStore();
       final c = AuthController(
@@ -624,14 +624,14 @@ void main() {
       expect(signedIn, 1);
     });
 
-    test('reset com codigo errado: erro e segue deslogado', () async {
+    test('reset com código errado: erro e segue deslogado', () async {
       final store = InMemorySessionStore();
       final c = AuthController(
         apiWith(
           RouteAdapter({
             'POST /auth/password/reset': (
               400,
-              {'error': 'codigo invalido ou expirado'},
+              {'error': 'código inválido ou expirado'},
             ),
           }),
         ),
@@ -639,13 +639,13 @@ void main() {
       );
       expect(await c.resetPassword('a@b.c', '000000', 'nova12345'), isFalse);
       expect(c.state.status, AuthStatus.signedOut);
-      expect(c.state.error, 'Codigo invalido ou expirado');
+      expect(c.state.error, 'Código inválido ou expirado');
       expect(await store.read(), isNull);
     });
   });
 
   group('upload e sync com conta', () {
-    test('uploader manda o Bearer da sessao atual', () async {
+    test('uploader manda o Bearer da sessão atual', () async {
       final a = RouteAdapter({
         'POST /uploads': (201, {'uploadId': 'up1'}),
       });
@@ -672,7 +672,7 @@ void main() {
       );
     });
 
-    test('sync manual sem conta pede login e nao envia nada', () async {
+    test('sync manual sem conta pede login e não envia nada', () async {
       final db = RecordingDatabase(NativeDatabase.memory());
       addTearDown(db.close);
       await seedPendingActivity(db, 'a1');
@@ -701,7 +701,7 @@ void main() {
       expect(opened, isFalse);
     });
 
-    test('sync de fundo usa o token da sessao no uploader', () async {
+    test('sync de fundo usa o token da sessão no uploader', () async {
       final db = RecordingDatabase(NativeDatabase.memory());
       await seedPendingActivity(db, 'a1');
       String? usedToken;

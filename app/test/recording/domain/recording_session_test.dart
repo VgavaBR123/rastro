@@ -38,7 +38,7 @@ void main() {
   });
 
   group('RecordingSession', () {
-    test('acumula distancia e conta pontos aceitos', () {
+    test('acumula distância e conta pontos aceitos', () {
       final sess = RecordingSession(
         activityType: ActivityType.run,
         autoPauseEnabled: false,
@@ -71,7 +71,7 @@ void main() {
       expect(sess.state, RecordingState.recording);
     });
 
-    test('acumula elevacao a partir da altitude', () {
+    test('acumula elevação a partir da altitude', () {
       final sess = RecordingSession(
         activityType: ActivityType.run,
         autoPauseEnabled: false,

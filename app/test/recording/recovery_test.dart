@@ -73,7 +73,7 @@ void main() {
   });
 
   group('RecordingSession.restore', () {
-    test('reconstroi distancia, tempo, splits e elevacao dos pontos salvos', () {
+    test('reconstroi distância, tempo, splits e elevação dos pontos salvos', () {
       final accepted = recordAccepted(sampleRoute());
       final last = accepted.last;
 
@@ -160,13 +160,13 @@ void main() {
       expect(list.single.distanceMeters, greaterThan(90));
     });
 
-    test('exceptGuid ignora a gravacao em andamento', () async {
+    test('exceptGuid ignora a gravação em andamento', () async {
       final guid = await recordAndCrash();
       final list = await RecordingRepository(db).interrupted(exceptGuid: guid);
       expect(list, isEmpty);
     });
 
-    test('salvar finaliza com o resumo do ultimo ponto e entra na fila', () async {
+    test('salvar finaliza com o resumo do último ponto e entra na fila', () async {
       await recordAndCrash();
       final repo = RecordingRepository(db);
       final it = (await repo.interrupted()).single;

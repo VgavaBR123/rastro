@@ -10,7 +10,7 @@ const a = GeoPoint(latitude: -19.92, longitude: -43.94);
 const b = GeoPoint(latitude: -19.91, longitude: -43.93);
 
 void main() {
-  test('GeoJSON usa a ordem [lon, lat] e so desenha com 2+ pontos', () {
+  test('GeoJSON usa a ordem [lon, lat] e só desenha com 2+ pontos', () {
     final fc = routeFeatureCollection([a, b]);
     final feature = (fc['features'] as List).single as Map;
     expect(feature['geometry'], {

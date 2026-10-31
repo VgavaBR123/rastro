@@ -123,7 +123,7 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
         return AlertDialog(
           key: const Key('discard_dialog'),
           title: const Text('Descartar atividade?'),
-          content: const Text('A gravacao sera apagada deste aparelho e nao da para desfazer.'),
+          content: const Text('A gravação será apagada deste aparelho e não dá para desfazer.'),
           actions: [
             TextButton(
               key: const Key('discard_cancel'),
@@ -172,7 +172,7 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                 style: TextButton.styleFrom(foregroundColor: c.ciano.fg, minimumSize: const Size(44, 44)),
                 onPressed: widget.busy ? null : widget.onBack,
                 icon: Icon(adaptiveBackIcon(context)),
-                label: const Text('Voltar a gravacao'),
+                label: const Text('Voltar à gravação'),
               ),
             ),
           ),
@@ -205,7 +205,7 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                     Expanded(
                       child: MetricTile(
                         key: const Key('save_distance'),
-                        label: 'Distancia',
+                        label: 'Distância',
                         value: dist,
                         unit: distUnit,
                         role: c.dist,
@@ -232,7 +232,7 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                     Expanded(
                       child: MetricTile(
                         key: const Key('save_pace'),
-                        label: 'Pace medio',
+                        label: 'Pace médio',
                         value: pace,
                         unit: paceUnit,
                         role: c.pace,
@@ -255,7 +255,7 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                   ],
                 ),
                 const SizedBox(height: 20),
-                Text('Titulo', style: muted),
+                Text('Título', style: muted),
                 const SizedBox(height: 6),
                 TextField(
                   key: const Key('save_title'),
@@ -264,7 +264,7 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                   style: AppText.bodyStrong.copyWith(color: c.text),
                 ),
                 const SizedBox(height: 14),
-                Text('Descricao', style: muted),
+                Text('Descrição', style: muted),
                 const SizedBox(height: 6),
                 TextField(
                   key: const Key('save_description'),

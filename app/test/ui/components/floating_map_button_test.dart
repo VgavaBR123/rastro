@@ -34,7 +34,7 @@ Future<void> pumpButtons(WidgetTester tester, List<String> taps) async {
 }
 
 void main() {
-  testWidgets('so icone: botao com o rotulo do tooltip', (tester) async {
+  testWidgets('só icone: botao com o rotulo do tooltip', (tester) async {
     final handle = tester.ensureSemantics();
     final taps = <String>[];
     await pumpButtons(tester, taps);

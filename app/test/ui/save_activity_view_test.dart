@@ -15,9 +15,9 @@ const _route = [
 ];
 
 void main() {
-  test('titulo sugerido pelo horario de inicio', () {
-    expect(suggestedActivityTitle(ActivityType.run, DateTime(2026, 1, 1, 6)), 'Corrida da manha');
-    expect(suggestedActivityTitle(ActivityType.ride, DateTime(2026, 1, 1, 11, 59)), 'Pedal da manha');
+  test('título sugerido pelo horario de início', () {
+    expect(suggestedActivityTitle(ActivityType.run, DateTime(2026, 1, 1, 6)), 'Corrida da manhã');
+    expect(suggestedActivityTitle(ActivityType.ride, DateTime(2026, 1, 1, 11, 59)), 'Pedal da manhã');
     expect(suggestedActivityTitle(ActivityType.walk, DateTime(2026, 1, 1, 12)), 'Caminhada da tarde');
     expect(suggestedActivityTitle(ActivityType.run, DateTime(2026, 1, 1, 18)), 'Corrida da noite');
     expect(suggestedActivityTitle(ActivityType.run, DateTime(2026, 1, 1, 4, 59)), 'Corrida da noite');
@@ -59,7 +59,7 @@ void main() {
       final events = await pumpView(tester, tema);
       expect(tester.takeException(), isNull);
       expect(find.text('Corrida da noite'), findsOneWidget);
-      expect(find.text('Distancia'), findsOneWidget);
+      expect(find.text('Distância'), findsOneWidget);
       expect(find.text('Subida'), findsOneWidget);
 
       await tester.enterText(find.byKey(const Key('save_description')), 'Treino leve');
@@ -75,7 +75,7 @@ void main() {
     });
   }
 
-  testWidgets('visibilidade padrao e So eu (GRA-05)', (tester) async {
+  testWidgets('visibilidade padrao e Só eu (GRA-05)', (tester) async {
     final events = await pumpView(tester, AppTheme.dark);
     await tester.tap(find.byKey(const Key('save_activity')));
     await tester.pump();
@@ -102,7 +102,7 @@ void main() {
     expect(find.byKey(const Key('discard_activity')), findsOneWidget);
   });
 
-  testWidgets('Descartar so dispara depois de confirmar', (tester) async {
+  testWidgets('Descartar só dispara depois de confirmar', (tester) async {
     final events = await pumpView(tester, AppTheme.dark);
     await tester.tap(find.byKey(const Key('discard_activity')));
     await tester.pumpAndSettle();

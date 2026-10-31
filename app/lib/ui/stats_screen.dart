@@ -48,7 +48,7 @@ class StatsScreen extends ConsumerWidget {
           ),
           children: [
             const ScreenTitle(
-              'Estatisticas',
+              'Estatísticas',
               subtitle: 'Seus treinos gravados neste aparelho',
             ),
             SegmentedSelector<StatsPeriod>(
@@ -89,7 +89,7 @@ class StatsScreen extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Text(
-                    'Nao foi possivel ler as estatisticas',
+                    'Não foi possível ler as estatísticas',
                     key: const Key('stats_error'),
                     textAlign: TextAlign.center,
                     style: AppText.body.copyWith(color: c.danger),
@@ -192,7 +192,7 @@ class StatsTotalsGrid extends StatelessWidget {
       children: [
         Row(
           children: [
-            tile('distance', 'Distancia', dist, distUnit, c.dist),
+            tile('distance', 'Distância', dist, distUnit, c.dist),
             const SizedBox(width: 10),
             tile('time', 'Tempo', time, timeUnit, c.tempo),
           ],
@@ -260,7 +260,7 @@ class WeeklyStackedChart extends StatelessWidget {
         const SizedBox(height: 12),
         Semantics(
           container: true,
-          label: 'Tempo por semana nas ultimas ${weeks.length} semanas',
+          label: 'Tempo por semana nas últimas ${weeks.length} semanas',
           value: [
             for (final w in weeks)
               '${two(w.start.day)}/${two(w.start.month)}: ${spokenMeasure(formatTotalDuration(w.totalTimerMs))}',
@@ -443,7 +443,7 @@ class _SportDistribution extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(
-          'Nenhum treino neste periodo',
+          'Nenhum treino neste período',
           key: const Key('stats_empty'),
           style: AppText.body.copyWith(color: c.textMuted),
         ),

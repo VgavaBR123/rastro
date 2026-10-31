@@ -141,7 +141,7 @@ int? primeiro(Map<int, bool> m, bool v, {int desde = 0}) {
 
 void main() {
   group('decisao pelo acelerometro', () {
-    test('corrida continua nao pausa (fallback diria pausado)', () {
+    test('corrida continua não pausa (fallback diria pausado)', () {
       final d = MotionAutoPauseDetector(fallback: FallbackFixo(true));
       final m = simular(d, [Fase(0, 120000, corrida(math.Random(1)))]);
       // Depois do aquecimento (1 s + folga), so vale o acelerometro.
@@ -149,7 +149,7 @@ void main() {
       expect(pausas, isEmpty);
     });
 
-    test('parado pausa apos o tempo minimo, nao antes', () {
+    test('parado pausa apos o tempo mínimo, não antes', () {
       final d = MotionAutoPauseDetector(fallback: FallbackFixo(false));
       final m = simular(d, [
         Fase(0, 30000, corrida(math.Random(1))),
@@ -217,7 +217,7 @@ void main() {
       expect(diferentes, lessThanOrEqualTo(8)); // <= 2 s de 90 s
     });
 
-    test('telefone parado na mao com tremor nao conta como corrida', () {
+    test('telefone parado na mao com tremor não conta como corrida', () {
       final d = MotionAutoPauseDetector(fallback: FallbackFixo(false));
       final m = simular(d, [Fase(0, 60000, tremor(math.Random(4)))]);
       final int? t = primeiro(m, true);
@@ -227,7 +227,7 @@ void main() {
     });
 
     test(
-      'para de correr segurando o telefone com tremor: pausa e nao retoma',
+      'para de correr segurando o telefone com tremor: pausa e não retoma',
       () {
         final d = MotionAutoPauseDetector(fallback: FallbackFixo(false));
         final m = simular(d, [
@@ -240,7 +240,7 @@ void main() {
       },
     );
 
-    test('vies de calibracao do sensor nao vira movimento', () {
+    test('vies de calibracao do sensor não vira movimento', () {
       // Sensor que le 10,4 m/s^2 parado: o passa-alta absorve o vies.
       final d = MotionAutoPauseDetector(fallback: FallbackFixo(false));
       final r = math.Random(5);

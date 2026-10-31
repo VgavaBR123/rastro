@@ -46,7 +46,7 @@ void main() {
       expect(sample.monotonicMs, 1234);
     });
 
-    test('campos nao informados viram null (flags has* false)', () {
+    test('campos não informados viram null (flags has* false)', () {
       final position = Position(
         longitude: 10.0,
         latitude: 20.0,

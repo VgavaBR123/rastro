@@ -97,7 +97,7 @@ class WeekSummaryCard extends StatelessWidget {
               Expanded(
                 child: MetricTile(
                   key: const Key('week_distance'),
-                  label: 'Distancia',
+                  label: 'Distância',
                   value: dist,
                   unit: distUnit,
                   role: c.dist,

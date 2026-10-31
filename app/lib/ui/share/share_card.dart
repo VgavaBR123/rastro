@@ -27,7 +27,7 @@ const Size kShareCardSize = Size(360, 640);
 const double kShareCardPixelRatio = 3;
 
 enum ShareCardStyle {
-  card('Cartao', Icons.crop_portrait_rounded),
+  card('Cartão', Icons.crop_portrait_rounded),
   transparent('Transparente', Icons.layers_clear_rounded);
 
   final String label;
@@ -71,7 +71,7 @@ List<ShareMetric> shareCardMetrics(ShareCardData d, AppColors c) {
   final gain = d.gainMeters;
   return [
     (
-      label: 'Distancia',
+      label: 'Distância',
       value: formatDistance(d.distanceMeters, metric: d.metric),
       role: c.dist,
     ),

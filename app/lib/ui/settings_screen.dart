@@ -39,7 +39,7 @@ class SettingsScreen extends ConsumerWidget {
           24,
         ),
         children: [
-          const ScreenTitle('Configuracoes'),
+          const ScreenTitle('Configurações'),
           SectionCard(
             title: 'Unidades',
             padding: const EdgeInsets.all(12),
@@ -53,7 +53,7 @@ class SettingsScreen extends ConsumerWidget {
                   options: [
                     SegmentOption(
                       value: true,
-                      label: 'Metrico',
+                      label: 'Métrico',
                       role: c.ciano,
                       key: const Key('metric_on'),
                     ),
@@ -76,13 +76,13 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
           SectionCard(
-            title: 'Gravacao',
+            title: 'Gravação',
             child: Column(
               children: [
                 SwitchListTile.adaptive(
                   key: const Key('autopause'),
-                  title: const Text('Pausa automatica'),
-                  subtitle: const Text('Pausa sozinho quando voce para'),
+                  title: const Text('Pausa automática'),
+                  subtitle: const Text('Pausa sozinho quando você para'),
                   value: s.autoPauseEnabled,
                   onChanged: ctrl.setAutoPauseEnabled,
                 ),
@@ -119,7 +119,7 @@ class SettingsScreen extends ConsumerWidget {
 
 /// "72.5 kg", "160 lb" ou "Nao informado".
 String formatWeight(double? kg, {required bool metric}) {
-  if (kg == null) return 'Nao informado';
+  if (kg == null) return 'Não informado';
   final value = metric ? kg : kg * kLbPerKg;
   return '${_trim(value)} ${metric ? 'kg' : 'lb'}';
 }
@@ -175,7 +175,7 @@ class _WeightDialogState extends State<WeightDialog> {
     if (raw.isNotEmpty) {
       final value = double.tryParse(raw);
       if (value == null || !value.isFinite) {
-        setState(() => _error = 'Informe um numero');
+        setState(() => _error = 'Informe um número');
         return;
       }
       kg = widget.metric ? value : value / kLbPerKg;

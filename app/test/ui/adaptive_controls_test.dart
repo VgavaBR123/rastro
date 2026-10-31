@@ -137,7 +137,7 @@ void main() {
     expect(iconeDe(tester, const Key('detailBack')), Icons.arrow_back);
   });
 
-  testWidgets('iOS: switch da pausa automatica continua alternando', (
+  testWidgets('iOS: switch da pausa automática continua alternando', (
     tester,
   ) async {
     await naPlataforma(TargetPlatform.iOS, () async {

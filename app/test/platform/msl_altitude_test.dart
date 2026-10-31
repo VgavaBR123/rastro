@@ -52,7 +52,7 @@ void main() {
     expect(await call(), isNull);
   });
 
-  test('entrada nao finita nao chama o nativo', () async {
+  test('entrada não finita não chama o nativo', () async {
     var calls = 0;
     messenger.setMockMethodCallHandler(channel, (c) async {
       calls++;

@@ -55,7 +55,7 @@ Future<InMemorySessionStore> pumpApp(
 }
 
 void main() {
-  testWidgets('entrar pela aba Voce mostra o perfil', (tester) async {
+  testWidgets('entrar pela aba Você mostra o perfil', (tester) async {
     final store = await pumpApp(
       tester,
       RouteAdapter({
@@ -115,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Informe seu nome'), findsOneWidget);
-    expect(find.text('Minimo de 8 caracteres'), findsOneWidget);
+    expect(find.text('Mínimo de 8 caracteres'), findsOneWidget);
     expect(adapter.requests, isEmpty);
   });
 
@@ -169,10 +169,10 @@ void main() {
           matching: find.byType(TextField),
         ),
       );
-      email.controller!.text = 'invalido';
+      email.controller!.text = 'inválido';
       await tester.tap(find.byKey(const Key('auth_submit')));
       await tester.pumpAndSettle();
-      expect(find.text('E-mail invalido'), findsOneWidget);
+      expect(find.text('E-mail inválido'), findsOneWidget);
       expect(find.byKey(const Key('auth_error')), findsNothing);
     });
   });

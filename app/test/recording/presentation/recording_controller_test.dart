@@ -71,7 +71,7 @@ void main() {
     expect(pend.map((e) => e.guid), isNot(contains(guid)));
   });
 
-  test('permissao negada nao inicia e seta erro', () async {
+  test('permissão negada não inicia e seta erro', () async {
     source.permission = false;
     await ctrl.start(ActivityType.ride);
     expect(ctrl.state.state, RecordingState.idle);

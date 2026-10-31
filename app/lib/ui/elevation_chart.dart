@@ -45,7 +45,7 @@ class ElevationSection extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Elevacao',
+                'Elevação',
                 style: AppText.sectionTitle.copyWith(color: c.text),
               ),
             ),

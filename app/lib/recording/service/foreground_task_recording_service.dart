@@ -106,7 +106,7 @@ class ForegroundTaskRecordingService implements RecordingService {
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'recording',
-        channelName: 'Gravacao de atividade',
+        channelName: 'Gravação de atividade',
         channelDescription: 'Mostra a atividade em andamento e seus controles',
         channelImportance: NotificationChannelImportance.LOW,
         priority: NotificationPriority.LOW,

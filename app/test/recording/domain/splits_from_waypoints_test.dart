@@ -11,11 +11,11 @@ List<SplitSourcePoint> pontos(List<List<num>> pares) => [
     ];
 
 void main() {
-  test('atividade sem pontos nao tem splits', () {
+  test('atividade sem pontos não tem splits', () {
     expect(splitsFromPoints(const [], metric: true), isEmpty);
   });
 
-  test('atividade curta so tem o trecho parcial', () {
+  test('atividade curta só tem o trecho parcial', () {
     // 400 m em 2 min: nenhuma marca de 1 km fechada.
     final s = splitsFromPoints(pontos([
       [0, 0],
@@ -84,7 +84,7 @@ void main() {
     expect(s.first.durationMs, 480000);
   });
 
-  test('ignora retrocesso de distancia acumulada', () {
+  test('ignora retrocesso de distância acumulada', () {
     final s = splitsFromPoints(pontos([
       [0, 0],
       [1200, 300000],
@@ -100,7 +100,7 @@ void main() {
     expect(s[1].complete, isTrue);
   });
 
-  test('pace do trecho e null quando nao da para calcular', () {
+  test('pace do trecho e null quando não dá para calcular', () {
     final s = splitsFromPoints(pontos([
       [0, 0],
       [500, 0], // sem duracao
@@ -110,7 +110,7 @@ void main() {
   });
 
   group('fim da atividade (finalTimerMs)', () {
-    test('trecho parcial vai ate o cronometro final da atividade', () {
+    test('trecho parcial vai até o cronometro final da atividade', () {
       // Ultimo ponto aceito aos 41 s, mas o cronometro seguiu ate 53 s
       // (parado sem auto-pausa ate tocar em Encerrar).
       final s = splitsFromPoints(pontos([
@@ -132,11 +132,11 @@ void main() {
       ]), metric: true, finalTimerMs: 480000);
 
       expect(s, hasLength(2));
-      expect(s.first.durationMs, 300000, reason: 'split fechado nao muda');
+      expect(s.first.durationMs, 300000, reason: 'split fechado não muda');
       expect(s.fold<int>(0, (t, x) => t + x.durationMs), 480000);
     });
 
-    test('final menor que o ultimo ponto nao encurta o trecho', () {
+    test('final menor que o último ponto não encurta o trecho', () {
       final s = splitsFromPoints(pontos([
         [0, 0],
         [400, 120000],

@@ -39,9 +39,9 @@ Future<void> pump(WidgetTester tester, Widget card, {ThemeData? theme}) => teste
     );
 
 void main() {
-  test('titulo sugerido pelo horario', () {
+  test('título sugerido pelo horario', () {
     DateTime at(int h) => DateTime(2026, 10, 26, h);
-    expect(suggestedActivityTitle(ActivityType.run, at(7)), 'Corrida da manha');
+    expect(suggestedActivityTitle(ActivityType.run, at(7)), 'Corrida da manhã');
     expect(suggestedActivityTitle(ActivityType.ride, at(14)), 'Pedal da tarde');
     expect(suggestedActivityTitle(ActivityType.walk, at(21)), 'Caminhada da noite');
     expect(suggestedActivityTitle(ActivityType.walk, at(2)), 'Caminhada da noite');
@@ -54,7 +54,7 @@ void main() {
   });
 
   for (final (name, theme) in [('escuro', AppTheme.dark), ('claro', AppTheme.light)]) {
-    testWidgets('corrida mostra chip, titulo, metricas, rota e acoes ($name)', (tester) async {
+    testWidgets('corrida mostra chip, título, métricas, rota e ações ($name)', (tester) async {
       var opened = 0, shared = 0;
       await pump(
         tester,
@@ -71,8 +71,8 @@ void main() {
       expect(find.byType(SportChip), findsOneWidget);
       expect(find.text('Corrida'), findsOneWidget);
       expect(find.text('26/10/2026 07:05'), findsOneWidget);
-      expect(find.text('Corrida da manha'), findsOneWidget);
-      expect(find.text('Distancia'), findsOneWidget);
+      expect(find.text('Corrida da manhã'), findsOneWidget);
+      expect(find.text('Distância'), findsOneWidget);
       expect(find.text('Pace'), findsOneWidget);
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.textContaining('5,00'), findsOneWidget);
@@ -122,17 +122,17 @@ void main() {
     expect(find.byType(RoutePreview), findsNothing);
     expect(find.text('Ver detalhe'), findsNothing);
     expect(find.byKey(const Key('extra')), findsOneWidget);
-    await tester.tap(find.text('Caminhada da manha'));
+    await tester.tap(find.text('Caminhada da manhã'));
     expect(opened, 1);
   });
 
   // E2E-05: quem pode ver aparece quando nao e publica, inclusive no compacto.
   for (final (db, label, compact) in [
-    ('private', 'So eu', false),
+    ('private', 'Só eu', false),
     ('followers', 'Seguidores', false),
-    ('private', 'So eu', true),
+    ('private', 'Só eu', true),
   ]) {
-    testWidgets('visibilidade $db aparece no cartao (compacto: $compact)', (tester) async {
+    testWidgets('visibilidade $db aparece no cartão (compacto: $compact)', (tester) async {
       final semantics = tester.ensureSemantics();
       await pump(
         tester,
@@ -150,12 +150,12 @@ void main() {
     });
   }
 
-  testWidgets('publica nao mostra selo de visibilidade', (tester) async {
+  testWidgets('publica não mostra selo de visibilidade', (tester) async {
     await pump(tester, ActivityCard(activity: activity(ActivityType.run), useMetric: true, route: route));
     expect(find.byKey(const Key('visibility_badge')), findsNothing);
   });
 
-  testWidgets('titulo salvo pelo usuario substitui o sugerido', (tester) async {
+  testWidgets('título salvo pelo usuario substitui o sugerido', (tester) async {
     await pump(
       tester,
       ActivityCard(
@@ -165,15 +165,15 @@ void main() {
       ),
     );
     expect(find.text('Longao de domingo'), findsOneWidget);
-    expect(find.text('Corrida da manha'), findsNothing);
+    expect(find.text('Corrida da manhã'), findsNothing);
   });
 
-  testWidgets('titulo salvo em branco cai no sugerido', (tester) async {
+  testWidgets('título salvo em branco cai no sugerido', (tester) async {
     await pump(
       tester,
       ActivityCard(activity: activity(ActivityType.run, title: '  '), useMetric: true, compact: true),
     );
-    expect(find.text('Corrida da manha'), findsOneWidget);
+    expect(find.text('Corrida da manhã'), findsOneWidget);
   });
 
   testWidgets('sem pontos gravados mostra aviso na miniatura', (tester) async {

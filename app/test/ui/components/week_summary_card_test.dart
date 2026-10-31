@@ -49,13 +49,13 @@ void main() {
   });
 
   for (final (name, theme) in [('escuro', AppTheme.dark), ('claro', AppTheme.light)]) {
-    testWidgets('mostra titulo, contagem, tres metricas e sete barras ($name)', (tester) async {
+    testWidgets('mostra título, contagem, tres métricas e sete barras ($name)', (tester) async {
       await pump(tester, summary(), theme);
       final c = theme.extension<AppColors>() ?? AppColors.dark;
 
       expect(find.text('Esta semana'), findsOneWidget);
       expect(find.text('2 treinos'), findsOneWidget);
-      expect(find.text('Distancia'), findsOneWidget);
+      expect(find.text('Distância'), findsOneWidget);
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Subida'), findsOneWidget);
       expect(find.textContaining('25,00'), findsOneWidget);

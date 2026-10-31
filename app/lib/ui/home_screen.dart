@@ -161,7 +161,7 @@ class _Header extends StatelessWidget {
               // Nome do app.
               Text('Rastro', style: AppText.label.copyWith(color: c.primaryText)),
               const SizedBox(height: 2),
-              Text('Inicio', style: AppText.screenTitle.copyWith(color: c.text)),
+              Text('Início', style: AppText.screenTitle.copyWith(color: c.text)),
             ],
           ),
         ),

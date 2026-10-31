@@ -56,7 +56,7 @@ void main() {
     expect((await repo.waypoints('b')).length, 2);
   });
 
-  test('routePoints() devolve so pontos aceitos', () async {
+  test('routePoints() devolve só pontos aceitos', () async {
     await seed('a', ActivityType.run, 1000);
     final route = await repo.routePoints('a');
     expect(route.length, 2);

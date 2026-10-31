@@ -24,7 +24,7 @@ LocationSample amostra(
 
 void main() {
   group('SpeedAutoPauseDetector com velocidade informada', () {
-    test('pausa depois do tempo minimo parado', () {
+    test('pausa depois do tempo mínimo parado', () {
       final d = SpeedAutoPauseDetector();
       expect(d.shouldBePaused(amostra(0, 0, t: 0, speed: 0.0)), isFalse);
       expect(d.shouldBePaused(amostra(0, 0, t: 2000, speed: 0.0)), isFalse);
@@ -41,14 +41,14 @@ void main() {
   });
 
   group('SpeedAutoPauseDetector sem velocidade informada', () {
-    test('em movimento, NAO pausa (regressao: ausente != zero)', () {
+    test('em movimento, NÃO pausa (regressao: ausente != zero)', () {
       final d = SpeedAutoPauseDetector();
       // ~11 m por segundo, sem o campo de velocidade.
       for (int i = 0; i <= 6; i++) {
         final paused = d.shouldBePaused(
           amostra(0, i * 0.0001, t: i * 1000),
         );
-        expect(paused, isFalse, reason: 'amostra $i nao deveria pausar');
+        expect(paused, isFalse, reason: 'amostra $i não deveria pausar');
       }
     });
 
@@ -60,12 +60,12 @@ void main() {
       expect(d.shouldBePaused(amostra(0, 0, t: 4000)), isTrue);
     });
 
-    test('primeira amostra sem velocidade nao muda o estado', () {
+    test('primeira amostra sem velocidade não muda o estado', () {
       final d = SpeedAutoPauseDetector();
       expect(d.shouldBePaused(amostra(0, 0, t: 0)), isFalse);
     });
 
-    test('reset esquece a posicao anterior', () {
+    test('reset esquece a posição anterior', () {
       final d = SpeedAutoPauseDetector();
       d.shouldBePaused(amostra(0, 0, t: 0));
       d.shouldBePaused(amostra(0, 0, t: 1000));

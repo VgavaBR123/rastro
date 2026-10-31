@@ -54,7 +54,7 @@ void main() {
       expect(p.cumulativeDistanceMeters, 0.0);
     });
 
-    test('acumula distancia em pontos aceitos', () {
+    test('acumula distância em pontos aceitos', () {
       final p = PointPipeline();
       p.process(sample(0, 0, t: 0),
           manuallyPaused: false, elapsedTimeMs: 0, timerTimeMs: 0);
@@ -80,7 +80,7 @@ void main() {
       expect(w.classification, WaypointClassification.ignoreAccelerationFilter);
     });
 
-    test('rejeita teleporte ja no SEGUNDO ponto (sem p2 para aceleracao)', () {
+    test('rejeita teleporte já no SEGUNDO ponto (sem p2 para aceleracao)', () {
       // Regressao: visto no emulador (localizacao padrao na California ->
       // primeiro fix real em BH). O filtro de aceleracao precisa de dois pontos
       // anteriores, entao o salto do 1o para o 2o ponto passava direto e somava
@@ -94,7 +94,7 @@ void main() {
       expect(p.cumulativeDistanceMeters, 0.0);
     });
 
-    test('ancora errada nao trava a gravacao: re-ancora apos 3 teleportes', () {
+    test('ancora errada não trava a gravação: re-ancora apos 3 teleportes', () {
       // Regressao: visto no emulador. O 1o ponto aceito era um fix velho a
       // ~555 m; todo fix real seguinte ficava a ~555 m dele em ~1 s e era
       // rejeitado como teleporte PARA SEMPRE (a ancora nunca mudava), e a
@@ -118,7 +118,7 @@ void main() {
       expect(p.cumulativeDistanceMeters, closeTo(3 * 9.42, 0.5));
     });
 
-    test('teleporte isolado continua rejeitado (nao re-ancora)', () {
+    test('teleporte isolado continua rejeitado (não re-ancora)', () {
       final p = PointPipeline();
       p.process(sample(0, 0, t: 0), manuallyPaused: false, elapsedTimeMs: 0, timerTimeMs: 0);
       p.process(sample(0, 0.0001, t: 1000),
@@ -165,7 +165,7 @@ void main() {
       expect(split.endTimerMs, 330000);
     });
 
-    test('fecha varios splits num unico update (salto)', () {
+    test('fecha vários splits num unico update (salto)', () {
       final s = SplitList(1000.0);
       s.update(500, 100000);
       s.update(2500, 500000); // cruza 1000 e 2000 de uma vez

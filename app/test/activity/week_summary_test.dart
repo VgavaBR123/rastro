@@ -32,7 +32,7 @@ void main() {
     expect(s.maxDayTimerMs, 0);
   });
 
-  test('so soma as atividades da semana atual', () {
+  test('só soma as atividades da semana atual', () {
     final s = buildWeekSummary([
       e(DateTime(2026, 10, 25, 23, 59), ActivityType.run), // domingo anterior
       e(DateTime(2026, 10, 26, 7), ActivityType.run, m: 5000, ms: 1800000, gain: 40),

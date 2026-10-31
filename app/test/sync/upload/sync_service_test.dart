@@ -116,7 +116,7 @@ void main() {
     expect(header.syncState, SyncState.failed);
   });
 
-  test('FIT gerado nao e vazio', () async {
+  test('FIT gerado não e vazio', () async {
     await seedPendingActivity(db, 'a1');
     final Activity header =
         await (db.select(db.activities)..where((t) => t.guid.equals('a1')))
@@ -127,7 +127,7 @@ void main() {
     expect(fit.length, greaterThan(14));
   });
 
-  test('prepareRound devolve failed e uploading para pending, e so eles',
+  test('prepareRound devolve failed e uploading para pending, e só eles',
       () async {
     for (final g in ['p', 'u', 'f', 's']) {
       await seedPendingActivity(db, g);

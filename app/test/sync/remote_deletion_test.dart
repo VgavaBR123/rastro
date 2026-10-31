@@ -93,7 +93,7 @@ void main() {
     expect(await db.pendingRemoteDeletions(), isEmpty);
   });
 
-  test('atividade que nunca subiu nao gera exclusao remota', () async {
+  test('atividade que nunca subiu não gera exclusao remota', () async {
     await seed(repo, 'local');
     await repo.deleteActivity('local', nowMs: 5);
     expect(await db.pendingRemoteDeletions(), isEmpty);
@@ -133,7 +133,7 @@ void main() {
       expect(h['x-distance-meters'], '25000.5');
     });
 
-    test('delete: 204 e 404 sao sucesso; 401 vira sessao invalida', () async {
+    test('delete: 204 e 404 sao sucesso; 401 vira sessão inválida', () async {
       final a = RouteAdapter({'DELETE /activities/up9': (204, null)});
       await with_(a).deleteRemote('up9');
       expect(a.requests.single.headers['Authorization'], 'Bearer tok');

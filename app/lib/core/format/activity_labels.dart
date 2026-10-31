@@ -19,7 +19,7 @@ String activityTypeLabel(ActivityType t) {
 String suggestedActivityTitle(ActivityType type, DateTime start) {
   final h = start.hour;
   final period = h >= 5 && h < 12
-      ? 'da manha'
+      ? 'da manhã'
       : h >= 12 && h < 18
           ? 'da tarde'
           : 'da noite';
@@ -44,7 +44,7 @@ String syncStateLabel(SyncState s) {
     case SyncState.synced:
       return 'Sincronizada';
     case SyncState.failed:
-      return 'Falhou (sera tentada de novo)';
+      return 'Falhou (será tentada de novo)';
   }
 }
 

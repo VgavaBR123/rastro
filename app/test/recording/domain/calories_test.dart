@@ -88,7 +88,7 @@ void main() {
         closeTo(420, 1e-6),
       );
     });
-    test('distancia 0 com tempo usa o menor MET do esporte', () {
+    test('distância 0 com tempo usa o menor MET do esporte', () {
       expect(kcal(ActivityType.run, umaHora, 0, 70), closeTo(6.0 * 70, 1e-6));
       expect(kcal(ActivityType.walk, umaHora, 0, 70), closeTo(2.0 * 70, 1e-6));
       expect(kcal(ActivityType.ride, umaHora, 0, 70), closeTo(3.5 * 70, 1e-6));

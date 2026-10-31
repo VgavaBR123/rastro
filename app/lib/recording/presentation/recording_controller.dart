@@ -160,7 +160,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
 
   Future<bool> _ensurePermission() async {
     final ok = await _source.ensurePermission();
-    if (!ok) state = state.copyWith(error: 'Permissao de localizacao negada');
+    if (!ok) state = state.copyWith(error: 'Permissão de localização negada');
     return ok;
   }
 
@@ -232,7 +232,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
   void _onAccel(AccelSample s) => _session?.addAccel(s);
 
   void _onError(Object error, StackTrace _) {
-    state = state.copyWith(error: 'Erro na localizacao: $error');
+    state = state.copyWith(error: 'Erro na localização: $error');
   }
 
   /// Acoes vindas da notificacao: mesmo caminho dos botoes da tela.

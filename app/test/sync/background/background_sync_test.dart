@@ -51,7 +51,7 @@ Future<SyncState> stateOf(RecordingDatabase db, String guid) async =>
 
 void main() {
   group('isSyncBackendConfigured', () {
-    test('placeholder e vazio nao contam como backend', () {
+    test('placeholder e vazio não contam como backend', () {
       expect(isSyncBackendConfigured('https://example.invalid'), isFalse);
       expect(isSyncBackendConfigured(''), isFalse);
       expect(isSyncBackendConfigured('http://localhost:8081'), isTrue);
@@ -80,7 +80,7 @@ void main() {
       expect(await stateOf(db, 'a2'), SyncState.synced);
     });
 
-    test('falha parcial: false (retry) e so a que falhou fica failed',
+    test('falha parcial: false (retry) e só a que falhou fica failed',
         () async {
       await seedPendingActivity(db, 'ok');
       await seedPendingActivity(db, 'ruim');
@@ -111,7 +111,7 @@ void main() {
       expect(await stateOf(db, 'a1'), SyncState.synced);
     });
 
-    test('nao re-envia o que ja esta synced', () async {
+    test('não re-envia o que já esta synced', () async {
       await seedPendingActivity(db, 'a1');
       await db.setSyncState('a1', SyncState.synced);
       final FakeUploader up = FakeUploader();
@@ -172,7 +172,7 @@ void main() {
       expect(db.closed, isTrue);
     });
 
-    test('excecao ao montar o uploader nao escapa e fecha o banco', () async {
+    test('excecao ao montar o uploader não escapa e fecha o banco', () async {
       final TrackingDatabase db = TrackingDatabase();
 
       final bool ok = await performBackgroundSync(
@@ -186,7 +186,7 @@ void main() {
       expect(db.closed, isTrue);
     });
 
-    test('excecao ao abrir o banco nao escapa', () async {
+    test('excecao ao abrir o banco não escapa', () async {
       final bool ok = await performBackgroundSync(
         baseUrl: 'http://localhost:8081',
         readSession: () async => fakeSession('tok'),

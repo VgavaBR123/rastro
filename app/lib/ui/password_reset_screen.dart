@@ -68,7 +68,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     setState(() => _codeSent = true);
     if (resend) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Codigo reenviado')));
+          .showSnackBar(const SnackBar(content: Text('Código reenviado')));
     }
   }
 
@@ -110,7 +110,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
             ScreenTitle(
               'Recuperar senha',
               subtitle: _codeSent
-                  ? 'Passo 2 de 2: codigo e nova senha'
+                  ? 'Passo 2 de 2: código e nova senha'
                   : 'Passo 1 de 2: seu e-mail',
             ),
             _codeSent ? _resetStep(auth.busy) : _emailStep(auth.busy),
@@ -156,7 +156,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Informe o e-mail da sua conta. Vamos enviar um codigo para '
+                  'Informe o e-mail da sua conta. Vamos enviar um código para '
                   'criar uma nova senha.',
                   style: AppText.body.copyWith(
                     color: AppColors.of(context).textMuted,
@@ -172,7 +172,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   onChanged: (_) => _clearError(),
                   onFieldSubmitted: (_) => _sendCode(),
                   validator: (v) => (v == null || !v.contains('@'))
-                      ? 'E-mail invalido'
+                      ? 'E-mail inválido'
                       : null,
                 ),
                 _error(),
@@ -183,7 +183,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
             key: const Key('reset_send'),
             style: _mainButton,
             onPressed: busy ? null : _sendCode,
-            child: _busyLabel(busy, 'Enviar codigo'),
+            child: _busyLabel(busy, 'Enviar código'),
           ),
         ],
       ),
@@ -202,7 +202,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Enviamos um codigo de 6 digitos se o e-mail tiver conta. '
+                  'Enviamos um código de 6 dígitos se o e-mail tiver conta. '
                   'Ele vale por 15 minutos.',
                   key: const Key('reset_info'),
                   style: AppText.body.copyWith(
@@ -220,7 +220,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                 TextFormField(
                   key: const Key('reset_code'),
                   controller: _code,
-                  decoration: const InputDecoration(labelText: 'Codigo'),
+                  decoration: const InputDecoration(labelText: 'Código'),
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
@@ -230,7 +230,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   onChanged: (_) => _clearError(),
                   validator: (v) =>
                       (v == null || !RegExp(r'^\d{6}$').hasMatch(v.trim()))
-                      ? 'O codigo tem 6 digitos'
+                      ? 'O código tem 6 dígitos'
                       : null,
                 ),
                 const SizedBox(height: 12),
@@ -242,7 +242,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   textInputAction: TextInputAction.next,
                   onChanged: (_) => _clearError(),
                   validator: (v) => (v == null || v.length < 8)
-                      ? 'Minimo de 8 caracteres'
+                      ? 'Mínimo de 8 caracteres'
                       : null,
                 ),
                 const SizedBox(height: 12),
@@ -256,7 +256,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   onChanged: (_) => _clearError(),
                   onFieldSubmitted: (_) => _reset(),
                   validator: (v) =>
-                      v != _password.text ? 'As senhas nao conferem' : null,
+                      v != _password.text ? 'As senhas não conferem' : null,
                 ),
                 _error(),
               ],
@@ -272,7 +272,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
           TextButton(
             key: const Key('reset_resend'),
             onPressed: busy ? null : _sendCode,
-            child: const Text('Reenviar codigo'),
+            child: const Text('Reenviar código'),
           ),
           TextButton(
             key: const Key('reset_other_email'),

@@ -56,7 +56,7 @@ void main() {
       expect(lap.endElapsedMs, 5000);
     });
 
-    test('sem sessao ativa nao fecha volta', () {
+    test('sem sessão ativa não fecha volta', () {
       final s = RecordingSession(activityType: ActivityType.run);
       expect(s.lap(0), isNull);
       s.start(0);
@@ -104,7 +104,7 @@ void main() {
       expect(spy.received.map((a) => a.monotonicMs), [10, 60]);
     });
 
-    test('com detector por velocidade nao usa o acelerometro', () {
+    test('com detector por velocidade não usa o acelerometro', () {
       final s = RecordingSession(
         activityType: ActivityType.ride,
         autoPauseDetector: SpeedAutoPauseDetector(),
@@ -113,7 +113,7 @@ void main() {
       s.addAccel(const AccelSample(10, 0, 0, 9.8)); // nao lanca
     });
 
-    test('pausa automatica desligada nao liga o sensor', () {
+    test('pausa automática desligada não liga o sensor', () {
       final s = RecordingSession(
         activityType: ActivityType.run,
         autoPauseEnabled: false,

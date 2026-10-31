@@ -78,7 +78,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [const ScreenTitle('Voce'), ...children],
+            children: [const ScreenTitle('Você'), ...children],
           ),
         ),
       ),
@@ -189,7 +189,7 @@ class _SignedOutCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Com a conta, suas atividades sobem para o servidor e voce nao '
+            'Com a conta, suas atividades sobem para o servidor e você não '
             'perde nada ao trocar de aparelho. Gravar funciona sem ela.',
             textAlign: TextAlign.center,
             style: AppText.body.copyWith(color: c.textMuted),
@@ -279,7 +279,7 @@ class _UserCard extends ConsumerWidget {
         .read(authControllerProvider.notifier)
         .updateDisplayName(name);
     if (!ok && context.mounted) {
-      _snack(context, 'Nao foi possivel salvar o nome');
+      _snack(context, 'Não foi possível salvar o nome');
     }
   }
 }
@@ -442,7 +442,7 @@ class _CloudTotals extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             total(
-              'Distancia total',
+              'Distância total',
               formatDistance(p.stats.totalDistanceMeters, metric: metric),
               const Key('profile_distance'),
               c.dist,
@@ -459,7 +459,7 @@ class _CloudTotals extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Totais indisponiveis sem conexao',
+                'Totais indisponíveis sem conexão',
                 style: AppText.body.copyWith(color: c.textMuted),
               ),
             ),
@@ -475,7 +475,7 @@ class _AccountSecurity extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = AppColors.of(context);
     return SectionCard(
-      title: 'Seguranca da conta',
+      title: 'Segurança da conta',
       child: Column(
         children: [
           ListTile(
@@ -514,8 +514,8 @@ class _SettingsLink extends StatelessWidget {
       child: ListTile(
         key: const Key('profile_settings'),
         leading: Icon(Icons.tune_rounded, color: c.extra.fg),
-        title: const Text('Configuracoes'),
-        subtitle: const Text('Unidades, pausa automatica e peso'),
+        title: const Text('Configurações'),
+        subtitle: const Text('Unidades, pausa automática e peso'),
         trailing: const Icon(Icons.chevron_right_rounded),
         onTap: () => context.push(AppRoutes.settings),
       ),

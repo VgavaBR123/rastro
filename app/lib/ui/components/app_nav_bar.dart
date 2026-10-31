@@ -43,7 +43,7 @@ class NavTab {
 /// Abas do shell, na ordem dos ramos do router.
 final List<NavTab> kNavTabs = [
   NavTab(
-    label: 'Inicio',
+    label: 'Início',
     icon: Icons.home_rounded,
     role: (c) => c.dist,
     key: const Key('nav_home'),
@@ -51,21 +51,21 @@ final List<NavTab> kNavTabs = [
     selectedSymbol: 'house.fill',
   ),
   NavTab(
-    label: 'Historico',
+    label: 'Histórico',
     icon: Icons.history_rounded,
     role: (c) => c.pace,
     key: const Key('nav_history'),
     symbol: 'clock.arrow.circlepath',
   ),
   NavTab(
-    label: 'Estatisticas',
+    label: 'Estatísticas',
     icon: Icons.insights_rounded,
     role: (c) => c.subida,
     key: const Key('nav_stats'),
     symbol: 'chart.xyaxis.line',
   ),
   NavTab(
-    label: 'Voce',
+    label: 'Você',
     icon: Icons.person_rounded,
     role: (c) => c.extra,
     key: const Key('nav_profile'),

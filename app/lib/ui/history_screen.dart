@@ -71,7 +71,7 @@ class HistoryScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Historico',
+                      'Histórico',
                       style: AppText.screenTitle.copyWith(color: c.text),
                     ),
                   ),
@@ -164,9 +164,9 @@ class _ActivityTile extends ConsumerWidget {
         title: const Text('Excluir atividade?'),
         content: Text(
           activity.remoteId != null
-              ? 'Ela tambem sera apagada do servidor. '
-                    'Esta acao nao pode ser desfeita.'
-              : 'Esta acao nao pode ser desfeita.',
+              ? 'Ela também será apagada do servidor. '
+                    'Esta ação não pode ser desfeita.'
+              : 'Esta ação não pode ser desfeita.',
         ),
         actions: [
           AdaptiveDialogAction(
@@ -194,7 +194,7 @@ class _ActivityTile extends ConsumerWidget {
     ref.invalidate(pendingCountProvider);
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Atividade excluida')));
+      ..showSnackBar(const SnackBar(content: Text('Atividade excluída')));
   }
 
   @override
@@ -209,7 +209,7 @@ class _ActivityTile extends ConsumerWidget {
       },
       trailing: PopupMenuButton<String>(
         key: Key('menu-${activity.guid}'),
-        tooltip: 'Acoes da atividade',
+        tooltip: 'Ações da atividade',
         icon: Icon(
           Icons.more_horiz_rounded,
           color: AppColors.of(context).textMuted,

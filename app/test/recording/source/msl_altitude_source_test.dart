@@ -43,7 +43,7 @@ void main() {
     expect(out2.position.altitudeMeters, 800);
   });
 
-  test('sem altitude nao chama o conversor', () async {
+  test('sem altitude não chama o conversor', () async {
     final conv = FakeMslConverter(5);
     final out = await withMslAltitude(sample(), conv);
     expect(out.position.altitudeMeters, isNull);

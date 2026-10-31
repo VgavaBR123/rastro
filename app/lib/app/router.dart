@@ -282,7 +282,7 @@ class _ActivityByGuid extends ConsumerWidget {
         if (a == null) {
           return Scaffold(
             appBar: AppBar(),
-            body: const Center(child: Text('Atividade nao encontrada')),
+            body: const Center(child: Text('Atividade não encontrada')),
           );
         }
         return ActivityDetailScreen(activity: a);

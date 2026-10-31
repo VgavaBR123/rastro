@@ -44,7 +44,7 @@ void main() {
     expect(pts.last.altitudeMeters, 100 + 2000);
   });
 
-  test('atividade nasce privada: encerrar sem a tela Salvar nao publica (GRA-05)', () async {
+  test('atividade nasce privada: encerrar sem a tela Salvar não publica (GRA-05)', () async {
     // Encerrar pela notificacao ou salvar uma interrompida nao passa pela
     // tela Salvar; a visibilidade fica a da criacao.
     await repo.startActivity(guid: 'a1', type: ActivityType.run, startTimestampMs: 1000);
@@ -61,7 +61,7 @@ void main() {
     expect(ActivityVisibility.fromDb('everyone'), ActivityVisibility.everyone);
   });
 
-  test('atividade nao finalizada aparece na recuperacao; some apos finish', () async {
+  test('atividade não finalizada aparece na recuperacao; some apos finish', () async {
     await repo.startActivity(
       guid: 'a2',
       type: ActivityType.ride,

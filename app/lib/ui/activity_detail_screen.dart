@@ -218,7 +218,7 @@ class ActivityDetailScreen extends ConsumerWidget {
     final speed = seconds > 0 ? activity.distanceMeters / seconds : 0.0;
     return [
       _Tile(
-        'Distancia',
+        'Distância',
         formatDistance(activity.distanceMeters, metric: metric),
         c.dist,
         const Key('detailDistance'),

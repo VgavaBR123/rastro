@@ -9,7 +9,7 @@ void main() {
   setUp(() => db = RecordingDatabase(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  test('loadSettings cria a linha padrao (metrico, auto-pause ligados)', () async {
+  test('loadSettings cria a linha padrao (métrico, auto-pause ligados)', () async {
     final s = await db.loadSettings();
     expect(s.useMetric, true);
     expect(s.autoPauseEnabled, true);
@@ -36,7 +36,7 @@ void main() {
     expect(c2.state.useMetric, false);
   });
 
-  test('ensureLoaded espera o banco e nao relê a cada chamada', () async {
+  test('ensureLoaded espera o banco e não relê a cada chamada', () async {
     await db.saveSettings(autoPauseEnabled: false);
     final c = SettingsController(db);
     // Antes de carregar, o estado e o padrao (auto-pause ligado).

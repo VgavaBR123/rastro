@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Usamos sua localizacao para gravar o trajeto, a distancia e o ritmo da sua atividade enquanto o app esta em uso.</string>
+	<string>Usamos sua localização para gravar o trajeto, a distância e o ritmo da sua atividade enquanto o app está em uso.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Precisamos da localizacao em segundo plano para continuar gravando sua atividade com a tela bloqueada ou o app fora da tela.</string>
+	<string>Precisamos da localização em segundo plano para continuar gravando sua atividade com a tela bloqueada ou o app fora da tela.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

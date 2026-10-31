@@ -89,7 +89,7 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
     } on Object {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Nao foi possivel compartilhar')));
+        ..showSnackBar(const SnackBar(content: Text('Não foi possível compartilhar')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -200,7 +200,7 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
                       minimumSize: const Size(44, 44),
                     ),
                     onPressed: _busy ? null : () => _share(image: false),
-                    child: const Text('So o texto'),
+                    child: const Text('Só o texto'),
                   ),
                 ],
               ),

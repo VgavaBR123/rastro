@@ -11,7 +11,7 @@ import '../auth/auth_test.dart' show RouteAdapter, meJson, session;
 import 'auth_flow_test.dart' show openProfile, pumpApp;
 
 void main() {
-  testWidgets('editar o nome e salvar nao quebra a tela', (tester) async {
+  testWidgets('editar o nome e salvar não quebra a tela', (tester) async {
     final adapter = RouteAdapter({
       'GET /me': (200, meJson),
       'PATCH /me': (200, meJson),
@@ -50,13 +50,13 @@ void main() {
     final messenger = ScaffoldMessenger.of(
       tester.element(find.byType(AppNavBar)),
     );
-    messenger.showSnackBar(const SnackBar(content: Text('aviso do inicio')));
+    messenger.showSnackBar(const SnackBar(content: Text('aviso do início')));
     await tester.pumpAndSettle();
-    expect(find.text('aviso do inicio'), findsOneWidget);
+    expect(find.text('aviso do início'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('nav_stats')));
     await tester.pumpAndSettle();
-    expect(find.text('aviso do inicio'), findsNothing);
+    expect(find.text('aviso do início'), findsNothing);
   });
 
   testWidgets('aviso nas abas fica acima da navegacao', (tester) async {
