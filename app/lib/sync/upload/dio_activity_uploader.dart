@@ -28,10 +28,13 @@ class DioActivityUploader implements ActivityUploader, RemoteActivityDeleter {
   /// entre um upload e outro). Null = envia sem Authorization.
   final Future<String?> Function()? _token;
 
-  DioActivityUploader(Dio dio, String baseUrl, {Future<String?> Function()? token})
-      : _dio = dio,
-        _baseUrl = baseUrl,
-        _token = token;
+  DioActivityUploader(
+    Dio dio,
+    String baseUrl, {
+    Future<String?> Function()? token,
+  }) : _dio = dio,
+       _baseUrl = baseUrl,
+       _token = token;
 
   @override
   Future<String> upload(
@@ -70,7 +73,7 @@ class DioActivityUploader implements ActivityUploader, RemoteActivityDeleter {
     } on UploadException {
       rethrow;
     } on DioException catch (e) {
-      throw UploadException('falha de transporte: ${e.message}');
+      throw NetworkUploadException('falha de transporte: ${e.message}');
     } catch (e) {
       throw UploadException('falha inesperada no upload: $e');
     }
@@ -103,7 +106,7 @@ class DioActivityUploader implements ActivityUploader, RemoteActivityDeleter {
         ),
       );
     } on DioException catch (e) {
-      throw UploadException('falha de transporte: ${e.message}');
+      throw NetworkUploadException('falha de transporte: ${e.message}');
     }
     final int status = response.statusCode!;
     if (status == 204 || status == 200 || status == 404) return;
@@ -114,8 +117,8 @@ class DioActivityUploader implements ActivityUploader, RemoteActivityDeleter {
 
 /// Headers de metadados do upload (so os presentes).
 Map<String, String> metadataHeaders(UploadMetadata? m) => {
-      if (m?.activityType != null) 'x-activity-type': m!.activityType!,
-      if (m?.startTimeMs != null) 'x-start-time': '${m!.startTimeMs}',
-      if (m?.timerTimeMs != null) 'x-timer-time-ms': '${m!.timerTimeMs}',
-      if (m?.distanceMeters != null) 'x-distance-meters': '${m!.distanceMeters}',
-    };
+  if (m?.activityType != null) 'x-activity-type': m!.activityType!,
+  if (m?.startTimeMs != null) 'x-start-time': '${m!.startTimeMs}',
+  if (m?.timerTimeMs != null) 'x-timer-time-ms': '${m!.timerTimeMs}',
+  if (m?.distanceMeters != null) 'x-distance-meters': '${m!.distanceMeters}',
+};
