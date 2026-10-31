@@ -12,6 +12,7 @@ import '../../core/format/measures.dart';
 import '../../recording/domain/geo.dart';
 import '../../recording/domain/recording_models.dart';
 import '../components/sport_chip.dart';
+import '../record_setup_screen.dart' show sportIcon;
 import '../route_preview.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -129,6 +130,9 @@ class ShareCard extends StatelessWidget {
                   end: Alignment.bottomCenter,
                   colors: [c.surface, c.bg],
                 ),
+          // Sem a linha, o fim do degrade some no fundo e o cartao parece
+          // cortado (INI-11).
+          border: transparent ? null : Border.all(color: c.line),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
@@ -161,7 +165,17 @@ class ShareCard extends StatelessWidget {
               const SizedBox(height: 12),
               Expanded(
                 child: data.route.length < 2
-                    ? const SizedBox.expand()
+                    // Sem trajeto (INI-11/HIS-07): o esporte no lugar da rota,
+                    // em vez de um vazio no meio do cartao.
+                    ? Center(
+                        child: Container(
+                          key: const Key('share_card_no_route'),
+                          width: 112,
+                          height: 112,
+                          decoration: BoxDecoration(color: role.tint, shape: BoxShape.circle),
+                          child: Icon(sportIcon(data.type), size: 56, color: role.fg),
+                        ),
+                      )
                     : LayoutBuilder(
                         builder: (_, box) => RoutePreview(
                           key: const Key('share_card_route'),
