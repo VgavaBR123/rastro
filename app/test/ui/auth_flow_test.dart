@@ -119,6 +119,64 @@ void main() {
     expect(adapter.requests, isEmpty);
   });
 
+  group('VOC-04: o erro do servidor some', () {
+    Future<void> loginWithError(WidgetTester tester) async {
+      await pumpApp(
+        tester,
+        RouteAdapter({
+          'POST /auth/login': (401, {'error': 'x'}),
+        }),
+      );
+      await openSignIn(tester);
+      await tester.enterText(
+        find.byKey(const Key('auth_email')),
+        'ana@exemplo.com',
+      );
+      await tester.enterText(find.byKey(const Key('auth_password')), 'errada');
+      await tester.tap(find.byKey(const Key('auth_submit')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('auth_error')), findsOneWidget);
+    }
+
+    testWidgets('ao editar um campo', (tester) async {
+      await loginWithError(tester);
+      await tester.enterText(find.byKey(const Key('auth_password')), 'outra');
+      await tester.pump();
+      expect(find.byKey(const Key('auth_error')), findsNothing);
+    });
+
+    testWidgets('ao trocar para Criar conta', (tester) async {
+      await loginWithError(tester);
+      await tester.tap(find.byKey(const Key('auth_toggle')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('auth_error')), findsNothing);
+    });
+
+    testWidgets('ao reenviar, mesmo barrado na validacao', (tester) async {
+      await loginWithError(tester);
+      await tester.tap(find.byKey(const Key('auth_toggle')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('auth_toggle')));
+      await tester.pumpAndSettle();
+      // Volta com erro novo do servidor e reenvia com o e-mail invalido.
+      await tester.enterText(find.byKey(const Key('auth_password')), 'errada');
+      await tester.tap(find.byKey(const Key('auth_submit')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('auth_error')), findsOneWidget);
+      final email = tester.widget<TextField>(
+        find.descendant(
+          of: find.byKey(const Key('auth_email')),
+          matching: find.byType(TextField),
+        ),
+      );
+      email.controller!.text = 'invalido';
+      await tester.tap(find.byKey(const Key('auth_submit')));
+      await tester.pumpAndSettle();
+      expect(find.text('E-mail invalido'), findsOneWidget);
+      expect(find.byKey(const Key('auth_error')), findsNothing);
+    });
+  });
+
   testWidgets('perfil mostra os totais e sair volta a pedir login', (
     tester,
   ) async {

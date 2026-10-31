@@ -141,6 +141,69 @@ void main() {
     expect(await store.read(), isNull);
   });
 
+  testWidgets('VOC-04: erro da recuperacao some ao editar o campo', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      RouteAdapter({
+        'POST /auth/password/forgot': (202, null),
+        'POST /auth/password/reset': (
+          400,
+          {'error': 'codigo invalido ou expirado'},
+        ),
+      }),
+    );
+    await openSignIn(tester);
+    await tester.tap(find.byKey(const Key('auth_forgot')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('reset_email')),
+      'ana@exemplo.com',
+    );
+    await tester.tap(find.byKey(const Key('reset_send')));
+    await tester.pumpAndSettle();
+    Future<void> submitWrongCode() async {
+      await tester.enterText(find.byKey(const Key('reset_code')), '000000');
+      await tester.enterText(
+        find.byKey(const Key('reset_new_password')),
+        'nova12345',
+      );
+      await tester.enterText(
+        find.byKey(const Key('reset_confirm_password')),
+        'nova12345',
+      );
+      await tester.tap(find.byKey(const Key('reset_submit')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('reset_error')), findsOneWidget);
+    }
+
+    await submitWrongCode();
+    await tester.enterText(find.byKey(const Key('reset_code')), '111111');
+    await tester.pump();
+    expect(find.byKey(const Key('reset_error')), findsNothing);
+
+    // Reenviar o codigo tambem limpa o erro anterior.
+    await submitWrongCode();
+    await tester.tap(find.byKey(const Key('reset_resend')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('reset_error')), findsNothing);
+
+    // Barrado na validacao: o erro antigo do servidor nao fica ao lado.
+    await submitWrongCode();
+    final confirm = tester.widget<TextField>(
+      find.descendant(
+        of: find.byKey(const Key('reset_confirm_password')),
+        matching: find.byType(TextField),
+      ),
+    );
+    confirm.controller!.text = 'diferente';
+    await tester.tap(find.byKey(const Key('reset_submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('As senhas nao conferem'), findsOneWidget);
+    expect(find.byKey(const Key('reset_error')), findsNothing);
+  });
+
   testWidgets(
     'trocar senha com a atual errada mostra o erro e continua logado',
     (tester) async {

@@ -35,7 +35,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     super.dispose();
   }
 
+  /// O erro do servidor vale para a tentativa que falhou: some ao editar,
+  /// trocar de modo ou tentar de novo (VOC-04).
+  void _clearError() => ref.read(authControllerProvider.notifier).clearError();
+
   Future<void> _submit() async {
+    _clearError();
     if (!_form.currentState!.validate()) return;
     final ctrl = ref.read(authControllerProvider.notifier);
     final ok = _register
@@ -94,6 +99,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         controller: _name,
                         decoration: const InputDecoration(labelText: 'Nome'),
                         textInputAction: TextInputAction.next,
+                        onChanged: (_) => _clearError(),
                         validator: (v) => (v == null || v.trim().isEmpty)
                             ? 'Informe seu nome'
                             : null,
@@ -107,6 +113,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       keyboardType: TextInputType.emailAddress,
                       autocorrect: false,
                       textInputAction: TextInputAction.next,
+                      onChanged: (_) => _clearError(),
                       validator: (v) => (v == null || !v.contains('@'))
                           ? 'E-mail invalido'
                           : null,
@@ -117,6 +124,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       controller: _password,
                       decoration: const InputDecoration(labelText: 'Senha'),
                       obscureText: true,
+                      onChanged: (_) => _clearError(),
                       onFieldSubmitted: (_) => _submit(),
                       validator: (v) =>
                           (_register && (v == null || v.length < 8))
@@ -155,7 +163,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 key: const Key('auth_toggle'),
                 onPressed: auth.busy
                     ? null
-                    : () => setState(() => _register = !_register),
+                    : () {
+                        _clearError();
+                        setState(() => _register = !_register);
+                      },
                 child: Text(
                   _register ? 'Ja tenho conta' : 'Nao tem conta? Criar uma',
                 ),
