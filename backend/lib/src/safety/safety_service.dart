@@ -796,13 +796,7 @@ class SafetyService {
     final int agora = _now();
 
     if (agora >= s.etaMs + config.endGraceMs) {
-      s
-        ..status = 'ended'
-        ..endReason = 'expired'
-        ..endedAtMs = agora;
-      // Link segue valendo ate a limpeza (24 h): se ela nao respondeu, os
-      // contatos ainda precisam dele.
-      await tx.saveSession(s);
+      await _encerrarSozinha(s, tx, agora);
       return;
     }
 
@@ -858,7 +852,69 @@ class SafetyService {
     // alerted: nada (um alerta por checagem).
   }
 
+  /// Fim automatico em eta + 6 h. Nao engole uma checagem em curso: se ela
+  /// estava sendo perguntada, ou se esta em silencio de verdade (ex.: o
+  /// servidor ficou fora do ar e voltou depois do fim), os contatos recebem o
+  /// alerta antes de encerrar. A dona sempre recebe `safety_ended`; se houve
+  /// alerta sem resposta, os contatos recebem `safety_ended_unconfirmed`.
+  Future<void> _encerrarSozinha(
+      SafetySessionRecord s, SafetyStore tx, int agora) async {
+    final UserRecord? dona = await _users.findById(s.ownerId);
+    final String nome = dona?.displayName ?? 'Sua contato';
+    final bool emSilencio = agora - s.lastSignalAtMs > config.silenceMs;
+    if (s.status == 'checking' || (s.status == 'active' && emSilencio)) {
+      final String motivo = s.checkReason ?? 'eta';
+      s
+        ..status = 'alerted'
+        ..checkReason = motivo
+        ..checkStartedAtMs ??= agora
+        ..alertedAtMs = agora;
+      await _avisarContatos(
+        tx,
+        s,
+        'safety_alert',
+        '${primeiroNome(nome)} nao respondeu',
+        '$nome nao respondeu ao Rastro Seguro: '
+            '${_motivoAlerta[motivo]}. Veja a ultima posicao no link.',
+        {
+          'sessionId': s.id,
+          'shareUrl': shareUrlDe(s),
+          'reason': motivo,
+          'ownerName': nome,
+        },
+      );
+    }
+    final bool semResposta = s.status == 'alerted';
+    s
+      ..status = 'ended'
+      ..endReason = 'expired'
+      ..endedAtMs = agora;
+    // Link segue valendo ate a limpeza (24 h): se ela nao respondeu, os
+    // contatos ainda precisam dele.
+    await tx.saveSession(s);
+    await _notificar(
+      tx,
+      s.ownerId,
+      'safety_ended',
+      'O acompanhamento terminou',
+      'O Rastro Seguro encerrou sozinho 6 h depois do horario previsto.',
+      {'sessionId': s.id},
+    );
+    if (semResposta) {
+      await _avisarContatos(
+        tx,
+        s,
+        'safety_ended_unconfirmed',
+        '${primeiroNome(nome)}: acompanhamento encerrado',
+        'O acompanhamento de $nome terminou sem confirmacao de chegada. '
+            'O link da ultima posicao vale por mais 24 h.',
+        {'sessionId': s.id, 'shareUrl': shareUrlDe(s), 'ownerName': nome},
+      );
+    }
+  }
+
   /// Primeira regra que dispara, na ordem do contrato.
+
   String? _motivo(SafetySessionRecord s, int agora) {
     if (agora - max(s.lastSignalAtMs, _carenciaDesdeMs) > config.silenceMs) {
       return 'silence';

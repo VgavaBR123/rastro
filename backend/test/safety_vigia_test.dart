@@ -1,6 +1,7 @@
 // Vigia do Rastro Seguro com relogio falso: silencio 5 min, parada 10 min,
 // checagem 2 min (padroes do contrato). Cada teste avanca o relogio e roda
 // tick() na mao.
+import 'package:strava_estudo_backend/src/safety/safety_store.dart';
 import 'package:test/test.dart';
 
 import 'safety_harness.dart';
@@ -329,16 +330,101 @@ void main() {
   });
 
   group('fim automatico e limpeza', () {
-    test('encerra sozinha em eta + 6 h e some 24 h depois do fim', () async {
+    /// Mexe na sessao direto no store (monta o estado do teste).
+    Future<void> ajustar(void Function(SafetySessionRecord s) f) async {
+      final s = (await h.safety.findSession(sid))!;
+      f(s);
+      await h.safety.saveSession(s);
+    }
+
+    /// Eta de modo que o fim automatico (eta + 6 h) seja daqui a [ms].
+    int etaParaFimEm(int ms) => h.agora + ms - 6 * hora;
+
+    test('dona respondendo ate o fim: encerra e so ela recebe safety_ended',
+        () async {
+      await ajustar((s) => s.etaMs = etaParaFimEm(2 * minuto));
+      await h.json('POST', '/safety/sessions/$sid/ok', token: ana.token);
+      await h.posicao(ana, sid);
+      await h.avancar(2 * minuto);
+      final r = await sessao();
+      expect(r['status'], 'ended');
+      expect(r['alertedAt'], isNull);
+      final n = (await h.caixa(ana)).first;
+      expect(n['type'], 'safety_ended');
+      expect(n['title'], 'O acompanhamento terminou');
+      expect(n['data']['sessionId'], sid);
+      for (final c in [bia, caio]) {
+        expect(await h.tipos(c), ['contact_invite'], reason: c.email);
+      }
+    });
+
+    test('checando no fim: alerta os contatos antes de encerrar', () async {
+      await ajustar((s) => s
+        ..etaMs = etaParaFimEm(minuto)
+        ..status = 'checking'
+        ..checkReason = 'eta'
+        ..checkStartedAtMs = h.agora
+        ..checkDeadlineMs = h.agora + 10 * minuto);
+      await h.posicao(ana, sid);
+      await h.avancar(minuto);
+      final r = await sessao();
+      expect(r['status'], 'ended');
+      expect(r['alertedAt'], isNotNull);
+      for (final c in [bia, caio]) {
+        final tipos = await h.tipos(c);
+        expect(tipos.take(2).toSet(), {'safety_alert', 'safety_ended_unconfirmed'},
+            reason: c.email);
+      }
+      final alerta = (await h.caixa(bia))
+          .firstWhere((n) => n['type'] == 'safety_alert');
+      expect(alerta['data']['reason'], 'eta');
+      expect((await h.tipos(ana)).first, 'safety_ended');
+    });
+
+    test('alertada sem resposta no fim: contatos recebem safety_ended_unconfirmed',
+        () async {
+      await ajustar((s) => s
+        ..etaMs = etaParaFimEm(minuto)
+        ..status = 'alerted'
+        ..checkReason = 'silence'
+        ..checkStartedAtMs = h.agora - 10 * minuto
+        ..alertedAtMs = h.agora - 5 * minuto);
+      await h.avancar(minuto);
+      expect((await sessao())['status'], 'ended');
+      final n = (await h.caixa(bia)).first;
+      expect(n['type'], 'safety_ended_unconfirmed');
+      expect(n['data']['sessionId'], sid);
+      expect(n['data']['shareUrl'], isA<String>());
+      expect(n['data']['ownerName'], 'Ana Souza');
+      expect((await h.tipos(bia)).where((t) => t == 'safety_alert'), isEmpty,
+          reason: 'o alerta ja tinha saido; nao repete');
+      expect((await h.tipos(ana)).first, 'safety_ended');
+    });
+
+    test('servidor fora do ar volta depois de eta + 6 h: alerta antes de encerrar',
+        () async {
+      await h.posicao(ana, sid);
+      // Cai o servidor; volta 7 h e 10 min depois (eta era em 1 h).
+      h.agora += 7 * hora + 10 * minuto;
+      final novo = h.novoServico();
+      await novo.tick();
+      final r = await sessao();
+      expect(r['status'], 'ended');
+      expect(r['alertedAt'], isNotNull);
+      for (final c in [bia, caio]) {
+        final tipos = await h.tipos(c);
+        expect(tipos, containsAll(['safety_alert', 'safety_ended_unconfirmed']),
+            reason: c.email);
+      }
+      expect((await h.tipos(ana)).first, 'safety_ended');
+    });
+
+    test('link vale ate a limpeza e some 24 h depois do fim', () async {
       final link = ((await sessao())['shareUrl'] as String).split('/').last;
-      h.agora += hora + 6 * hora - seg;
-      await h.service.tick();
-      expect((await sessao())['status'], isNot('ended'));
-      await h.avancar(seg);
-      final s = await sessao();
-      expect(s['status'], 'ended');
-      expect(s['endedAt'], h.agora);
-      // O link ainda vale ate a limpeza.
+      await ajustar((s) => s.etaMs = etaParaFimEm(minuto));
+      await h.posicao(ana, sid);
+      await h.avancar(minuto);
+      expect((await sessao())['status'], 'ended');
       expect(await h.status('GET', '/s/$link'), 200);
       expect(await h.status('GET', '/safety/sessions/active', token: ana.token),
           404);
