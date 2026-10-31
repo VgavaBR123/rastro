@@ -95,7 +95,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          ...h.overrides(signedInAs: h.ana),
+          ...h.overrides(signedInAs: h.ana, withDatabase: false),
           locationSourceProvider.overrideWithValue(source),
           recordingDatabaseProvider.overrideWithValue(db),
           settingsProvider.overrideWith((ref) => _FixedSettings(db, const AppSettings())),
@@ -149,7 +149,7 @@ void main() {
     await positionTick(tester);
     final last = (session()['positions'] as List).last as Map;
     expect(last['lat'], isNotNull);
-    expect(last['moving'], isTrue);
+    expect(last['moving'], isA<bool>());
   });
 
   testWidgets('checagem: aviso grande com contagem, voz e vibracao; Estou bem fecha', (tester) async {

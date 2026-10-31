@@ -318,4 +318,6 @@ String? safetyBeginMessage(SafetyBeginResult r) => switch (r) {
   SafetyBeginResult.invalidEta =>
     'O horario de chegada precisa ficar entre 5 minutos e 12 horas. Gravando sem Rastro Seguro.',
   SafetyBeginResult.rejected => 'O Rastro Seguro nao pode ser ligado (confira os contatos). Gravando sem ele.',
+  SafetyBeginResult.otherDevice => 'Ja ha um Rastro Seguro ativo em outro aparelho. Gravando sem Rastro Seguro.',
+  SafetyBeginResult.cancelled => null,
 };

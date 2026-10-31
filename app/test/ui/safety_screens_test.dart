@@ -55,6 +55,7 @@ void main() {
       ],
     );
     addTearDown(router.dispose);
+    addTearDown(() async => h.db?.close());
     await tester.pumpWidget(
       ProviderScope(
         overrides: h.overrides(signedInAs: signedInAs),

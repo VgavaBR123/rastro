@@ -2,10 +2,12 @@
 // contrato com duas contas (Ana e Bia), sessao logada em memoria e os
 // overrides de rede, relogio, ticks, vibracao e abridor de link.
 import 'package:dio/dio.dart';
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/auth/auth_models.dart';
 import 'package:strava_estudo_app/auth/session_store.dart';
+import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/safety/safety_providers.dart';
 import 'package:strava_estudo_app/safety/safety_session_controller.dart';
 import 'package:strava_estudo_app/safety/url_opener.dart';
@@ -51,9 +53,14 @@ class SafetyHarness {
   );
 
   /// Overrides; [signedInAs] null = deslogado.
-  List<Override> overrides({FakeUser? signedInAs}) {
+  /// Banco em memoria quando o teste nao traz o dele ([withDatabase] false).
+  RecordingDatabase? db;
+
+  List<Override> overrides({FakeUser? signedInAs, bool withDatabase = true}) {
     final token = signedInAs == null ? null : server.tokens.entries.firstWhere((e) => e.value == signedInAs).key;
+    if (withDatabase) db ??= RecordingDatabase(NativeDatabase.memory());
     return [
+      if (withDatabase) recordingDatabaseProvider.overrideWithValue(db!),
       dioProvider.overrideWithValue(Dio()..httpClientAdapter = server),
       sessionStoreProvider.overrideWithValue(
         InMemorySessionStore(signedInAs == null ? null : session(signedInAs, token!)),

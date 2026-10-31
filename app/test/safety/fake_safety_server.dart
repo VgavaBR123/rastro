@@ -3,6 +3,7 @@
 // Varias contas (token -> usuario), contatos com limite de 3, sessoes,
 // notificacoes e os ganchos do vigia ([startCheck], [alert]) que o teste
 // dispara na mao. Nenhuma rede e tocada.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -39,6 +40,10 @@ class FakeSafetyServer implements HttpClientAdapter {
 
   /// Sem rede: toda requisicao falha na conexao.
   bool offline = false;
+
+  /// Segura a resposta das rotas que contem a chave ate o Completer fechar
+  /// (simula um envio preso).
+  final Map<String, Completer<void>> gates = {};
 
   /// Forca uma resposta para "METHOD /caminho" (prefixo), antes das regras.
   final Map<String, (int, Object?)> overrides = {};
@@ -170,6 +175,9 @@ class FakeSafetyServer implements HttpClientAdapter {
     final path = options.uri.path;
     final req = FakeRequest(options.method, path, options.uri.queryParameters, body, token);
     requests.add(req);
+    for (final e in gates.entries.toList()) {
+      if (path.contains(e.key)) await e.value.future;
+    }
     for (final e in overrides.entries) {
       if ('${options.method} $path'.startsWith(e.key)) return _json(e.value.$1, e.value.$2);
     }

@@ -30,6 +30,9 @@ import '../source/heartbeat_ticker.dart';
 import '../source/location_source.dart';
 import 'recording_ui_state.dart';
 
+/// Janela das amostras aceitas guardadas para o Rastro Seguro (F08).
+const int kRecentAcceptedWindowMs = 5 * 60000;
+
 /// A cada quantos pontos aceitos descarregamos o lote no banco.
 const int kWaypointFlushBatch = 10;
 
@@ -89,6 +92,15 @@ class RecordingController extends StateNotifier<RecordingUiState> {
   /// O Rastro Seguro (F08) manda esta posicao aos contatos.
   LocationSample? get lastSample => _lastSample;
   LocationSample? _lastSample;
+
+  /// Amostras ACEITAS recentes (ultimos [kRecentAcceptedWindowMs]), para o
+  /// Rastro Seguro medir o deslocamento real, independente da auto-pausa.
+  List<LocationSample> recentAccepted({required int sinceWallMs}) => [
+    for (final s in _recentAccepted)
+      if (s.wallClockMs >= sinceWallMs) s,
+  ];
+  final List<LocationSample> _recentAccepted = [];
+  bool _acceptedNow = false;
 
   RecordingController({
     required LocationSource source,
@@ -226,12 +238,14 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     _gpsLost = false;
     _guidedNotice = null;
     _lastSample = null;
+    _recentAccepted.clear();
     final session = RecordingSession(
       activityType: type,
       autoPauseEnabled: autoPauseEnabled,
       autoPauseDetector: _autoPauseFactory?.call(type),
       onWaypoint: (w) {
         if (w.classification == WaypointClassification.accept) {
+          _acceptedNow = true;
           _batch.add(w);
           _route.add(w.position);
         } else if (w.classification !=
@@ -270,10 +284,16 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     if (session == null) return;
     _lastMonotonicMs = s.monotonicMs;
     _lastSample = s;
+    _acceptedNow = false;
     // Lacuna avaliada com o estado de pausa de ANTES deste ponto.
     final nowMs = _now();
     final gap = _gaps.onPoint(nowMs);
     session.addSample(s);
+    if (_acceptedNow) {
+      _recentAccepted.add(s);
+      final cut = s.wallClockMs - kRecentAcceptedWindowMs;
+      _recentAccepted.removeWhere((x) => x.wallClockMs < cut);
+    }
     _gpsLost = false;
     final paused = _isPaused(session);
     _gaps.setPaused(paused, nowMs);

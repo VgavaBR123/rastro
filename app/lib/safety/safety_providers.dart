@@ -24,6 +24,7 @@ import 'contacts_controller.dart';
 import 'inbox_controller.dart';
 import 'push_registrar.dart';
 import 'safety_api.dart';
+import 'safety_local_store.dart';
 import 'safety_models.dart';
 import 'safety_session_controller.dart';
 import 'url_opener.dart';
@@ -64,14 +65,22 @@ final safetyPlanProvider = StateProvider<SafetyPlan?>((_) => null);
 
 /// Sessao do Rastro Seguro da gravacao. Encerra (arrived) quando a gravacao
 /// termina, por qualquer caminho (Salvar, Descartar, notificacao).
+/// Registro local das sessoes criadas neste aparelho (banco da gravacao).
+final safetyLocalStoreProvider = Provider<SafetyLocalStore>(
+  (ref) => SafetyLocalStore(ref.watch(recordingDatabaseProvider)),
+);
+
 final safetySessionProvider = StateNotifierProvider<SafetySessionController, SafetyUiState>((ref) {
   final recording = ref.read(recordingControllerProvider.notifier);
   final c = SafetySessionController(
     api: ref.watch(safetyApiProvider),
+    local: ref.watch(safetyLocalStoreProvider),
     ticker: ref.watch(safetyTickerProvider),
     interval: ref.watch(safetyPositionIntervalProvider),
     now: ref.watch(safetyClockProvider),
     lastSample: () => recording.lastSample,
+    recentAccepted: (since) => recording.recentAccepted(sinceWallMs: since),
+    currentUserId: () => ref.read(authControllerProvider).user?.id,
     recording: () => ref.read(recordingControllerProvider),
     recordingGuid: () => recording.activityGuid,
     narrator: ref.watch(narratorProvider),
