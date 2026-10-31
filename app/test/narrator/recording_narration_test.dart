@@ -124,7 +124,7 @@ void main() {
       narrator: narrator,
       settings: () => settings,
       useMetric: () => metric,
-      skipLaps: () => guided,
+      guidedActive: () => guided,
     );
     settings = settings.copyWith(statusAnnouncements: false, essentialOnly: true);
     const lap = LapRecord(
@@ -153,6 +153,25 @@ void main() {
     ]));
     expect(voice.spoken, hasLength(1));
     expect(voice.spoken.single, startsWith('Volta dois'));
+  });
+
+  test('sessao guiada do plano 5 km: o Narrador geral fala sem ritmo (como no Modo Gentil)', () async {
+    var guided = true;
+    bridge = RecordingNarration(
+      narrator: narrator,
+      settings: () => settings,
+      useMetric: () => metric,
+      guidedActive: () => guided,
+    );
+    await feed(ui());
+    await feed(ui(distance: 1003, timerMs: 332000, km: [332000]));
+    final split = voice.spoken.last;
+    expect(split, startsWith('Um quilômetro.'));
+    expect(split.toLowerCase(), isNot(contains('pace')));
+    // Fim do plano: o ritmo volta.
+    guided = false;
+    await feed(ui(distance: 2003, timerMs: 664000, km: [332000, 332000]));
+    expect(voice.spoken.last.toLowerCase(), contains('pace'));
   });
 
   test('pedal diz iniciado', () async {

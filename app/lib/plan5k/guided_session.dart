@@ -1,7 +1,8 @@
 // Sessao guiada do plano 5 km (F06) durante a gravacao. A sessao conta como
 // concluida ao chegar no desaquecimento (ver statusFor). Costura o motor de
 // blocos (dominio puro) com a gravacao (voltas, notificacao), a voz (mesma
-// fila do Narrador), a vibracao e o banco.
+// fila do Narrador: troca de bloco critica, avisos altos), a vibracao e o
+// banco.
 //
 // Tempo do plano: relogio proprio ([PlanClock]) observado a cada tick (1 s) e
 // a cada estado da gravacao, com a regra de pausa da gravacao. NAO usa o
@@ -367,8 +368,13 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
     }
   }
 
-  /// Prioridade da fala do plano na fila do Narrador.
-  static AnnouncementPriority priorityOf(GuidedStep step) => AnnouncementPriority.high;
+  /// Prioridade da fala do plano na fila do Narrador. Troca de bloco e
+  /// critica: interrompe a fala do Narrador geral que estiver tocando e sai
+  /// antes de qualquer fala normal pendente. O inicio e a retomada (sem
+  /// troca) e os avisos (10 s, metade) sao altos: nao cortam o "Corrida
+  /// iniciada." do Narrador.
+  static AnnouncementPriority priorityOf(GuidedStep step) =>
+      step.blockChanged ? AnnouncementPriority.critical : AnnouncementPriority.high;
 
   static String _noticeText(GuidedView v) {
     final b = v.block;

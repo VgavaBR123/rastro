@@ -14,6 +14,8 @@ import 'package:strava_estudo_app/auth/session_store.dart';
 import 'package:strava_estudo_app/narrator/domain/narrator_settings.dart';
 import 'package:strava_estudo_app/narrator/narrator_providers.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
+import 'package:strava_estudo_app/narrator/domain/announcement.dart';
+import 'package:strava_estudo_app/plan5k/domain/guided_engine.dart';
 import 'package:strava_estudo_app/plan5k/domain/plan_progress.dart';
 import 'package:strava_estudo_app/plan5k/domain/plan_table.dart';
 import 'package:strava_estudo_app/plan5k/guided_session.dart';
@@ -534,5 +536,44 @@ void main() {
     expect(lap, greaterThan(0));
     expect(writes[lap - 1], 'progresso ${30 * s}');
     await container.read(recordingControllerProvider.notifier).stop();
+  });
+
+  test('troca de bloco interrompe a fala normal do Narrador geral e sai antes dela', () async {
+    container.dispose();
+    voice = FakeVoiceAnnouncer(autoComplete: false);
+    container = build();
+    await startGuided();
+    voice.finishCurrent(); // termina o "Aquecimento..."
+    await settle();
+    final narrator = container.read(narratorProvider);
+    narrator.say('Fala longa do narrador geral.');
+    narrator.say('Outra fala normal pendente.');
+    await settle();
+    expect(voice.spoken.last, 'Fala longa do narrador geral.');
+    final stopsBefore = voice.stops;
+    await tickFor(30); // troca para Correr
+    expect(voice.stops, stopsBefore + 1);
+    // A troca toca antes da fala normal pendente.
+    expect(voice.spoken.last, 'Corra por 30 segundos.');
+    voice.finishCurrent();
+    await settle();
+    expect(voice.spoken.last, 'Outra fala normal pendente.');
+    voice.finishCurrent();
+    await container.read(recordingControllerProvider.notifier).stop();
+  });
+
+  test('avisos do plano (10 s, metade) usam prioridade alta, trocas critica', () {
+    expect(
+      GuidedSessionController.priorityOf(const GuidedStep(0, [TenSecondsLeft(PlanBlock(BlockKind.run, 1))])),
+      AnnouncementPriority.high,
+    );
+    expect(
+      GuidedSessionController.priorityOf(const GuidedStep(0, [Halfway()])),
+      AnnouncementPriority.high,
+    );
+    expect(
+      GuidedSessionController.priorityOf(const GuidedStep(1, [SessionCompleted()])),
+      AnnouncementPriority.critical,
+    );
   });
 }

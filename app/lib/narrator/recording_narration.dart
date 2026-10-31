@@ -20,10 +20,11 @@ class RecordingNarration {
   /// Modo Gentil (F04): lido a cada estado, como as preferencias.
   final bool Function() _gentle;
 
-  /// Plano 5 km (F06): durante a sessao guiada as voltas sao fechadas pelo
-  /// plano a cada troca de bloco; o Narrador nao as anuncia (a voz do plano
-  /// ja fala a troca, e a fala da volta traria o pace).
-  final bool Function() _skipLaps;
+  /// Plano 5 km (F06): sessao guiada ativa. As voltas sao fechadas pelo plano
+  /// a cada troca de bloco e o Narrador nao as anuncia (a voz do plano ja fala
+  /// a troca); as outras falas (split, tempo) saem como no Modo Gentil, sem
+  /// ritmo, porque o plano e por tempo.
+  final bool Function() _guidedActive;
   final NarrationComposer _composer;
   final NarrationEventDetector _detector = NarrationEventDetector();
 
@@ -38,13 +39,13 @@ class RecordingNarration {
     required NarratorSettings Function() settings,
     required bool Function() useMetric,
     bool Function()? gentle,
-    bool Function()? skipLaps,
+    bool Function()? guidedActive,
     NarrationComposer composer = const NarrationComposer(),
   }) : _narrator = narrator,
        _settings = settings,
        _useMetric = useMetric,
        _gentle = gentle ?? _never,
-       _skipLaps = skipLaps ?? _never,
+       _guidedActive = guidedActive ?? _never,
        _composer = composer;
 
   /// Novo estado da gravacao. Com o Narrador desligado o detector continua
@@ -78,10 +79,10 @@ class RecordingNarration {
     final suppressFinish = _suppressFinish;
     if (!s.isActive) _suppressFinish = false;
     if (!prefs.enabled) return;
-    final gentle = _gentle();
-    final skipLaps = _skipLaps();
+    final guided = _guidedActive();
+    final gentle = _gentle() || guided;
     for (final e in events) {
-      if (e is LapClosed && skipLaps) continue;
+      if (e is LapClosed && guided) continue;
       if (e is ManuallyPaused && silencePause) continue;
       if (e is RecordingFinished && suppressFinish) continue;
       final a = _composer.compose(e, prefs, gentle: gentle);

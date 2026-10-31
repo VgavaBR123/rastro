@@ -51,7 +51,7 @@ final recordingNarrationProvider = Provider<RecordingNarration>((ref) {
     // Modo Gentil (F04): sem pace nem velocidade nas falas.
     gentle: () => ref.read(settingsProvider).gentleMode,
     // Plano 5 km (F06): as voltas dos blocos sao do plano, nao da pessoa.
-    skipLaps: () => ref.read(guidedSessionProvider.notifier).isRunning,
+    guidedActive: () => ref.read(guidedSessionProvider.notifier).isRunning,
   );
   ref.listen<RecordingUiState>(
     recordingControllerProvider,
