@@ -111,3 +111,78 @@ conta paga da Apple.
 
 `SAFETY_TICK_MS`, `SAFETY_SILENCE_MS`, `SAFETY_STOP_MS`, `SAFETY_CHECK_MS`, `PUBLIC_BASE_URL`,
 `FIREBASE_SERVICE_ACCOUNT`. Os testes e o E2E usam tempos curtos (ex.: tick 1 s, silencio 20 s, checagem 15 s).
+
+## Decisoes do backend
+
+Lacunas do contrato resolvidas na implementacao (sempre do jeito mais conservador). O app pode contar com elas.
+
+**Contatos**
+- O convite e por sentido: A convidar B e B convidar A sao duas relacoes diferentes (cada uma e a lista de
+  contatos de confianca de quem convidou). 409 so para convite repetido no mesmo sentido.
+- O limite de 3 aceitos tambem vale no aceite: `accept` responde 409 se a dona ja tem 3 aceitos.
+- `accept` de um contato ja aceito responde 200 com o contato e nao notifica de novo.
+- Convites por conta: no maximo 20 por hora (com sucesso ou nao) -> 429 `muitas tentativas`. Barra o uso do
+  404 `sem conta no Rastro` para descobrir quais emails tem conta.
+- Excluir a conta (`DELETE /me`) apaga contatos (dos dois lados), sessoes, caixa de entrada e tokens de push, e
+  tira a pessoa das sessoes ativas de quem a tinha como contato.
+
+**Sessoes**
+- `contactIds` repetidos viram um so. Os contatos precisam ser `outgoing` aceitos da dona.
+- `activityGuid` e obrigatorio (texto nao vazio, ate 200 caracteres).
+- `positions`, `ok`, `extend` e `sos` em sessao encerrada: 409 `sessao encerrada`. `arrived` em sessao
+  encerrada e idempotente: 200 com a sessao sem mudar nada.
+- `positions`: `lat`/`lon` precisam vir os dois numeros (na faixa) ou os dois null; `accuracyM` >= 0 ou null;
+  `recordedAtMs` inteiro ou null (padrao: agora); `moving`/`paused` booleanos ou ausentes. Uma posicao com
+  `recordedAtMs` mais antigo que a atual (fila offline) conta como sinal de vida mas nao troca `lastPosition`.
+- Posicoes durante a checagem NAO resolvem a checagem; so `ok`, `extend` ou `arrived`.
+- `ok`, `extend` e `sos` contam como sinal de vida (atualizam `lastSignalAt`). `ok` e `extend` tambem reiniciam
+  a janela de parada.
+- Depois de um alerta, `ok`/`extend` voltam a `active` com `alertedAt: null` (e `check: null`).
+- `arrived` depois do alerta tambem manda `safety_all_clear` aos contatos ("confirmou que chegou bem").
+- `ok` com o horario ja vencido: a regra do horario so pergunta de novo depois de `SAFETY_SILENCE_MS`
+  (senao perguntaria no tick seguinte). Para adiar de verdade, o app usa `extend`.
+- SOS nao muda o `status` nem a checagem em curso; cada chamada manda um `safety_sos`. O `data` do SOS traz
+  tambem `lat` e `lon` da ultima posicao (quando houver).
+- Se todos os contatos sairem no meio da sessao, ela continua; o alerta nao tem para quem ir (so a dona recebe
+  o `safety_check`).
+
+**Vigia**
+- Ordem das regras quando mais de uma vale: silencio, parada, horario. Parada usa `>=` (10 min de amostras
+  paradas completos); silencio usa `>` como no contrato.
+- Janela de parada: conta do instante (relogio do servidor) da primeira amostra com `moving: false` e
+  `paused: false` depois de uma amostra em movimento ou pausada. Pode disparar ate um intervalo de envio
+  (60 s) depois do minimo teorico. Amostra sem `moving`/`paused` nao mexe na janela.
+- Nao ha historico de posicoes: o banco guarda so a ultima posicao e o inicio da parada.
+- Fim automatico em `etaMs + 6 h`: a sessao fica `ended` sem notificacao; o link continua valendo ate a
+  limpeza (se ela nao respondeu, os contatos ainda precisam dele).
+- Limpeza: a sessao inteira (posicao e link) e apagada quando `agora > endedAt + 24 h`. As notificacoes ficam
+  na caixa de entrada (o link delas deixa de funcionar).
+- A trava contra corrida entre o vigia e as rotas e por processo: vale para uma instancia so do servidor.
+
+**Link publico**
+- Situacao no JSON (`state`): `active` (inclusive durante a checagem: os contatos so sao avisados no alerta),
+  `no_response` (alertada; `sinceMs` = inicio da checagem), `arrived` (`sinceMs` = chegada) e `ended` (fim
+  automatico sem alerta).
+- Campos do JSON: `firstName`, `state`, `sinceMs`, `etaMs`, `lastPosition`, `lastPositionAgeMs`,
+  `lastSignalAt`, `mapUrl`, `generatedAt`.
+- Horarios no HTML saem em UTC dentro de `<time datetime>`; um script inline troca pela hora local de quem abre.
+  Sem script, aparece "07:42 UTC".
+- Cabecalhos: `Cache-Control: no-store`, `X-Robots-Tag: noindex, nofollow`, `Referrer-Policy: no-referrer`
+  (o token nao vaza para o OpenStreetMap), CSP sem nada externo, `X-Frame-Options: DENY`.
+- O token fica em claro no banco (precisa voltar no `shareUrl`). O log de requisicoes troca o token do link e
+  o de push por `<token>`.
+
+**Notificacoes e push**
+- `GET /notifications?since=<ms>` devolve as de `createdAt > since`; `since` invalido = 400.
+- `POST /notifications/<id>/read` de notificacao alheia ou inexistente = 404.
+- `POST /push/tokens` de um token ja registrado por outra conta passa o token para a conta atual (aparelho
+  trocou de conta). Token: texto nao vazio de ate 4096 caracteres.
+- `DELETE /push/tokens/<token>` (token codificado na URL) responde 204 sempre, mas so apaga se o token for da
+  conta autenticada.
+- FCM: `data` vai com todos os valores em texto (numeros viram texto, objetos viram JSON), mais `type` e
+  `notificationId`; `android.priority: high`. Token removido em 404 ou `errorCode: UNREGISTERED`; 400 de
+  payload, 401 e 5xx contam como falha passageira (o token fica). Falha de push nunca derruba a operacao.
+
+**Variavel extra**
+- `SAFETY_ETA_MIN_MS` (padrao 300000 = 5 min): o minimo de `etaMs - agora` na criacao da sessao. Existe para o
+  E2E testar a regra do horario sem esperar 5 min. Em producao, nao definir.

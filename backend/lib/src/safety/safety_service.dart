@@ -401,8 +401,11 @@ class SafetyService {
     }
     final int etaMs = eta.toInt();
     if (etaMs < agora + config.etaMinMs || etaMs > agora + config.etaMaxMs) {
-      throw const SafetyError(
-          400, 'etaMs precisa estar entre agora + 5 min e agora + 12 h');
+      throw SafetyError(
+          400,
+          'etaMs precisa estar entre agora + '
+          '${(config.etaMinMs / 60000).ceil()} min e agora + '
+          '${config.etaMaxMs ~/ 3600000} h');
     }
     final Object? ids = body['contactIds'];
     if (ids is! List || ids.isEmpty || ids.any((x) => x is! String)) {

@@ -281,3 +281,12 @@ Response paginaPublicaHtml(PublicSessionView? v) {
           atualizar: true),
       headers: cab);
 }
+
+final RegExp _caminhoLink = RegExp(r'/s/[^\s?/]+');
+final RegExp _caminhoTokenPush = RegExp(r'/push/tokens/[^\s?/]+');
+
+/// Para o log de requisicoes: o token do link publico e o token de push sao
+/// segredos e nao vao para o log.
+String ocultarSegredosDoCaminho(String linha) => linha
+    .replaceAll(_caminhoLink, '/s/<token>')
+    .replaceAll(_caminhoTokenPush, '/push/tokens/<token>');
