@@ -38,6 +38,7 @@ import '../recording/source/heartbeat_ticker.dart';
 import '../recording/source/location_source.dart';
 import '../recording/source/monotonic_clock.dart';
 import '../settings/app_settings.dart';
+import '../safety/safety_providers.dart';
 import '../settings/settings_controller.dart';
 
 final recordingDatabaseProvider = Provider<RecordingDatabase>((ref) {
@@ -130,7 +131,8 @@ final reliabilityProbeProvider = Provider<ReliabilityProbe>((ref) {
       : const PlatformReliabilityProbe();
 });
 
-final recordingControllerProvider =
+final StateNotifierProvider<RecordingController, RecordingUiState>
+recordingControllerProvider =
     StateNotifierProvider<RecordingController, RecordingUiState>((ref) {
       return RecordingController(
         source: ref.watch(locationSourceProvider),
@@ -149,7 +151,7 @@ final recordingControllerProvider =
 final settingsProvider = StateNotifierProvider<SettingsController, AppSettings>(
   (ref) {
     return SettingsController(ref.watch(recordingDatabaseProvider))
-    ..ensureLoaded();
+      ..ensureLoaded();
   },
 );
 
@@ -184,17 +186,24 @@ final authApiProvider = Provider<AuthApi>((ref) {
   return AuthApi(ref.watch(dioProvider), kSyncBaseUrl);
 });
 
-final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
-  (ref) {
-    return AuthController(
-      ref.watch(authApiProvider),
-      ref.watch(sessionStoreProvider),
-      // Entrou: o que ficou pendente enquanto estava deslogado pode subir.
-      onSignedIn: () =>
-          ref.read(backgroundSyncSchedulerProvider).scheduleSoon(),
-    )..load();
-  },
-);
+final StateNotifierProvider<AuthController, AuthState> authControllerProvider =
+    StateNotifierProvider<AuthController, AuthState>((ref) {
+      return AuthController(
+        ref.watch(authApiProvider),
+        ref.watch(sessionStoreProvider),
+        // Entrou: o que ficou pendente enquanto estava deslogado pode subir.
+        onSignedIn: () =>
+            ref.read(backgroundSyncSchedulerProvider).scheduleSoon(),
+        // Rastro Seguro (F08): encerra a sessao (arrived) e tira o aparelho do
+        // push antes de apagar o token.
+        beforeSignOut: () async {
+          await ref.read(safetySessionProvider.notifier).beforeSignOut();
+          await ref
+              .read(pushRegistrarProvider)
+              .onSignedOut(ref.read(safetyApiProvider));
+        },
+      )..load();
+    });
 
 /// Perfil com os totais do servidor. Exige sessao e rede.
 final profileProvider = FutureProvider.autoDispose<Profile>((ref) async {

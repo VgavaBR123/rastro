@@ -34,7 +34,11 @@ class AuthController extends StateNotifier<AuthState> {
   /// Chamado depois de entrar na conta (ex.: agendar o sync dos pendentes).
   final void Function()? onSignedIn;
 
-  AuthController(this._api, this._store, {this.onSignedIn})
+  /// Antes de sair da conta, com o token ainda guardado: tirar o aparelho do
+  /// push e encerrar o Rastro Seguro (F08). Falha ou demora nao impedem sair.
+  final Future<void> Function()? beforeSignOut;
+
+  AuthController(this._api, this._store, {this.onSignedIn, this.beforeSignOut})
     : super(const AuthState());
 
   Future<void> load() async {
@@ -90,7 +94,18 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> _runBeforeSignOut() async {
+    final hook = beforeSignOut;
+    if (hook == null) return;
+    try {
+      await hook().timeout(const Duration(seconds: 10));
+    } on Object {
+      // Sem rede ou demorou: o que nao saiu fica pendente para o proximo login.
+    }
+  }
+
   Future<void> logout() async {
+    await _runBeforeSignOut();
     final session = await _store.read();
     if (session != null) {
       try {
@@ -138,6 +153,7 @@ class AuthController extends StateNotifier<AuthState> {
   /// Sem rede: mostra o erro e continua logado (os outros aparelhos nao
   /// foram desconectados, entao fingir sucesso seria enganoso).
   Future<bool> logoutAll() => _protected((token) async {
+    await _runBeforeSignOut();
     await _api.logoutAll(token);
     await _signOutLocally();
   });
@@ -145,6 +161,7 @@ class AuthController extends StateNotifier<AuthState> {
   /// Apaga a conta (e as atividades dela no SERVIDOR) e sai. As atividades
   /// gravadas no aparelho continuam. 403 (senha errada): erro, segue logado.
   Future<bool> deleteAccount(String password) => _protected((token) async {
+    await _runBeforeSignOut();
     await _api.deleteAccount(token, password);
     await _signOutLocally();
   });

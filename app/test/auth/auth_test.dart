@@ -284,6 +284,32 @@ void main() {
       expect(await store.read(), isNull);
     });
 
+    test('antes de sair, o gancho roda com o token ainda guardado (push e Rastro Seguro)', () async {
+      final store = InMemorySessionStore(session());
+      final seen = <String?>[];
+      final c = AuthController(
+        apiWith(RouteAdapter({'POST /auth/logout': (204, null), 'POST /auth/logout-all': (204, null)})),
+        store,
+        beforeSignOut: () async => seen.add((await store.read())?.token),
+      );
+      await c.logout();
+      expect(seen, ['tok-1']);
+      await store.write(session());
+      await c.logoutAll();
+      expect(seen, ['tok-1', 'tok-1']);
+    });
+
+    test('gancho que falha nao impede sair', () async {
+      final store = InMemorySessionStore(session());
+      final c = AuthController(
+        apiWith(RouteAdapter({'POST /auth/logout': (204, null)})),
+        store,
+        beforeSignOut: () async => throw StateError('x'),
+      );
+      await c.logout();
+      expect(await store.read(), isNull);
+    });
+
     test('editar nome atualiza estado e sessao', () async {
       final store = InMemorySessionStore(session());
       final c = AuthController(

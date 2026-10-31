@@ -10,6 +10,8 @@
 // depende do plugin: os testes usam banco em memoria e uploader falso.
 library;
 
+import 'dart:io' show Platform;
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
@@ -18,6 +20,9 @@ import 'package:strava_estudo_app/app/providers.dart' show kSyncBaseUrl;
 import 'package:strava_estudo_app/auth/auth_models.dart';
 import 'package:strava_estudo_app/auth/session_store.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
+import 'package:strava_estudo_app/safety/safety_alerts.dart';
+import 'package:strava_estudo_app/safety/safety_api.dart';
+import 'package:strava_estudo_app/safety/safety_local_store.dart';
 import 'package:strava_estudo_app/sync/upload/activity_uploader.dart';
 import 'package:strava_estudo_app/sync/upload/dio_activity_uploader.dart';
 import 'package:strava_estudo_app/sync/upload/sync_service.dart';
@@ -68,6 +73,7 @@ Future<bool> performBackgroundSync({
   Future<AuthSession?> Function()? readSession,
   RecordingDatabase Function()? openDatabase,
   ActivityUploader Function(String baseUrl, String token)? createUploader,
+  Future<bool> Function(AuthSession session, RecordingDatabase db)? runSafety,
 }) async {
   if (!isSyncBackendConfigured(baseUrl)) return true;
 
@@ -81,8 +87,20 @@ Future<bool> performBackgroundSync({
     final ActivityUploader uploader = createUploader != null
         ? createUploader(baseUrl, token)
         : DioActivityUploader(Dio(), baseUrl, token: () async => token);
-    return await runBackgroundSync(db, SyncService(db, uploader),
+    final bool synced = await runBackgroundSync(db, SyncService(db, uploader),
         userId: session.user.id);
+    // Rastro Seguro (F08): "arrived" pendente e alertas novos viram
+    // notificacao local com o app fechado. Falha aqui nao reagenda o upload:
+    // a rodada periodica (~15 min) tenta de novo.
+    final safety = runSafety ?? (_underFlutterTest ? null : (s, d) => _safetyRound(baseUrl, s, d));
+    if (safety != null) {
+      try {
+        await safety(session, db);
+      } on Object catch (e) {
+        debugPrint('[background-sync] Rastro Seguro falhou: $e');
+      }
+    }
+    return synced;
   } on Object catch (e) {
     debugPrint('[background-sync] falha ao preparar o sync: $e');
     return false;
@@ -94,6 +112,15 @@ Future<bool> performBackgroundSync({
     }
   }
 }
+
+final bool _underFlutterTest = Platform.environment.containsKey('FLUTTER_TEST');
+
+Future<bool> _safetyRound(String baseUrl, AuthSession session, RecordingDatabase db) => runSafetyBackground(
+  api: SafetyApi(Dio(), baseUrl, token: () async => session.token),
+  store: SafetyLocalStore(db),
+  notifier: FlutterSafetyLocalNotifier(),
+  ownerUserId: session.user.id,
+);
 
 /// Ponto de entrada chamado pelo sistema no isolate de fundo. Precisa ser
 /// top-level e marcado como entry point para nao ser removido pelo tree

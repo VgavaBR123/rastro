@@ -47,7 +47,6 @@ class _InboxPollerState extends ConsumerState<InboxPoller> {
 
   void _onAuth(bool signedIn) {
     if (_signedIn == signedIn) return;
-    final was = _signedIn;
     _signedIn = signedIn;
     final api = ref.read(safetyApiProvider);
     if (signedIn) {
@@ -65,10 +64,9 @@ class _InboxPollerState extends ConsumerState<InboxPoller> {
     } else {
       _tick?.cancel();
       _tick = null;
+      // O token de push sai ANTES do logout (gancho do AuthController).
       ref.read(inboxProvider.notifier).reset();
-      if (was == true) {
-        unawaited(ref.read(pushRegistrarProvider).onSignedOut(api).catchError((Object _) {}));
-      }
+      ref.read(safetyAlertQueueProvider.notifier).clear();
     }
   }
 

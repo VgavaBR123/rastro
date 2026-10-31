@@ -195,4 +195,37 @@ void main() {
       expect(ok, isFalse);
     });
   });
+
+  group('Rastro Seguro no sync de fundo', () {
+    test('logado: roda a rodada do Rastro Seguro com a sessao e o banco', () async {
+      final db = TrackingDatabase();
+      final calls = <String>[];
+      final ok = await performBackgroundSync(
+        baseUrl: 'http://localhost:8081',
+        readSession: () async => fakeSession('tok'),
+        openDatabase: () => db,
+        createUploader: (_, _) => FakeUploader(),
+        runSafety: (session, database) async {
+          calls.add(session.token);
+          expect(identical(database, db), isTrue);
+          return false;
+        },
+      );
+      expect(calls, ['tok']);
+      // Falha do Rastro Seguro nao reagenda o upload (roda de novo no proximo ciclo).
+      expect(ok, isTrue);
+      expect(db.closed, isTrue);
+    });
+
+    test('deslogado: nao roda', () async {
+      var called = false;
+      await performBackgroundSync(
+        baseUrl: 'http://localhost:8081',
+        readSession: () async => null,
+        openDatabase: TrackingDatabase.new,
+        runSafety: (_, _) async => called = true,
+      );
+      expect(called, isFalse);
+    });
+  });
 }

@@ -87,25 +87,26 @@ final safetyLocalStoreProvider = Provider<SafetyLocalStore>(
   (ref) => SafetyLocalStore(ref.watch(recordingDatabaseProvider)),
 );
 
-final safetySessionProvider = StateNotifierProvider<SafetySessionController, SafetyUiState>((ref) {
-  final recording = ref.read(recordingControllerProvider.notifier);
-  final c = SafetySessionController(
-    api: ref.watch(safetyApiProvider),
-    local: ref.watch(safetyLocalStoreProvider),
-    ticker: ref.watch(safetyTickerProvider),
-    interval: ref.watch(safetyPositionIntervalProvider),
-    now: ref.watch(safetyClockProvider),
-    lastSample: () => recording.lastSample,
-    recentAccepted: (since) => recording.recentAccepted(sinceWallMs: since),
-    currentUserId: () => ref.read(authControllerProvider).user?.id,
-    recording: () => ref.read(recordingControllerProvider),
-    recordingGuid: () => recording.activityGuid,
-    narrator: ref.watch(narratorProvider),
-    haptics: ref.watch(safetyHapticsProvider),
-  );
-  ref.listen<RecordingUiState>(recordingControllerProvider, (_, next) => c.onRecording(next));
-  return c;
-});
+final StateNotifierProvider<SafetySessionController, SafetyUiState> safetySessionProvider =
+    StateNotifierProvider<SafetySessionController, SafetyUiState>((ref) {
+      final recording = ref.read(recordingControllerProvider.notifier);
+      final c = SafetySessionController(
+        api: ref.watch(safetyApiProvider),
+        local: ref.watch(safetyLocalStoreProvider),
+        ticker: ref.watch(safetyTickerProvider),
+        interval: ref.watch(safetyPositionIntervalProvider),
+        now: ref.watch(safetyClockProvider),
+        lastSample: () => recording.lastSample,
+        recentAccepted: (since) => recording.recentAccepted(sinceWallMs: since),
+        currentUserId: () => ref.read(authControllerProvider).user?.id,
+        recording: () => ref.read(recordingControllerProvider),
+        recordingGuid: () => recording.activityGuid,
+        narrator: ref.watch(narratorProvider),
+        haptics: ref.watch(safetyHapticsProvider),
+      );
+      ref.listen<RecordingUiState>(recordingControllerProvider, (_, next) => c.onRecording(next));
+      return c;
+    });
 
 final contactsProvider = StateNotifierProvider<ContactsController, ContactsState>(
   (ref) => ContactsController(ref.watch(safetyApiProvider)),
@@ -148,13 +149,15 @@ void _onAlert(Ref ref, AppNotification n) {
   final age = ref.read(safetyClockProvider)() - n.createdAt;
   if (age > kSafetyAlertPopupMaxAgeMs) return;
   if (!ref.read(safetyAlertQueueProvider.notifier).add(n)) return;
-  ref.read(narratorProvider).enqueue(
-    Announcement(
-      'Alerta do Rastro Seguro. ${alertTitle(n)}.',
-      priority: AnnouncementPriority.critical,
-      key: 'safety_alert',
-      maxAgeMs: 120000,
-    ),
-  );
+  ref
+      .read(narratorProvider)
+      .enqueue(
+        Announcement(
+          'Alerta do Rastro Seguro. ${alertTitle(n)}.',
+          priority: AnnouncementPriority.critical,
+          key: 'safety_alert',
+          maxAgeMs: 120000,
+        ),
+      );
   ref.read(safetyHapticsProvider).alert().catchError((Object _) {});
 }
