@@ -31,18 +31,20 @@ class HistoryScreen extends ConsumerWidget {
     // Mostra o resultado da sincronizacao e atualiza as listas.
     ref.listen(syncControllerProvider, (prev, next) {
       final msg = next.message;
-      if (msg != null && msg != prev?.message) {
+      if (msg != null && next.messageSeq != prev?.messageSeq) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            content: Text(msg),
-            action: msg == kSignInToSyncMessage
-                ? SnackBarAction(
-                    label: 'Entrar',
-                    onPressed: () => context.push(AppRoutes.auth),
-                  )
-                : null,
-          ));
+          ..showSnackBar(
+            SnackBar(
+              content: Text(msg),
+              action: msg == kSignInToSyncMessage
+                  ? SnackBarAction(
+                      label: 'Entrar',
+                      onPressed: () => context.push(AppRoutes.auth),
+                    )
+                  : null,
+            ),
+          );
         ref.invalidate(recentActivitiesProvider);
         ref.invalidate(pendingCountProvider);
       }
@@ -60,11 +62,16 @@ class HistoryScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('Historico', style: AppText.screenTitle.copyWith(color: c.text)),
+                    child: Text(
+                      'Historico',
+                      style: AppText.screenTitle.copyWith(color: c.text),
+                    ),
                   ),
                   IconButton(
                     key: const Key('sync'),
-                    tooltip: pending > 0 ? 'Sincronizar ($pending)' : 'Sincronizar',
+                    tooltip: pending > 0
+                        ? 'Sincronizar ($pending)'
+                        : 'Sincronizar',
                     icon: sync.running
                         ? const SizedBox(
                             width: 20,
@@ -76,11 +83,16 @@ class HistoryScreen extends ConsumerWidget {
                             backgroundColor: c.pace.fill,
                             textColor: c.onFill,
                             label: Text('$pending'),
-                            child: Icon(Icons.cloud_upload_rounded, color: c.pace.fg),
+                            child: Icon(
+                              Icons.cloud_upload_rounded,
+                              color: c.pace.fg,
+                            ),
                           ),
                     onPressed: sync.running
                         ? null
-                        : () => ref.read(syncControllerProvider.notifier).syncNow(),
+                        : () => ref
+                              .read(syncControllerProvider.notifier)
+                              .syncNow(),
                   ),
                 ],
               ),
@@ -89,7 +101,10 @@ class HistoryScreen extends ConsumerWidget {
               child: async.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(
-                  child: Text('Erro: $e', style: AppText.body.copyWith(color: c.danger)),
+                  child: Text(
+                    'Erro: $e',
+                    style: AppText.body.copyWith(color: c.danger),
+                  ),
                 ),
                 data: (list) {
                   if (list.isEmpty) {
@@ -134,10 +149,12 @@ class _ActivityTile extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Excluir atividade?'),
-        content: Text(activity.remoteId != null
-            ? 'Ela tambem sera apagada do servidor. '
-                'Esta acao nao pode ser desfeita.'
-            : 'Esta acao nao pode ser desfeita.'),
+        content: Text(
+          activity.remoteId != null
+              ? 'Ela tambem sera apagada do servidor. '
+                    'Esta acao nao pode ser desfeita.'
+              : 'Esta acao nao pode ser desfeita.',
+        ),
         actions: [
           TextButton(
             key: const Key('cancel-delete'),
@@ -146,7 +163,9 @@ class _ActivityTile extends ConsumerWidget {
           ),
           TextButton(
             key: const Key('confirm-delete'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.of(dialogContext).danger),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.of(dialogContext).danger,
+            ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Excluir'),
           ),
@@ -180,7 +199,10 @@ class _ActivityTile extends ConsumerWidget {
       trailing: PopupMenuButton<String>(
         key: Key('menu-${activity.guid}'),
         tooltip: 'Acoes da atividade',
-        icon: Icon(Icons.more_horiz_rounded, color: AppColors.of(context).textMuted),
+        icon: Icon(
+          Icons.more_horiz_rounded,
+          color: AppColors.of(context).textMuted,
+        ),
         onSelected: (value) {
           if (value == 'share') shareActivity(context, activity);
           if (value == 'delete') _confirmAndDelete(context, ref);

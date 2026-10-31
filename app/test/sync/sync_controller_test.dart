@@ -55,6 +55,17 @@ void main() {
     expect(c.state.message, 'Nada para sincronizar');
   });
 
+  test('HIS-01: cada toque gera um resultado novo, mesmo com o texto igual',
+      () async {
+    final c = SyncController(SyncService(db, FakeUploader()), db,
+        currentUserId: () async => null);
+    await c.syncNow();
+    final first = c.state.messageSeq;
+    await c.syncNow();
+    expect(c.state.message, kSignInToSyncMessage);
+    expect(c.state.messageSeq, first + 1);
+  });
+
   test('sucesso: mensagem de sincronizadas e estado synced', () async {
     await seedPending(repo, 'a');
     final c = SyncController(SyncService(db, FakeUploader()), db,

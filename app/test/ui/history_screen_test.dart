@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/app/providers.dart';
+import 'package:strava_estudo_app/auth/session_store.dart';
 import 'package:strava_estudo_app/persistence/database.dart';
 import 'package:strava_estudo_app/persistence/recording_repository.dart';
 import 'package:strava_estudo_app/platform/activity_sharer.dart';
@@ -75,6 +76,32 @@ void main() {
       expect(find.byKey(const Key('menu-a')), findsOneWidget);
     });
   }
+
+  testWidgets('HIS-01: sem conta, cada toque em Sincronizar mostra o aviso',
+      (tester) async {
+    final db = await seededDb();
+    addTearDown(db.close);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        recordingDatabaseProvider.overrideWithValue(db),
+        sessionStoreProvider.overrideWithValue(InMemorySessionStore()),
+      ],
+      child: MaterialApp(theme: AppTheme.dark, home: const HistoryScreen()),
+    ));
+    await tester.pumpAndSettle();
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const Key('sync')));
+      await tester.pumpAndSettle();
+      expect(find.text('Entre na sua conta para sincronizar'), findsOneWidget,
+          reason: 'toque ${i + 1}');
+      // O aviso some (troca de aba, tempo) antes do proximo toque.
+      ScaffoldMessenger.of(tester.element(find.byType(HistoryScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+      expect(find.text('Entre na sua conta para sincronizar'), findsNothing);
+    }
+  });
 
   testWidgets('Confirmar no dialogo exclui a atividade da lista', (tester) async {
     final db = await seededDb();

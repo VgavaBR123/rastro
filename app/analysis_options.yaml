@@ -14,6 +14,8 @@ analyzer:
     - build/**
     - android/**
     - ios/**
+    # Copia local de pacote de terceiro, mantida como veio (ver RASTRO.md).
+    - packages/**
 
 linter:
   # The lint rules applied to this project can be customized in the

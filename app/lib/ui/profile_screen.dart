@@ -68,6 +68,7 @@ class ProfileScreen extends ConsumerWidget {
         // Pagina curta e heterogenea: coluna inteira montada (sem lista
         // preguicosa), para o topo continuar na arvore ao rolar ate o fim.
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           key: const Key('profile_list'),
           padding: EdgeInsets.fromLTRB(
             AppShape.gutter,

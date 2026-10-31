@@ -77,6 +77,10 @@ final List<NavTab> kNavTabs = [
 /// SF Symbol do botao de acao (Gravar) na barra nativa.
 const String kNavRecordSymbol = 'record.circle';
 
+/// Rotulo de acessibilidade do botao de gravar, igual nas duas barras (INI-02:
+/// na nativa o VoiceOver anunciava "Buscar", o item de sistema por baixo).
+const String kNavRecordLabel = 'Gravar atividade';
+
 class AppNavBar extends StatefulWidget {
   /// Aba ativa (0 a 3), ou null quando a tela atual e Gravar.
   final int? currentIndex;
@@ -178,6 +182,7 @@ class _AppNavBarState extends State<AppNavBar> {
         tintColor: c.primary,
         actionButton: TabBarActionButton(
           symbol: kNavRecordSymbol,
+          label: kNavRecordLabel,
           onTap: widget.onRecord,
         ),
         tabs: [
@@ -352,7 +357,7 @@ class _RecordButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: active,
-      label: 'Gravar',
+      label: kNavRecordLabel,
       excludeSemantics: true,
       child: SizedBox(
         width: 84,

@@ -10,6 +10,7 @@ import 'app/providers.dart' show kSyncBaseUrl;
 import 'sync/background/background_sync_provider.dart';
 import 'sync/background/background_sync_scheduler.dart';
 import 'app/router.dart';
+import 'ui/components/keyboard_dismiss.dart';
 import 'ui/theme/app_theme.dart';
 
 /// DSN do Sentry (relatorio 07: observabilidade com Sentry, open source).
@@ -22,16 +23,13 @@ Future<void> main() async {
     await _start();
     return;
   }
-  await SentryFlutter.init(
-    (options) {
-      options.dsn = kSentryDsn;
-      // Sem dados pessoais (IP, usuario) e sem rastreio de desempenho: so
-      // erros e crashes. Localizacao nunca vai em evento.
-      options.sendDefaultPii = false;
-      options.tracesSampleRate = 0;
-    },
-    appRunner: _start,
-  );
+  await SentryFlutter.init((options) {
+    options.dsn = kSentryDsn;
+    // Sem dados pessoais (IP, usuario) e sem rastreio de desempenho: so
+    // erros e crashes. Localizacao nunca vai em evento.
+    options.sendDefaultPii = false;
+    options.tracesSampleRate = 0;
+  }, appRunner: _start);
 }
 
 Future<void> _start() async {
@@ -70,6 +68,8 @@ class StravaEstudoApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.dark,
+      builder: (context, child) =>
+          KeyboardDismissOnTap(child: child ?? const SizedBox.shrink()),
     );
   }
 }

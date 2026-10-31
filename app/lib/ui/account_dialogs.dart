@@ -117,6 +117,7 @@ class _ChangePasswordDialogState extends ConsumerState<_ChangePasswordDialog> {
     return AlertDialog(
       title: const Text('Trocar senha'),
       content: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         child: Form(
           key: _form,
           child: Column(
@@ -277,6 +278,7 @@ class _DeleteAccountDialogState extends ConsumerState<_DeleteAccountDialog> {
             ?.copyWith(color: c.danger),
       ),
       content: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         child: Form(
           key: _form,
           child: Column(

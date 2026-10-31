@@ -43,16 +43,35 @@ abstract final class AppRoutes {
 
   /// Detalhe de uma atividade. O objeto pode ir em `extra` (evita reler o
   /// banco); sem ele, a tela carrega pelo guid (deep link).
-  static String activity(String guid) => '/history/${Uri.encodeComponent(guid)}';
+  static String activity(String guid) =>
+      '/history/${Uri.encodeComponent(guid)}';
 
   /// Recuperacao de senha, com o e-mail ja preenchido.
-  static String passwordReset({String email = ''}) =>
-      Uri(path: '/auth/reset', queryParameters: email.isEmpty ? null : {'email': email})
-          .toString();
+  static String passwordReset({String email = ''}) => Uri(
+    path: '/auth/reset',
+    queryParameters: email.isEmpty ? null : {'email': email},
+  ).toString();
 }
 
 /// Indice do ramo Gravar no shell (depois das quatro abas).
 const int kRecordBranch = 4;
+
+/// Pagina Material explicita para as telas que abrem por cima (INI-01).
+///
+/// O go_router 18 decide o tipo de pagina procurando o `MaterialApp` do pacote
+/// `material_ui`; o nosso vem de `package:flutter/material.dart` (outra
+/// classe), entao ele caia no `NoTransitionPage`: sem animacao e sem o gesto
+/// de voltar pela borda no iOS. As abas do shell continuam sem transicao.
+GoRouterPageBuilder _page(
+  Widget Function(BuildContext context, GoRouterState state) build,
+) =>
+    (context, state) => MaterialPage<void>(
+      key: state.pageKey,
+      name: state.name ?? state.path,
+      arguments: state.extra,
+      restorationId: state.pageKey.value,
+      child: build(context, state),
+    );
 
 GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
   // Gravando, Detalhe, Configuracoes e conta abrem por cima do shell, sem a
@@ -66,60 +85,88 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => AppShell(shell: shell),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.home, builder: (_, _) => const HomeScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.history,
-              builder: (_, _) => const HistoryScreen(),
-              routes: [
-                GoRoute(
-                  path: ':guid',
-                  parentNavigatorKey: root,
-                  builder: (_, state) {
-                    final extra = state.extra;
-                    if (extra is Activity) return ActivityDetailScreen(activity: extra);
-                    return _ActivityByGuid(state.pathParameters['guid']!);
-                  },
-                ),
-              ],
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.stats, builder: (_, _) => const StatsScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(path: AppRoutes.profile, builder: (_, _) => const ProfileScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.recordSetup,
-              builder: (_, _) => const RecordSetupScreen(),
-              routes: [
-                GoRoute(
-                  path: ':type',
-                  parentNavigatorKey: root,
-                  builder: (_, state) => RecordingScreen(
-                    activityType:
-                        ActivityType.values.byName(state.pathParameters['type']!),
-                    resumeFrom: state.extra as InterruptedActivity?,
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.home,
+                builder: (_, _) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.history,
+                builder: (_, _) => const HistoryScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':guid',
+                    parentNavigatorKey: root,
+                    pageBuilder: _page((_, state) {
+                      final extra = state.extra;
+                      if (extra is Activity)
+                        return ActivityDetailScreen(activity: extra);
+                      return _ActivityByGuid(state.pathParameters['guid']!);
+                    }),
                   ),
-                ),
-              ],
-            ),
-          ]),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.stats,
+                builder: (_, _) => const StatsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile,
+                builder: (_, _) => const ProfileScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.recordSetup,
+                builder: (_, _) => const RecordSetupScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':type',
+                    parentNavigatorKey: root,
+                    pageBuilder: _page(
+                      (_, state) => RecordingScreen(
+                        activityType: ActivityType.values.byName(
+                          state.pathParameters['type']!,
+                        ),
+                        resumeFrom: state.extra as InterruptedActivity?,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
-      GoRoute(path: AppRoutes.settings, builder: (_, _) => const SettingsScreen()),
+      GoRoute(
+        path: AppRoutes.settings,
+        pageBuilder: _page((_, _) => const SettingsScreen()),
+      ),
       GoRoute(
         path: AppRoutes.auth,
-        builder: (_, _) => const AuthScreen(),
+        pageBuilder: _page((_, _) => const AuthScreen()),
         routes: [
           GoRoute(
             path: 'reset',
-            builder: (_, state) => PasswordResetScreen(
-              initialEmail: state.uri.queryParameters['email'] ?? '',
+            pageBuilder: _page(
+              (_, state) => PasswordResetScreen(
+                initialEmail: state.uri.queryParameters['email'] ?? '',
+              ),
             ),
           ),
         ],
@@ -137,7 +184,8 @@ class AppShell extends StatelessWidget {
   // NavBarModeScope: as telas (e a margem do aviso, abaixo) usam
   // AppNavBar.reservedHeight e reconstroem quando a barra nativa do iOS entra.
   @override
-  Widget build(BuildContext context) => NavBarModeScope(child: Builder(builder: _build));
+  Widget build(BuildContext context) =>
+      NavBarModeScope(child: Builder(builder: _build));
 
   Widget _build(BuildContext context) {
     final index = shell.currentIndex;
@@ -199,10 +247,12 @@ class _ClearSnackBarsObserver extends NavigatorObserver {
   }
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _clear(route);
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _clear(route);
 
   @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _clear(route);
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _clear(route);
 }
 
 /// Grafo do app. Um por ProviderScope (testes criam o deles).
@@ -223,7 +273,9 @@ class _ActivityByGuid extends ConsumerWidget {
       future: ref.read(recordingRepositoryProvider).activity(guid),
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         final a = snap.data;
         if (a == null) {

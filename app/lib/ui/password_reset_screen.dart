@@ -91,6 +91,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     return Scaffold(
       appBar: AppBar(),
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(
           AppShape.gutter,
           0,

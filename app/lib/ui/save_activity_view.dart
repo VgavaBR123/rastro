@@ -155,6 +155,7 @@ class _SaveActivityViewState extends State<SaveActivityView> {
           ),
           Expanded(
             child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(AppShape.gutter, 4, AppShape.gutter, 16),
               children: [
                 Text('Salvar atividade', style: AppText.screenTitle.copyWith(color: c.text)),

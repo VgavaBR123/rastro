@@ -15,7 +15,12 @@ const String kSignInToSyncMessage = 'Entre na sua conta para sincronizar';
 class SyncUiState {
   final bool running;
   final String? message;
-  const SyncUiState({this.running = false, this.message});
+
+  /// Sobe a cada resultado novo, mesmo com o texto repetido: a tela mostra o
+  /// aviso de novo a cada toque em Sincronizar (HIS-01).
+  final int messageSeq;
+
+  const SyncUiState({this.running = false, this.message, this.messageSeq = 0});
 }
 
 class SyncController extends StateNotifier<SyncUiState> {
@@ -29,35 +34,38 @@ class SyncController extends StateNotifier<SyncUiState> {
     this._service,
     this._db, {
     required Future<String?> Function() currentUserId,
-  })  : _currentUserId = currentUserId,
-        super(const SyncUiState());
+  }) : _currentUserId = currentUserId,
+       super(const SyncUiState());
 
   Future<void> syncNow() async {
     if (state.running) return;
     final userId = await _currentUserId();
     if (userId == null) {
-      state = const SyncUiState(message: kSignInToSyncMessage);
+      _finish(kSignInToSyncMessage);
       return;
     }
-    state = const SyncUiState(running: true);
+    state = SyncUiState(running: true, messageSeq: state.messageSeq);
     await _service.prepareRound(userId);
     await _service.processRemoteDeletions(ownerUserId: userId);
-    final before =
-        (await _db.pendingActivities(ownerUserId: userId)).length;
+    final before = (await _db.pendingActivities(ownerUserId: userId)).length;
     if (before == 0) {
-      state = const SyncUiState(message: 'Nada para sincronizar');
+      _finish('Nada para sincronizar');
       return;
     }
     try {
       final ok = await _service.processPending(ownerUserId: userId);
       final failed = before - ok;
-      state = SyncUiState(
-        message: failed == 0
+      _finish(
+        failed == 0
             ? '$ok sincronizada(s)'
             : '$ok sincronizada(s), $failed falhou(aram)',
       );
     } catch (e) {
-      state = SyncUiState(message: 'Falha na sincronizacao: $e');
+      _finish('Falha na sincronizacao: $e');
     }
+  }
+
+  void _finish(String message) {
+    state = SyncUiState(message: message, messageSeq: state.messageSeq + 1);
   }
 }

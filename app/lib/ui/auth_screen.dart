@@ -65,6 +65,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     return Scaffold(
       appBar: AppBar(),
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(
           AppShape.gutter,
           0,
