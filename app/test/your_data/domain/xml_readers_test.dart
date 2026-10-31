@@ -85,6 +85,19 @@ void main() {
       expect(a.name, 'R');
     });
 
+    test('extensoes, CDATA e elementos desconhecidos nao atrapalham', () {
+      const xml = '<gpx version="1.1"><metadata><name>Meta</name></metadata>'
+          '<trk><name><![CDATA[Pedal & cia]]></name><extensions><a><b><name>x</name></b></a></extensions>'
+          '<trkseg><trkpt lat="1" lon="2"><ele>10</ele><time>2026-03-01T10:00:00Z</time>'
+          '<extensions><hr>150</hr></extensions></trkpt>'
+          '<trkpt lat="1.1" lon="2"/></trkseg></trk></gpx>';
+      final a = parseGpx(xml);
+      expect(a.name, 'Pedal & cia');
+      expect(a.points, hasLength(2));
+      expect(a.points.first.altitudeMeters, 10);
+      expect(a.points.last.timeMs, isNull);
+    });
+
     test('GPX 1.0 sem namespace', () {
       const xml = '<gpx version="1.0"><trk><trkseg><trkpt lat="1" lon="2">'
           '<time>2026-03-01T10:00:00Z</time></trkpt></trkseg></trk></gpx>';
@@ -127,16 +140,34 @@ void main() {
       expect(a.startMs, kT0);
       expect(a.points, hasLength(4));
       expect(a.points.first.altitudeMeters, 760);
-      expect(a.elapsedMs, 300000);
+      expect(a.timerMs, 300000, reason: 'soma de TotalTimeSeconds das voltas');
+      expect(a.elapsedMs, 3000, reason: 'ultimo Trackpoint menos o inicio');
       expect(a.distanceMeters, 1500);
-      expect(a.timerMs, isNull, reason: 'TCX nao tem tempo em movimento');
     });
 
     test('esteira: sem posicao, com distancia e tempo da volta', () {
       final a = parseTcx(tcxText(sport: 'Running', points: const [], lapSeconds: 1800, lapMeters: 5000));
       expect(a.points.where((p) => p.hasPosition), isEmpty);
-      expect(a.elapsedMs, 1800000);
+      expect(a.timerMs, 1800000);
+      expect(a.elapsedMs, isNull, reason: 'sem Trackpoint com horario');
       expect(a.distanceMeters, 5000);
+    });
+
+    test('so a primeira Activity; prefixos de namespace e extensoes ignoradas', () {
+      const xml = '<?xml version="1.0"?><ns:TrainingCenterDatabase xmlns:ns="x">'
+          '<ns:Activities><ns:Activity Sport="Running"><ns:Id>2026-03-01T10:00:00Z</ns:Id>'
+          '<ns:Lap StartTime="2026-03-01T10:00:00Z"><ns:TotalTimeSeconds>10</ns:TotalTimeSeconds>'
+          '<ns:Track><ns:Trackpoint><ns:Time>2026-03-01T10:00:05Z</ns:Time>'
+          '<ns:Position><ns:LatitudeDegrees>1</ns:LatitudeDegrees><ns:LongitudeDegrees>2</ns:LongitudeDegrees></ns:Position>'
+          '<ns:Extensions><x:TPX xmlns:x="y"><x:Speed>3</x:Speed></x:TPX></ns:Extensions>'
+          '</ns:Trackpoint></ns:Track></ns:Lap></ns:Activity>'
+          '<ns:Activity Sport="Biking"><ns:Id>2026-03-02T10:00:00Z</ns:Id></ns:Activity>'
+          '</ns:Activities></ns:TrainingCenterDatabase>';
+      final a = parseTcx(xml);
+      expect(a.sportName, 'Running');
+      expect(a.points.single.latitude, 1);
+      expect(a.points.single.longitude, 2);
+      expect(a.elapsedMs, 5000);
     });
 
     test('nome nas notas da atividade', () {

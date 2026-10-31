@@ -183,6 +183,44 @@ void main() {
       expect(a.points, hasLength(6));
     });
 
+    test('GPX: inicio declarado longe do primeiro ponto e ignorado; perto vale', () {
+      final far = parseGpx(gpxText(type: 'Run', metadataTime: isoUtc(kT0 - 3600000), points: line(10)));
+      expect(built(buildImportedActivity(far, hash: 'x')).startMs, kT0);
+      final near = parseGpx(gpxText(type: 'Run', metadataTime: isoUtc(kT0 - 30000), points: line(10)));
+      final a = built(buildImportedActivity(near, hash: 'x'));
+      expect(a.startMs, kT0 - 30000);
+      expect(a.endMs, kT0 + 9000);
+    });
+
+    test('FIT: session.start_time continua valendo', () {
+      final parsed = ParsedActivity(
+        format: ImportFormat.fit,
+        sportName: 'running',
+        startMs: kT0 - 3600000,
+        points: [for (var i = 0; i < 5; i++) ParsedPoint(timeMs: kT0 + i * 1000, latitude: -23.5 + i * 0.0001, longitude: -46.6)],
+      );
+      expect(built(buildImportedActivity(parsed, hash: 'x')).startMs, kT0 - 3600000);
+    });
+
+    test('TCX: tempo em movimento das voltas', () {
+      final parsed = ParsedActivity(
+        format: ImportFormat.tcx,
+        sportName: 'Running',
+        startMs: kT0,
+        timerMs: 50000,
+        elapsedMs: 60000,
+        points: [for (final p in line(61)) ParsedPoint(timeMs: DateTime.parse(p.time!).millisecondsSinceEpoch, latitude: p.lat, longitude: p.lon)],
+      );
+      final a = built(buildImportedActivity(parsed, hash: 'x'));
+      expect(a.timerMs, 50000);
+      expect(a.endMs, kT0 + 60000);
+    });
+
+    test('tipo inferido fica marcado; tipo do arquivo nao', () {
+      expect(built(buildImportedActivity(gpx(line(30, stepMeters: 8)), hash: 'x')).typeInferred, isTrue);
+      expect(built(buildImportedActivity(gpx(line(30), type: 'Run'), hash: 'x')).typeInferred, isFalse);
+    });
+
     test('titulo vazio vira null', () {
       final a = built(buildImportedActivity(gpx(line(3), type: 'Run', name: '  '), hash: 'x'));
       expect(a.title, isNull);

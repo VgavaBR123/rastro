@@ -23,6 +23,10 @@ import 'sport_mapping.dart';
 /// precisao e o pipeline descarta ponto sem ela; 5 m e um fix bom de GPS.
 const double kImportedAccuracyMeters = 5.0;
 
+/// Distancia maxima entre o inicio declarado no GPX/TCX e o primeiro ponto
+/// para o declarado valer.
+const int kDeclaredStartToleranceMs = 60000;
+
 /// Atividade pronta para gravar no banco.
 class ImportedActivity {
   final String guid;
@@ -34,6 +38,10 @@ class ImportedActivity {
   final int timerMs;
   final double distanceMeters;
   final bool isIndoor;
+
+  /// O arquivo nao dizia o esporte: [type] saiu do ritmo medio. A duplicata
+  /// por horario nao exige o mesmo tipo.
+  final bool typeInferred;
 
   /// So os pontos aceitos pelo pipeline, em ordem (como a gravacao persiste).
   final List<Waypoint> points;
@@ -49,6 +57,7 @@ class ImportedActivity {
     required this.distanceMeters,
     required this.isIndoor,
     required this.points,
+    this.typeInferred = false,
   });
 }
 
@@ -101,8 +110,19 @@ BuildResult buildImportedActivity(
   final anyPosition = parsed.points.any((p) => p.hasPosition);
 
   var start = parsed.startMs;
-  if (timed.isNotEmpty && (start == null || timed.first.timeMs! < start)) {
-    start = timed.first.timeMs;
+  if (timed.isNotEmpty) {
+    final first = timed.first.timeMs!;
+    if (parsed.format == ImportFormat.fit) {
+      // FIT: session.start_time vale (o primeiro ponto so se for antes).
+      if (start == null || first < start) start = first;
+    } else if (start == null || (start - first).abs() > kDeclaredStartToleranceMs) {
+      // GPX/TCX: o horario declarado (metadata/time, Id) so vale perto do
+      // primeiro ponto; longe dele costuma ser a hora do arquivo, nao da
+      // atividade.
+      start = first;
+    } else if (first < start) {
+      start = first;
+    }
   }
 
   if (located.isEmpty) {
@@ -128,6 +148,7 @@ BuildResult buildImportedActivity(
       distanceMeters: dist,
       isIndoor: true,
       points: const [],
+      typeInferred: sport.type == null,
     ));
   }
 
@@ -200,5 +221,6 @@ BuildResult buildImportedActivity(
     distanceMeters: distance,
     isIndoor: false,
     points: accepted,
+    typeInferred: sport.type == null,
   ));
 }
