@@ -113,6 +113,7 @@ void main() {
     FakeRecordingService? service,
     RecordingDatabase? database,
     ThemeData? theme,
+    List<Object?>? popped,
   }) async {
     final db = database ?? RecordingDatabase(NativeDatabase.memory());
     if (database == null) addTearDown(db.close);
@@ -134,13 +135,16 @@ void main() {
             builder: (context) => Scaffold(
               body: Center(
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const RecordingScreen(
-                        activityType: ActivityType.ride,
-                      ),
-                    ),
-                  ),
+                  // A tela devolve o guid salvo ao fechar (E2E-04).
+                  onPressed: () => Navigator.of(context)
+                      .push<Object?>(
+                        MaterialPageRoute(
+                          builder: (_) => const RecordingScreen(
+                            activityType: ActivityType.ride,
+                          ),
+                        ),
+                      )
+                      .then((r) => popped?.add(r)),
                   child: const Text('abrir'),
                 ),
               ),
@@ -228,7 +232,10 @@ void main() {
 
   testWidgets('Encerrar pela notificacao fecha a tela', (tester) async {
     final service = FakeRecordingService();
-    final source = await pumpScreen(tester, metric: true, service: service);
+    final db = RecordingDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+    final popped = <Object?>[];
+    final source = await pumpScreen(tester, metric: true, service: service, database: db, popped: popped);
     await feed(tester, source, 3);
     expect(find.byType(RecordingScreen), findsOneWidget);
 
@@ -244,6 +251,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(RecordingScreen), findsNothing);
     expect(service.stops, 1);
+    // Salvou: devolve o guid para quem abriu avisar "Atividade salva".
+    final rows = await db.select(db.activities).get();
+    expect(popped, [rows.single.guid]);
   });
 
   /// Segura o botao (variante hold) ate passar o tempo de confirmacao.
@@ -294,7 +304,8 @@ void main() {
   ) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
-    final source = await pumpScreen(tester, metric: true, database: db);
+    final popped = <Object?>[];
+    final source = await pumpScreen(tester, metric: true, database: db, popped: popped);
     await feed(tester, source, 5);
     await pauseAndOpenSave(tester);
 
@@ -326,6 +337,7 @@ void main() {
     final rows = await db.select(db.activities).get();
     expect(rows, hasLength(1));
     expect(rows.single.isFinished, isTrue);
+    expect(popped, [rows.single.guid]);
   });
 
   testWidgets('Voltar a gravacao sai da tela Salvar e segue pausado', (
@@ -345,7 +357,8 @@ void main() {
   ) async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
-    final source = await pumpScreen(tester, metric: true, database: db);
+    final popped = <Object?>[];
+    final source = await pumpScreen(tester, metric: true, database: db, popped: popped);
     await feed(tester, source, 5);
     await pauseAndOpenSave(tester);
 
@@ -363,6 +376,7 @@ void main() {
     await drain(tester);
     expect(find.byType(RecordingScreen), findsNothing);
     expect(await db.select(db.activities).get(), isEmpty);
+    expect(popped, [null]); // nada salvo, nada a avisar
   });
 
   testWidgets('alterna para o mapa pelo botao', (tester) async {
