@@ -193,7 +193,7 @@ void main() {
           matching: find.byType(EditableText),
         ),
       ),
-      containsSemantics(label: 'Peso', isTextField: true),
+      isSemantics(label: 'Peso', isTextField: true),
     );
     handle.dispose();
   });

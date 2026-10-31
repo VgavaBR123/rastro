@@ -2,7 +2,6 @@
 // eram lidos como texto estatico e "Compartilhar" saia duplicado. O botao
 // sobre o mapa e um unico elemento com papel de botao e rotulo unico.
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:strava_estudo_app/ui/components/floating_map_button.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
@@ -53,11 +52,7 @@ void main() {
     expect(find.bySemanticsLabel('Voltar'), findsOneWidget);
 
     // A acao de toque da semantica chama o botao.
-    final id = tester.getSemantics(find.byKey(const Key('back'))).id;
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
-      id,
-      SemanticsAction.tap,
-    );
+    tester.semantics.tap(find.semantics.byLabel('Voltar'));
     expect(taps, ['back']);
     handle.dispose();
   });
