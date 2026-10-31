@@ -7,7 +7,8 @@
 // - [safetyCountdownTickerProvider]: o tick de 1 s da contagem do aviso;
 // - [safetyClockProvider]: relogio de parede (epoch ms);
 // - [urlOpenerProvider]: quem abre o link "Ver localizacao";
-// - [safetyHapticsProvider] e [pushRegistrarProvider].
+// - [safetyHapticsProvider], [pushRegistrarProvider] e [safetyLocalNotifierProvider]
+//   (notificacao local dos alertas; Noop em `flutter test`).
 library;
 
 import 'dart:io' show Platform;
@@ -17,10 +18,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../app/providers.dart';
+import '../narrator/domain/announcement.dart';
 import '../narrator/narrator_providers.dart';
 import '../recording/presentation/recording_ui_state.dart';
 import '../recording/source/heartbeat_ticker.dart';
 import 'contacts_controller.dart';
+import 'safety_alerts.dart';
 import 'inbox_controller.dart';
 import 'push_registrar.dart';
 import 'safety_api.dart';
@@ -54,7 +57,21 @@ final safetyCountdownTickerProvider = Provider<HeartbeatTicker>((_) => _defaultT
 
 final safetyHapticsProvider = Provider<SafetyHaptics>((_) => const SystemSafetyHaptics());
 
-final urlOpenerProvider = Provider<UrlOpener>((_) => const LauncherUrlOpener());
+final urlOpenerProvider = Provider<UrlOpener>((_) => LauncherUrlOpener(backendBaseUrl: kSyncBaseUrl));
+
+/// Notificacao local do sistema para os alertas (canal "Alertas do Rastro
+/// Seguro"). Em `flutter test`: Noop.
+final safetyLocalNotifierProvider = Provider<SafetyLocalNotifier>(
+  (_) => _underFlutterTest || kIsWeb ? const NoopSafetyLocalNotifier() : FlutterSafetyLocalNotifier(),
+);
+
+/// Alertas mostrados por cima de qualquer tela (ver SafetyAlertHost).
+final safetyAlertQueueProvider = StateNotifierProvider<SafetyAlertQueue, List<AppNotification>>(
+  (_) => SafetyAlertQueue(),
+);
+
+/// Alertas mais velhos que isto nao abrem o dialogo (so ficam na caixa).
+const int kSafetyAlertPopupMaxAgeMs = 24 * 3600000;
 
 /// Push: Noop ate existir o projeto Firebase (ver push_registrar.dart).
 final pushRegistrarProvider = Provider<PushRegistrar>((_) => const NoopPushRegistrar());
@@ -104,9 +121,13 @@ final inboxProvider = StateNotifierProvider<InboxController, InboxState>((ref) {
     ref.watch(safetyApiProvider),
     now: ref.watch(safetyClockProvider),
     onNew: (n) {
+      if (n.isAlert && n.unread) _onAlert(ref, n);
       switch (n.kind) {
-        case NotificationKind.safetyCheck:
+        case NotificationKind.safetyCheck || NotificationKind.safetyEnded || NotificationKind.safetyContactRemoved:
+          // Rele a sessao (checagem nova, fim automatico, link novo).
           ref.read(safetySessionProvider.notifier).onInboxCheck(n.sessionId);
+        case NotificationKind.safetyNoContacts:
+          ref.read(safetySessionProvider.notifier).onNoContacts(n.sessionId);
         case NotificationKind.contactInvite || NotificationKind.contactAccepted:
           // A lista de contatos aberta (ou a proxima) ja mostra o convite.
           ref.read(contactsProvider.notifier).load();
@@ -116,3 +137,24 @@ final inboxProvider = StateNotifierProvider<InboxController, InboxState>((ref) {
     },
   );
 });
+
+/// Alerta novo de um contato: dialogo por cima de tudo (inclusive durante a
+/// propria gravacao), fala critica, vibracao e notificacao local (uma vez por
+/// alerta, com o mesmo cursor do sync de fundo).
+void _onAlert(Ref ref, AppNotification n) {
+  final notifier = ref.read(safetyLocalNotifierProvider);
+  final store = ref.read(safetyLocalStoreProvider);
+  notifyNewAlerts([n], store, notifier).catchError((Object _) => 0);
+  final age = ref.read(safetyClockProvider)() - n.createdAt;
+  if (age > kSafetyAlertPopupMaxAgeMs) return;
+  if (!ref.read(safetyAlertQueueProvider.notifier).add(n)) return;
+  ref.read(narratorProvider).enqueue(
+    Announcement(
+      'Alerta do Rastro Seguro. ${alertTitle(n)}.',
+      priority: AnnouncementPriority.critical,
+      key: 'safety_alert',
+      maxAgeMs: 120000,
+    ),
+  );
+  ref.read(safetyHapticsProvider).alert().catchError((Object _) {});
+}

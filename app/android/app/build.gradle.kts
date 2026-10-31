@@ -10,6 +10,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // flutter_local_notifications (F08) exige desugaring das APIs de data.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -56,4 +58,6 @@ dependencies {
     implementation("androidx.core:core-location-altitude:1.0.0")
     // NotificationCompat/ContextCompat/LocationCompat usados no Kotlin do app.
     implementation("androidx.core:core:1.13.1")
+    // Desugaring exigido pelo flutter_local_notifications (alertas do Rastro Seguro).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

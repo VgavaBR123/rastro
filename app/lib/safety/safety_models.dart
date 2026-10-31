@@ -96,7 +96,17 @@ class SafetyPosition {
   final double lon;
   final double? accuracyM;
   final int recordedAtMs;
-  const SafetyPosition({required this.lat, required this.lon, this.accuracyM, required this.recordedAtMs});
+
+  /// Quando o servidor recebeu (decisao do backend). A idade mostrada usa o
+  /// menor entre este e [recordedAtMs].
+  final int? receivedAtMs;
+  const SafetyPosition({
+    required this.lat,
+    required this.lon,
+    this.accuracyM,
+    required this.recordedAtMs,
+    this.receivedAtMs,
+  });
 
   static SafetyPosition? fromJson(Object? v) {
     if (v is! Map) return null;
@@ -108,6 +118,7 @@ class SafetyPosition {
       lon: lon.toDouble(),
       accuracyM: (v['accuracyM'] as num?)?.toDouble(),
       recordedAtMs: (v['recordedAtMs'] as num?)?.toInt() ?? 0,
+      receivedAtMs: (v['receivedAtMs'] as num?)?.toInt(),
     );
   }
 }
@@ -164,7 +175,30 @@ class SafetySession {
 }
 
 /// Tipos de notificacao do contrato. [unknown] cobre tipos novos do backend.
-enum NotificationKind { contactInvite, contactAccepted, safetyCheck, safetyAlert, safetySos, safetyAllClear, unknown }
+enum NotificationKind {
+  contactInvite,
+  contactAccepted,
+  safetyCheck,
+  safetyAlert,
+  safetySos,
+  safetyAllClear,
+
+  /// Para a dona: o acompanhamento terminou (fim automatico).
+  safetyEnded,
+
+  /// Para os contatos: terminou sem confirmacao de que ela esta bem.
+  safetyEndedUnconfirmed,
+
+  /// Para a dona: um contato saiu da sessao (o link mudou).
+  safetyContactRemoved,
+
+  /// Para a dona: nao sobrou contato na sessao.
+  safetyNoContacts,
+
+  /// Para os contatos de uma sessao ja alertada: link novo (o antigo parou).
+  safetyLinkUpdated,
+  unknown,
+}
 
 NotificationKind notificationKindOf(Object? v) => switch (v) {
   'contact_invite' => NotificationKind.contactInvite,
@@ -173,6 +207,11 @@ NotificationKind notificationKindOf(Object? v) => switch (v) {
   'safety_alert' => NotificationKind.safetyAlert,
   'safety_sos' => NotificationKind.safetySos,
   'safety_all_clear' => NotificationKind.safetyAllClear,
+  'safety_ended' => NotificationKind.safetyEnded,
+  'safety_ended_unconfirmed' => NotificationKind.safetyEndedUnconfirmed,
+  'safety_contact_removed' => NotificationKind.safetyContactRemoved,
+  'safety_no_contacts' => NotificationKind.safetyNoContacts,
+  'safety_link_updated' => NotificationKind.safetyLinkUpdated,
   _ => NotificationKind.unknown,
 };
 
@@ -198,7 +237,14 @@ class AppNotification {
   bool get unread => readAt == null;
 
   /// Alerta de alguem que pode precisar de ajuda (destaque na caixa).
-  bool get isAlert => kind == NotificationKind.safetyAlert || kind == NotificationKind.safetySos;
+  /// Alertas em andamento ou sem resposta tem o mesmo destaque.
+  bool get isAlert => switch (kind) {
+    NotificationKind.safetyAlert ||
+    NotificationKind.safetySos ||
+    NotificationKind.safetyEndedUnconfirmed ||
+    NotificationKind.safetyLinkUpdated => true,
+    _ => false,
+  };
 
   String? get sessionId => data['sessionId'] as String?;
   String? get shareUrl => data['shareUrl'] as String?;

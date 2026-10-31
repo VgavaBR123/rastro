@@ -76,7 +76,7 @@ void main() {
       nowMs = 2000;
       server.notify('u_ana', 'safety_check', data: {'sessionId': 'ss_1'});
       await inbox.refresh();
-      expect(server.requests.last.query['since'], '1000');
+      expect(server.requests.last.query['since'], '999');
       expect(inbox.state.items.first.kind, NotificationKind.safetyCheck);
       expect(inbox.state.items, hasLength(2));
       expect(seen, hasLength(2));

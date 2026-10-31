@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/providers.dart';
 import '../../app/router.dart';
 import '../../safety/contacts_controller.dart';
+import '../../safety/safety_alerts.dart' show kNoPushNotice;
 import '../../safety/safety_models.dart';
 import '../../safety/safety_providers.dart';
 import '../section_card.dart';
@@ -97,7 +98,7 @@ class _SafetyContactsScreenState extends ConsumerState<SafetyContactsScreen> {
   Future<void> _accept(TrustedContact contact) async {
     final err = await ref.read(contactsProvider.notifier).accept(contact.id);
     if (!mounted) return;
-    _snack(err ?? 'Agora voce e contato de confianca de ${contact.label}.');
+    _snack(err ?? 'Agora voce e contato de confianca de ${contact.label}. $kNoPushNotice');
   }
 
   void _snack(String text) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text)));
@@ -126,6 +127,14 @@ class _SafetyContactsScreenState extends ConsumerState<SafetyContactsScreen> {
               message: 'Os contatos de confianca sao outras contas do Rastro. Entre na sua conta para convidar.',
             )
           else ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                kNoPushNotice,
+                key: const Key('safety_push_notice'),
+                style: AppText.label.copyWith(color: AppColors.of(context).extra.fg),
+              ),
+            ),
             _InviteCard(
               controller: _email,
               busy: s.busy,

@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 
 import '../../app/providers.dart';
 import '../../app/router.dart';
+import '../../safety/safety_alerts.dart';
 import '../../safety/safety_models.dart';
 import '../../safety/safety_providers.dart';
 import '../section_card.dart';
@@ -100,12 +101,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   }
 
   Future<void> _openLocation(AppNotification n) async {
-    ref.read(inboxProvider.notifier).markRead(n.id);
-    final url = n.shareUrl;
-    final ok = url != null && await ref.read(urlOpenerProvider).open(url);
-    if (!ok && mounted) {
-      ScaffoldMessenger.maybeOf(context)
-          ?.showSnackBar(const SnackBar(content: Text('Nao deu para abrir o link da localizacao.')));
+    final err = await openAlertLocation(ref, n);
+    if (err != null && mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(err)));
     }
   }
 
@@ -163,7 +161,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   ),
                 ),
               for (final n in s.items) ...[
-                NotificationCard(notification: n, onOpen: () => _open(n), onLocation: () => _openLocation(n)),
+                NotificationCard(
+                  notification: n,
+                  shareUrl: s.shareUrlFor(n),
+                  onOpen: () => _open(n),
+                  onLocation: () => _openLocation(n),
+                ),
                 const SizedBox(height: 12),
               ],
             ],
@@ -179,7 +182,16 @@ class NotificationCard extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onLocation;
 
-  const NotificationCard({super.key, required this.notification, required this.onOpen, required this.onLocation});
+  /// Link mais novo da sessao (o backend troca o token quando um contato sai).
+  final String? shareUrl;
+
+  const NotificationCard({
+    super.key,
+    required this.notification,
+    required this.onOpen,
+    required this.onLocation,
+    this.shareUrl,
+  });
 
   static String _when(int ms) => DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(ms));
 
@@ -189,25 +201,19 @@ class NotificationCard extends StatelessWidget {
     final n = notification;
     final alert = n.isAlert;
     final (IconData icon, Color accent) = switch (n.kind) {
-      NotificationKind.safetyAlert || NotificationKind.safetySos => (Icons.warning_rounded, c.danger),
+      NotificationKind.safetyAlert ||
+      NotificationKind.safetySos ||
+      NotificationKind.safetyEndedUnconfirmed ||
+      NotificationKind.safetyLinkUpdated => (Icons.warning_rounded, c.danger),
+      NotificationKind.safetyNoContacts => (Icons.person_off_rounded, c.danger),
+      NotificationKind.safetyEnded || NotificationKind.safetyContactRemoved => (Icons.shield_outlined, c.extra.fg),
       NotificationKind.safetyCheck => (Icons.help_rounded, c.extra.fg),
       NotificationKind.safetyAllClear => (Icons.check_circle_rounded, c.dist.fg),
       NotificationKind.contactInvite || NotificationKind.contactAccepted => (Icons.group_add_rounded, c.ciano.fg),
       NotificationKind.unknown => (Icons.notifications_rounded, c.textMuted),
     };
-    final who = n.ownerName;
-    final title = switch (n.kind) {
-      NotificationKind.safetyAlert => '${who ?? 'Um contato'} pode precisar de ajuda',
-      NotificationKind.safetySos => '${who ?? 'Um contato'} pediu ajuda',
-      NotificationKind.safetyAllClear => '${who ?? 'Seu contato'} respondeu que esta bem',
-      _ => n.title.isEmpty ? 'Notificacao' : n.title,
-    };
-    final detail = switch (n.kind) {
-      NotificationKind.safetyAlert =>
-        'Motivo: ${checkReasonLabel(n.reason)}. Nao respondeu a checagem do Rastro Seguro.',
-      NotificationKind.safetySos => 'Mandou a posicao pelo Rastro Seguro.',
-      _ => n.body,
-    };
+    final title = alertTitle(n);
+    final detail = alertDetail(n);
     return Semantics(
       container: true,
       label: n.unread ? 'Nao lida' : null,
@@ -257,7 +263,7 @@ class NotificationCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                if (alert && n.shareUrl != null) ...[
+                if (alert && (shareUrl ?? n.shareUrl) != null) ...[
                   const SizedBox(height: 12),
                   FilledButton.icon(
                     key: Key('notification_location_${n.id}'),
@@ -287,4 +293,14 @@ class NotificationCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Abre o link mais novo da sessao do alerta e marca como lido. Devolve a
+/// mensagem de erro, ou null se abriu.
+Future<String?> openAlertLocation(WidgetRef ref, AppNotification n) async {
+  ref.read(inboxProvider.notifier).markRead(n.id);
+  final url = ref.read(inboxProvider).shareUrlFor(n);
+  if (url == null) return 'Este alerta nao tem link de localizacao.';
+  final r = await ref.read(urlOpenerProvider).open(url);
+  return r.opened ? null : r.error;
 }

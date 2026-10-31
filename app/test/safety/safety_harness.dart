@@ -19,9 +19,9 @@ class FakeUrlOpener implements UrlOpener {
   final List<String> opened = [];
   bool result = true;
   @override
-  Future<bool> open(String url) async {
+  Future<UrlOpenResult> open(String url) async {
     opened.add(url);
-    return result;
+    return result ? const UrlOpenResult.opened() : const UrlOpenResult.failed('Nao deu para abrir o link.');
   }
 }
 

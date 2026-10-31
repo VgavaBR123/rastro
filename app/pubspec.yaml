@@ -55,6 +55,7 @@ dependencies:
   file_picker: ^13.3.0
   xml: ^7.1.0
   url_launcher: ^6.3.3
+  flutter_local_notifications: ^22.3.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

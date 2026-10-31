@@ -11,6 +11,10 @@ import 'package:strava_estudo_app/app/router.dart';
 import 'package:strava_estudo_app/safety/safety_providers.dart';
 import 'package:strava_estudo_app/ui/safety/inbox_poller.dart';
 import 'package:strava_estudo_app/ui/safety/inbox_screen.dart';
+import 'package:strava_estudo_app/ui/safety/safety_alert_host.dart';
+import 'package:strava_estudo_app/safety/safety_alerts.dart' show kNoPushNotice;
+import 'package:strava_estudo_app/narrator/narrator_providers.dart';
+import '../narrator/fake_voice_announcer.dart';
 import 'package:strava_estudo_app/ui/safety/safety_setup.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 
@@ -20,6 +24,7 @@ import '../safety/safety_harness.dart';
 void main() {
   late SafetyHarness h;
   late ProviderContainer container;
+  late FakeVoiceAnnouncer voice;
 
   Future<void> drain(WidgetTester tester) async {
     for (var i = 0; i < 6; i++) {
@@ -56,13 +61,14 @@ void main() {
     );
     addTearDown(router.dispose);
     addTearDown(() async => h.db?.close());
+    voice = FakeVoiceAnnouncer();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: h.overrides(signedInAs: signedInAs),
+        overrides: [...h.overrides(signedInAs: signedInAs), voiceAnnouncerProvider.overrideWithValue(voice)],
         child: MaterialApp.router(
           theme: theme ?? AppTheme.dark,
           routerConfig: router,
-          builder: (_, child) => InboxPoller(child: child!),
+          builder: (_, child) => InboxPoller(child: SafetyAlertHost(child: child!)),
         ),
       ),
     );
@@ -199,6 +205,10 @@ void main() {
       );
       await pump(tester, signedInAs: h.ana);
       expect(find.descendant(of: find.byKey(const Key('inbox_badge')), matching: find.text('1')), findsOneWidget);
+      // O alerta abre por cima; "Fechar" deixa ver a caixa.
+      expect(find.byKey(const Key('safety_alert_panel')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('safety_alert_close')));
+      await drain(tester);
       await tester.tap(find.byKey(const Key('inbox_bell')));
       await drain(tester);
       final id = h.server.notifications.single['id'] as String;
@@ -243,5 +253,49 @@ void main() {
       expect(find.byKey(const Key('inbox_badge')), findsOneWidget);
       expect(h.server.requestsTo('GET', '/notifications').last.query['since'], isNotNull);
     });
+  });
+
+  group('alerta global', () {
+    testWidgets('alerta chega em qualquer tela: dialogo, fala critica e Ver localizacao com o link novo', (tester) async {
+      await pump(tester, signedInAs: h.ana);
+      h.nowMs += 1000;
+      h.server.notify(h.ana.id, 'safety_alert', data: {
+        'sessionId': 'ss_1',
+        'shareUrl': 'http://localhost:8081/s/velho',
+        'reason': 'silence',
+        'ownerName': 'Bia',
+      });
+      h.nowMs += 1000;
+      h.server.notify(h.ana.id, 'safety_link_updated', data: {
+        'sessionId': 'ss_1',
+        'shareUrl': 'http://localhost:8081/s/novo',
+        'ownerName': 'Bia',
+      });
+      h.inboxTicker.tick();
+      await drain(tester);
+      expect(find.byKey(const Key('safety_alert_panel')), findsOneWidget);
+      expect(voice.spoken.any((t) => t.contains('Alerta do Rastro Seguro')), isTrue);
+      expect(h.haptics.alerts, greaterThanOrEqualTo(1));
+      await tester.tap(find.byKey(const Key('safety_alert_location')));
+      await drain(tester);
+      expect(h.opener.opened.first, 'http://localhost:8081/s/novo');
+      // O segundo (link novo) continua na fila; fechar tira.
+      await tester.tap(find.byKey(const Key('safety_alert_close')));
+      await drain(tester);
+      expect(find.byKey(const Key('safety_alert_panel')), findsNothing);
+    });
+
+    testWidgets('alerta antigo (mais de 24 h) fica so na caixa', (tester) async {
+      h.server.notify(h.ana.id, 'safety_sos', data: {'ownerName': 'Bia', 'shareUrl': 'http://localhost:8081/s/1'});
+      h.nowMs += 25 * 3600000;
+      await pump(tester, signedInAs: h.ana);
+      expect(find.byKey(const Key('safety_alert_panel')), findsNothing);
+      expect(find.byKey(const Key('inbox_badge')), findsOneWidget);
+    });
+  });
+
+  testWidgets('tela de contatos avisa que sem push o aviso demora', (tester) async {
+    await pump(tester, signedInAs: h.ana, initial: AppRoutes.safety);
+    expect(find.text(kNoPushNotice), findsOneWidget);
   });
 }

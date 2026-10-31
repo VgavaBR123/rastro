@@ -12,6 +12,12 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'safety_api.dart';
 import 'safety_models.dart';
 
+/// Tamanho maximo de uma pagina de `GET /notifications` (contrato).
+const int kInboxPageSize = 50;
+
+/// Paginas seguidas numa busca (pagina cheia busca de novo).
+const int kInboxMaxPages = 5;
+
 class InboxState {
   /// Mais novas primeiro.
   final List<AppNotification> items;
@@ -20,6 +26,18 @@ class InboxState {
   const InboxState({this.items = const [], this.loading = false, this.error});
 
   int get unread => items.where((n) => n.unread).length;
+
+  /// Link mais novo da sessao de [n]: o backend troca o token quando um
+  /// contato sai (safety_link_updated, safety_contact_removed) e o antigo para
+  /// de funcionar.
+  String? shareUrlFor(AppNotification n) {
+    final id = n.sessionId;
+    if (id == null) return n.shareUrl;
+    for (final m in items) {
+      if (m.sessionId == id && m.shareUrl != null) return m.shareUrl;
+    }
+    return n.shareUrl;
+  }
 }
 
 class InboxController extends StateNotifier<InboxState> {
@@ -29,35 +47,50 @@ class InboxController extends StateNotifier<InboxState> {
   /// Notificacao nova (nao vista antes nesta execucao) chegou.
   final void Function(AppNotification n)? onNew;
 
-  int _since = 0;
+  /// Maior createdAt visto. A busca usa `since = max - 1` (com dedup por id)
+  /// para nao perder outra notificacao gravada no mesmo milissegundo.
+  int _maxSeen = 0;
   bool _fetching = false;
+
+  /// Sobe a cada reset: a busca em voo de antes do reset e descartada.
+  int _generation = 0;
 
   InboxController(this._api, {required int Function() now, this.onNew}) : _now = now, super(const InboxState());
 
   Future<void> refresh() async {
     if (_fetching) return;
     _fetching = true;
+    final gen = _generation;
     if (state.items.isEmpty) state = InboxState(items: state.items, loading: true);
     try {
-      final list = await _api.notifications(since: _since);
-      if (!mounted) return;
+      final fresh = <AppNotification>[];
       final known = {for (final n in state.items) n.id};
-      final fresh = [
-        for (final n in list)
-          if (!known.contains(n.id)) n,
-      ];
-      final merged = [...fresh, ...state.items]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      for (final n in list) {
-        if (n.createdAt > _since) _since = n.createdAt;
+      // Pagina cheia: pode haver mais novas; busca de novo a partir do maior
+      // visto. (Com so `since` no contrato, o que ficar ANTES das 50 mais
+      // novas de uma rajada nao e alcancado.)
+      for (var page = 0; page < kInboxMaxPages; page++) {
+        final list = await _api.notifications(since: _maxSeen == 0 ? 0 : _maxSeen - 1);
+        if (!mounted || gen != _generation) return;
+        var added = 0;
+        for (final n in list) {
+          if (n.createdAt > _maxSeen) _maxSeen = n.createdAt;
+          if (known.add(n.id)) {
+            fresh.add(n);
+            added++;
+          }
+        }
+        if (list.length < kInboxPageSize || added == 0) break;
       }
+      final merged = [...fresh, ...state.items]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       state = InboxState(items: merged);
-      for (final n in fresh.reversed) {
+      fresh.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      for (final n in fresh) {
         onNew?.call(n);
       }
     } on SafetyException catch (e) {
-      if (mounted) state = InboxState(items: state.items, error: e.message);
+      if (mounted && gen == _generation) state = InboxState(items: state.items, error: e.message);
     } finally {
-      _fetching = false;
+      if (gen == _generation) _fetching = false;
     }
   }
 
@@ -75,9 +108,11 @@ class InboxController extends StateNotifier<InboxState> {
     }
   }
 
-  /// Saiu da conta: esquece tudo.
+  /// Saiu da conta: esquece tudo (inclusive a busca em voo).
   void reset() {
-    _since = 0;
+    _generation++;
+    _maxSeen = 0;
+    _fetching = false;
     state = const InboxState();
   }
 }
