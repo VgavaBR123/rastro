@@ -74,6 +74,14 @@ class YourDataState {
   );
 }
 
+/// Falha ao abrir os arquivos escolhidos (a copia do seletor costuma falhar
+/// por falta de espaco).
+const String kPickFailedMessage =
+    'Nao foi possivel abrir os arquivos. Confira se ha espaco livre no aparelho.';
+
+/// Outra exportacao (tudo ou uma atividade) ainda esta rodando.
+const String kExportBusyMessage = 'Ja ha uma exportacao em andamento';
+
 typedef ImportFeedFactory = Future<ImportFeed> Function(List<String> paths);
 
 class YourDataController extends StateNotifier<YourDataState> {
@@ -102,14 +110,42 @@ class YourDataController extends StateNotifier<YourDataState> {
   /// estado anterior.
   Future<void> pickAndImport() async {
     if (state.busy) return;
+    final p = picker;
     List<String> paths;
     try {
-      paths = await picker.pick();
+      paths = p is ProgressImportFilePicker
+          ? await p.pickWithProgress(() {
+              // O sistema esta copiando os arquivos: barra indeterminada.
+              if (mounted && !state.busy) {
+                state = state.copyWith(
+                  phase: YourDataPhase.importing,
+                  done: 0,
+                  total: 0,
+                  cancelling: false,
+                  clearSummary: true,
+                  clearMessage: true,
+                );
+              }
+            })
+          : await p.pick();
     } on Object {
-      if (mounted) state = state.copyWith(message: 'Nao foi possivel abrir os arquivos');
+      if (mounted) {
+        state = state.copyWith(
+          phase: YourDataPhase.idle,
+          message: kPickFailedMessage,
+        );
+      }
       return;
     }
-    if (paths.isEmpty || !mounted) return;
+    if (!mounted) return;
+    if (paths.isEmpty) {
+      if (state.phase == YourDataPhase.importing) {
+        state = state.copyWith(phase: YourDataPhase.idle);
+      }
+      return;
+    }
+    // A fase "preparando" ja estava ligada: libera para a importacao.
+    if (state.phase == YourDataPhase.importing) state = state.copyWith(phase: YourDataPhase.idle);
     await importPaths(paths);
   }
 
@@ -143,6 +179,7 @@ class YourDataController extends StateNotifier<YourDataState> {
         ignored: {},
         errors: [ImportFailure('importacao', 'falha inesperada')],
         cancelled: false,
+        interrupted: true,
       );
     } finally {
       await picker.cleanUp();
@@ -201,6 +238,8 @@ class YourDataController extends StateNotifier<YourDataState> {
           }
         }
       }
+    } on ExportBusyException {
+      message = kExportBusyMessage;
     } on Object {
       message = 'Nao foi possivel exportar';
     }

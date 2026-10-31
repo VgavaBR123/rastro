@@ -14,6 +14,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../activity/elevation_profile.dart';
 import '../core/format/activity_labels.dart';
 import '../persistence/database.dart';
@@ -86,7 +88,12 @@ class ExportService {
   /// Uma exportacao por vez no app inteiro (todas as instancias).
   static bool _busy = false;
 
-  Future<T> _exclusive<T>(Future<T> Function() body) async {
+  Future<T> _exclusive<T>(Future<T> Function() body) => runExclusive(body);
+
+  /// Roda [body] com a trava das exportacoes (tambem usado nos testes para
+  /// segurar a trava). Lanca [ExportBusyException] se ja estiver presa.
+  @visibleForTesting
+  static Future<T> runExclusive<T>(Future<T> Function() body) async {
     if (_busy) throw const ExportBusyException();
     _busy = true;
     try {

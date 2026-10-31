@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../persistence/database.dart';
 import '../../platform/activity_sharer.dart';
+import '../../your_data/export_service.dart';
+import '../../your_data/your_data_controller.dart' show kExportBusyMessage;
 import '../../your_data/your_data_providers.dart';
 
 /// Tipo MIME do GPX no compartilhar.
@@ -27,6 +29,10 @@ Future<void> exportActivityGpx(BuildContext context, WidgetRef ref, Activity act
       applyPrivacy: privacy,
     );
     await ref.read(activitySharerProvider).shareFile(path, mimeType: kGpxMimeType);
+  } on ExportBusyException {
+    messenger.showSnackBar(
+      const SnackBar(key: Key('exportGpxBusy'), content: Text(kExportBusyMessage)),
+    );
   } on Object {
     messenger.showSnackBar(
       const SnackBar(

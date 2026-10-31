@@ -4,9 +4,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../your_data/import_service.dart';
+import '../../your_data/progress_announcer.dart';
 import '../../your_data/your_data_controller.dart';
 import '../../your_data/your_data_providers.dart';
 import '../components/big_action_button.dart';
@@ -18,13 +20,47 @@ import '../theme/app_typography.dart';
 /// Erros listados no resumo; o resto vira "e mais N".
 const int kSummaryMaxErrors = 30;
 
-class YourDataScreen extends ConsumerWidget {
+class YourDataScreen extends ConsumerStatefulWidget {
   const YourDataScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<YourDataScreen> createState() => _YourDataScreenState();
+}
+
+class _YourDataScreenState extends ConsumerState<YourDataScreen> {
+  ProgressAnnouncer? _announcer;
+
+  void _announce(String message) {
+    SemanticsService.sendAnnouncement(View.of(context), message, Directionality.of(context));
+  }
+
+  /// Anuncios ao leitor de tela: progresso em degraus e o fim sempre.
+  void _onState(YourDataState? prev, YourDataState next) {
+    final wasBusy = prev?.busy ?? false;
+    if (next.busy && (!wasBusy || prev?.phase != next.phase)) {
+      _announcer = ProgressAnnouncer(
+        next.phase == YourDataPhase.importing ? 'Importando' : 'Exportando',
+      );
+    }
+    if (next.busy) {
+      final m = _announcer?.next(next.done, next.total, DateTime.now());
+      if (m != null) _announce(m);
+      return;
+    }
+    if (!wasBusy) return;
+    _announcer = null;
+    if (prev?.phase == YourDataPhase.importing && next.summary != null) {
+      _announce(importEndAnnouncement(next.summary!));
+    } else if (prev?.phase == YourDataPhase.exporting && next.message == null) {
+      _announce(prev!.cancelling ? 'Exportacao cancelada' : 'Exportacao concluida');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final s = ref.watch(yourDataControllerProvider);
     final ctrl = ref.read(yourDataControllerProvider.notifier);
+    ref.listen(yourDataControllerProvider, _onState);
     ref.listen(yourDataControllerProvider.select((s) => s.message), (_, msg) {
       if (msg == null) return;
       ScaffoldMessenger.of(context)
@@ -180,11 +216,12 @@ class _Progress extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Sem liveRegion: o valor muda a cada item; quem anuncia (em degraus)
+        // e a tela, pelo SemanticsService.
         Semantics(
           container: true,
           label: label,
           value: count,
-          liveRegion: true,
           child: ExcludeSemantics(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(AppShape.tile),
@@ -234,10 +271,25 @@ class _Summary extends StatelessWidget {
       key: const Key('import_summary'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          summary.cancelled ? 'Importacao cancelada' : 'Importacao concluida',
-          style: AppText.sectionTitle.copyWith(color: c.text),
+        Semantics(
+          header: true,
+          child: Text(
+            summary.interrupted
+                ? 'Importacao interrompida'
+                : summary.cancelled
+                ? 'Importacao cancelada'
+                : 'Importacao concluida',
+            style: AppText.sectionTitle.copyWith(color: c.text),
+          ),
         ),
+        if (summary.interrupted) ...[
+          const SizedBox(height: 4),
+          Text(
+            'A leitura parou por um erro. O que ja tinha entrado foi mantido.',
+            key: const Key('import_summary_interrupted'),
+            style: muted,
+          ),
+        ],
         if (summary.cancelled) ...[
           const SizedBox(height: 4),
           Text(

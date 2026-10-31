@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +24,7 @@ import 'package:strava_estudo_app/ui/recording_health_section.dart';
 import 'package:strava_estudo_app/ui/settings_screen.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 import 'package:strava_estudo_app/ui/your_data/your_data_screen.dart';
+import 'package:strava_estudo_app/your_data/export_service.dart';
 import 'package:strava_estudo_app/your_data/import_feed.dart';
 import 'package:strava_estudo_app/your_data/import_file_picker.dart';
 import 'package:strava_estudo_app/your_data/your_data_controller.dart';
@@ -61,6 +63,40 @@ Future<void> waitFor(WidgetTester tester, bool Function() done) async {
   await tester.pumpAndSettle();
 }
 
+/// Seletor que avisa a copia ("preparando") e espera o teste liberar.
+class SlowPicker implements ProgressImportFilePicker {
+  final Completer<List<String>> result = Completer();
+  bool fail = false;
+  @override
+  Future<List<String>> pick() => pickWithProgress(() {});
+  @override
+  Future<List<String>> pickWithProgress(void Function() onPreparing) async {
+    onPreparing();
+    final r = await result.future;
+    if (fail) throw const FileSystemException('sem espaco');
+    return r;
+  }
+
+  @override
+  Future<void> cleanUp() async {}
+}
+
+/// Anuncios enviados ao leitor de tela.
+List<String> captureAnnouncements(WidgetTester tester) {
+  final said = <String>[];
+  tester.binding.defaultBinaryMessenger.setMockDecodedMessageHandler<Object?>(
+    SystemChannels.accessibility,
+    (msg) async {
+      final m = msg! as Map<Object?, Object?>;
+      if (m['type'] == 'announce') said.add((m['data']! as Map<Object?, Object?>)['message']! as String);
+      return null;
+    },
+  );
+  addTearDown(() => tester.binding.defaultBinaryMessenger
+      .setMockDecodedMessageHandler<Object?>(SystemChannels.accessibility, null));
+  return said;
+}
+
 void main() {
   late RecordingDatabase db;
   late FakeActivitySharer sharer;
@@ -80,6 +116,7 @@ void main() {
     WidgetTester tester, {
     String initial = AppRoutes.yourData,
     List<String> picked = const [],
+    ImportFilePicker? picker,
     ImportFeedFactory? feed,
     ThemeData? theme,
   }) async {
@@ -99,7 +136,7 @@ void main() {
           recordingDatabaseProvider.overrideWithValue(db),
           activitySharerProvider.overrideWithValue(sharer),
           backgroundSyncSchedulerProvider.overrideWithValue(const NoopBackgroundSyncScheduler()),
-          importFilePickerProvider.overrideWithValue(FixedImportFilePicker(picked)),
+          importFilePickerProvider.overrideWithValue(picker ?? FixedImportFilePicker(picked)),
           importFeedFactoryProvider.overrideWithValue(feed ?? LocalImportFeed.open),
           exportDirectoryProvider.overrideWithValue(() async => Directory('${dir.path}/export')),
         ],
@@ -144,12 +181,17 @@ void main() {
       // O mesmo GPX do ZIP, solto: duplicata.
       writeTemp(dir, 'repetida.gpx', utf8.encode(gpxText(points: line(30)))),
     ];
+    final semantics = tester.ensureSemantics();
+    final said = captureAnnouncements(tester);
     final c = await pump(tester, picked: paths);
     await tester.tap(find.byKey(const Key('import_pick')));
     await tester.pump();
     await waitWhile(tester, c, YourDataPhase.importing);
 
     expect(find.byKey(const Key('import_summary')), findsOneWidget);
+    expect(said, contains('Importacao concluida: 2 importadas, 1 com erro'));
+    expect(tester.getSemantics(find.text('Importacao concluida')), isSemantics(isHeader: true));
+    semantics.dispose();
     expect(find.text('2 importadas'), findsOneWidget);
     expect(find.text('1 duplicada (ja estavam no app)'), findsOneWidget);
     expect(find.text('1 de natacao ignorada'), findsOneWidget);
@@ -190,6 +232,11 @@ void main() {
       isNotNull,
     );
     expect(find.bySemanticsLabel('Importando'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Importando')),
+      isSemantics(isLiveRegion: false),
+      reason: 'o valor muda a cada item; o anuncio e em degraus',
+    );
 
     gated.gates[0].complete();
     await waitFor(tester, () => c.read(yourDataControllerProvider).done >= 1);
@@ -226,6 +273,47 @@ void main() {
     expect(sharer.files.single.mimeType, 'application/zip');
     expect(sharer.files.single.path, startsWith('${dir.path}/export'));
     expect(File(sharer.files.single.path).existsSync(), isTrue);
+  });
+
+  testWidgets('copia do seletor: Preparando os arquivos, e falha sugere falta de espaco', (tester) async {
+    final picker = SlowPicker();
+    final c = await pump(tester, picker: picker);
+    await tester.tap(find.byKey(const Key('import_pick')));
+    await tester.pump();
+    expect(find.text('Importando: Preparando os arquivos...'), findsOneWidget);
+    expect(tester.widget<LinearProgressIndicator>(find.byKey(const Key('import_progress'))).value, isNull);
+    picker.fail = true;
+    picker.result.complete(const []);
+    await waitWhile(tester, c, YourDataPhase.importing);
+    expect(find.text('Nao foi possivel abrir os arquivos. Confira se ha espaco livre no aparelho.'), findsOneWidget);
+    expect(find.byKey(const Key('import_pick')), findsOneWidget);
+  });
+
+  testWidgets('seletor cancelado depois de preparar volta ao inicio', (tester) async {
+    final picker = SlowPicker();
+    final c = await pump(tester, picker: picker);
+    await tester.tap(find.byKey(const Key('import_pick')));
+    await tester.pump();
+    picker.result.complete(const []);
+    await waitWhile(tester, c, YourDataPhase.importing);
+    expect(find.byKey(const Key('import_pick')), findsOneWidget);
+    expect(find.byKey(const Key('import_summary')), findsNothing);
+  });
+
+  testWidgets('exportar anuncia o fim', (tester) async {
+    await tester.runAsync(() => db.upsertActivity(ActivitiesCompanion.insert(
+      guid: 'a',
+      activityType: ActivityType.walk,
+      startTimestampMs: kT0,
+      isFinished: const Value(true),
+      syncState: SyncState.pending,
+    )));
+    final said = captureAnnouncements(tester);
+    final c = await pump(tester);
+    await tester.tap(find.byKey(const Key('export_all')));
+    await tester.pump();
+    await waitWhile(tester, c, YourDataPhase.exporting);
+    expect(said, contains('Exportacao concluida'));
   });
 
   testWidgets('exportar sem atividades avisa', (tester) async {
@@ -304,6 +392,23 @@ void main() {
       await waitFor(tester, () => sharer.files.isNotEmpty);
       expect(sharer.files.single.mimeType, 'application/gpx+xml');
       expect(sharer.files.single.path, endsWith('.gpx'));
+    });
+
+    testWidgets('exportar GPX com outra exportacao em andamento avisa', (tester) async {
+      final a = (await tester.runAsync(() => seed('fit')))!;
+      await open(tester, a);
+      await tester.tap(find.byKey(const Key('detailMenu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('detailExportGpx')));
+      await tester.pumpAndSettle();
+      // Outra exportacao segura a trava enquanto o Exportar e tocado.
+      final release = Completer<void>();
+      final held = ExportService.runExclusive(() => release.future);
+      await tester.tap(find.byKey(const Key('exportGpxConfirm')));
+      await waitFor(tester, () => find.text('Ja ha uma exportacao em andamento').evaluate().isNotEmpty);
+      expect(sharer.files, isEmpty);
+      release.complete();
+      await held;
     });
   });
 }

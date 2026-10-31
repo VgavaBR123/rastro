@@ -15,15 +15,34 @@ abstract class ImportFilePicker {
   Future<void> cleanUp();
 }
 
+/// Seletor que avisa quando o sistema comeca a copiar os arquivos escolhidos
+/// (a copia de um ZIP grande demora): a tela mostra "Preparando os
+/// arquivos..." enquanto isso.
+abstract interface class ProgressImportFilePicker implements ImportFilePicker {
+  Future<List<String>> pickWithProgress(void Function() onPreparing);
+}
+
 /// Seletor do sistema (pacote file_picker). Sem filtro de extensao no
 /// seletor: .fit e .gz nao tem tipo MIME confiavel no Android, e o filtro
 /// esconderia arquivos validos. O que nao e aceito vira erro no resumo.
-class SystemImportFilePicker implements ImportFilePicker {
+///
+/// Pendencia: o file_picker copia o arquivo escolhido para o cache antes de
+/// devolver o caminho (um ZIP de 2 GB ocupa o dobro por um tempo). Ler direto
+/// do `content://` exigiria um seletor nativo proprio.
+class SystemImportFilePicker implements ProgressImportFilePicker {
   const SystemImportFilePicker();
 
   @override
-  Future<List<String>> pick() async {
-    final files = await FilePicker.pickFiles(dialogTitle: 'Escolha os arquivos');
+  Future<List<String>> pick() => pickWithProgress(() {});
+
+  @override
+  Future<List<String>> pickWithProgress(void Function() onPreparing) async {
+    final files = await FilePicker.pickFiles(
+      dialogTitle: 'Escolha os arquivos',
+      onFileLoading: (status) {
+        if (status == FilePickerStatus.picking) onPreparing();
+      },
+    );
     return [for (final f in files) ?f.path];
   }
 
