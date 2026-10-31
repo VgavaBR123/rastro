@@ -153,6 +153,11 @@ void main() {
     expect(voice.spoken.last, 'Plano de hoje concluido.');
     expect(container.read(recordingControllerProvider).completedLaps, 5);
     expect(container.read(guidedSessionProvider)!.view.completed, isTrue);
+    // Verificacao do F06: o tempo em movimento da GRAVACAO nao anda sem ponto
+    // de GPS (o relogio da sessao so avanca na amostra). Por isso o plano tem
+    // relogio proprio: ele andou 150 s enquanto a gravacao ficou parada.
+    expect(container.read(recordingControllerProvider).timerMs, 0);
+    expect(container.read(guidedSessionProvider)!.view.elapsedMs, 150 * s);
     // Nenhuma fala do plano tem ritmo.
     expect(voice.spoken.where((t) => t.toLowerCase().contains('pace')), isEmpty);
 
@@ -164,6 +169,20 @@ void main() {
     expect(r.movingMs, 150 * s);
     final progress = await container.read(planServiceProvider).progress();
     expect(progress.next!.number, 2);
+  });
+
+  test('pontos de GPS e ticks juntos nao contam o tempo em dobro', () async {
+    await startGuided();
+    for (var i = 1; i <= 30; i++) {
+      nowMs += 1000;
+      source.add(p(i));
+      await settle();
+      ticker.tick();
+      await settle();
+    }
+    expect(container.read(guidedSessionProvider)!.view.elapsedMs, 30 * s);
+    expect(container.read(recordingControllerProvider).completedLaps, 1);
+    await container.read(recordingControllerProvider.notifier).stop();
   });
 
   test('pausa manual congela o plano; retomar continua de onde parou', () async {
