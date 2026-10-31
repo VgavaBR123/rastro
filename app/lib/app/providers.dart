@@ -123,6 +123,7 @@ final recordingControllerProvider =
         currentUserId: () => ref.read(authControllerProvider).user?.id,
         weightKg: () => ref.read(settingsProvider).weightKg,
         useMetric: () => ref.read(settingsProvider).useMetric,
+        monotonicNow: () => ref.read(monotonicClockProvider).nowMs,
       );
     });
 
@@ -130,7 +131,7 @@ final recordingControllerProvider =
 final settingsProvider = StateNotifierProvider<SettingsController, AppSettings>(
   (ref) {
     return SettingsController(ref.watch(recordingDatabaseProvider))
-    ..ensureLoaded();
+      ..ensureLoaded();
   },
 );
 

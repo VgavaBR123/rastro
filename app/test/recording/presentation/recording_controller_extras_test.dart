@@ -88,6 +88,27 @@ void main() {
       await ctrl.stop();
     });
 
+    test('E2E-01: Encerrar salva a volta em aberto', () async {
+      await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
+      await feed([0, 1, 2, 3]);
+      final lap1 = (await ctrl.lap())!;
+      await feed([4, 6, 7]);
+      final total = ctrl.state.distanceMeters;
+      await ctrl.stop();
+
+      final saved = await repo.laps(ctrl.activityGuid!);
+      expect(saved.map((l) => l.number), [1, 2]);
+      expect(saved[1].startDistanceMeters, closeTo(lap1.endDistanceMeters, 1e-9));
+      expect(saved[1].endDistanceMeters, closeTo(total, 1e-9));
+    });
+
+    test('sem nenhuma volta marcada, Encerrar nao cria volta', () async {
+      await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
+      await feed([0, 1, 2, 3]);
+      await ctrl.stop();
+      expect(await repo.laps(ctrl.activityGuid!), isEmpty);
+    });
+
     test('sem gravacao ativa lap nao faz nada', () async {
       expect(await ctrl.lap(), isNull);
     });
@@ -259,6 +280,38 @@ void main() {
       await feed([0, 1, 2]);
       await ctrl.stop();
       expect((await repo.activity(guid))!.calories, isNull);
+    });
+  });
+
+  group('tique do relogio (GRA-01)', () {
+    test('o cronometro anda sem fix e para no Encerrar', () async {
+      var mono = 0;
+      final c = RecordingController(
+        source: source,
+        repo: repo,
+        service: service,
+        now: () => 1000,
+        monotonicNow: () => mono,
+      );
+      addTearDown(c.dispose);
+      await c.start(ActivityType.walk, autoPauseEnabled: false);
+      mono = 7000;
+      c.tick();
+      expect(c.state.timerMs, 7000);
+      c.pause();
+      mono = 20000;
+      c.tick();
+      expect(c.state.timerMs, 7000);
+      await c.stop();
+      final a = await repo.activity(c.activityGuid!);
+      expect(a!.timerTimeMs, 7000);
+    });
+
+    test('sem relogio monotonico injetado, tick nao faz nada', () async {
+      await ctrl.start(ActivityType.walk, autoPauseEnabled: false);
+      ctrl.tick();
+      expect(ctrl.state.timerMs, 0);
+      await ctrl.stop();
     });
   });
 }

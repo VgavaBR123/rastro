@@ -32,6 +32,7 @@ library;
 import 'dart:math' as math;
 
 import 'auto_pause.dart';
+import 'geo.dart';
 import 'location_sample.dart';
 
 /// Amostra do acelerometro (m/s^2) com tempo monotonico (ms).
@@ -95,6 +96,21 @@ class MotionAutoPauseDetector implements AutoPauseDetector {
   /// medias). Durante o aquecimento vale o fallback.
   static const int warmupMs = 1000;
 
+  /// Velocidade de GPS que desmente o acelerometro "parado" (GRA-02: celular
+  /// preso no guidao, no carrinho de bebe ou parado na mesa com o GPS
+  /// andando). 1,5 m/s e uma caminhada rapida; deriva de GPS parado fica
+  /// abaixo disso quase sempre, e ainda exigimos que se mantenha.
+  static const double gpsMovingSpeedMps = 1.5;
+
+  /// Abaixo disto o GPS deixa de desmentir o acelerometro (histerese).
+  static const double gpsReleaseSpeedMps = 1.0;
+
+  /// Tempo continuo acima de [gpsMovingSpeedMps] antes de confiar no GPS.
+  static const int gpsMovingHoldMs = 3000;
+
+  /// Precisao minima (m) do fix para ele desmentir o acelerometro.
+  static const double gpsMaxAccuracyMeters = 25.0;
+
   final AutoPauseDetector fallback;
 
   MotionAutoPauseDetector({required this.fallback});
@@ -109,6 +125,10 @@ class MotionAutoPauseDetector implements AutoPauseDetector {
   bool _still = false;
   int? _candidateSinceMs;
   bool _lastFallbackDecision = false;
+  int? _gpsFastSinceMs; // inicio da sequencia de fixes rapidos
+  int? _lastGpsMs;
+  GeoPoint? _lastGpsPosition;
+  bool _gpsSaysMoving = false;
 
   /// Alimenta o detector com uma amostra do acelerometro.
   void addAccel(AccelSample s) {
@@ -180,14 +200,58 @@ class MotionAutoPauseDetector implements AutoPauseDetector {
     return last - start >= warmupMs;
   }
 
+  /// Decisao do acelerometro no instante [nowMs], sem precisar de fix de GPS
+  /// (o relogio da gravacao pergunta a cada segundo). null = sem acelerometro
+  /// recente; quem decide e o GPS.
+  bool? accelDecision(int nowMs) {
+    if (!_accelUsable(nowMs)) return null;
+    final int? lastGps = _lastGpsMs;
+    final bool gpsFresh = lastGps != null && nowMs - lastGps <= staleMs;
+    if (_gpsSaysMoving && gpsFresh) return false;
+    return _still;
+  }
+
+  /// Acompanha se o GPS mostra deslocamento firme (para desmentir o
+  /// acelerometro). Usa a velocidade informada ou, sem ela, a derivada do
+  /// deslocamento desde o fix anterior.
+  void _trackGps(LocationSample s) {
+    final int? lastMs = _lastGpsMs;
+    final GeoPoint? lastPos = _lastGpsPosition;
+    double? speed = s.speedMetersPerSecond;
+    if (speed == null && lastMs != null && lastPos != null) {
+      final double dt = (s.monotonicMs - lastMs) / 1000.0;
+      if (dt > 0) speed = haversineMeters(lastPos, s.position) / dt;
+    }
+    _lastGpsMs = s.monotonicMs;
+    _lastGpsPosition = s.position;
+
+    final double? acc = s.horizontalAccuracyMeters;
+    final bool precise = acc != null && acc > 0 && acc <= gpsMaxAccuracyMeters;
+    if (speed == null || !precise) {
+      _gpsFastSinceMs = null;
+      return;
+    }
+    if (speed >= gpsMovingSpeedMps) {
+      _gpsFastSinceMs ??= s.monotonicMs;
+      if (s.monotonicMs - _gpsFastSinceMs! >= gpsMovingHoldMs) {
+        _gpsSaysMoving = true;
+      }
+    } else {
+      _gpsFastSinceMs = null;
+      if (speed < gpsReleaseSpeedMps) _gpsSaysMoving = false;
+    }
+  }
+
   @override
   bool shouldBePaused(LocationSample sample) {
     // O fallback e alimentado sempre (ex.: guarda a posicao anterior para
     // derivar velocidade), mesmo quando quem decide e o acelerometro.
     final bool byFallback = fallback.shouldBePaused(sample);
-    if (_accelUsable(sample.monotonicMs)) {
-      _lastFallbackDecision = _still;
-      return _still;
+    _trackGps(sample);
+    final bool? byAccel = accelDecision(sample.monotonicMs);
+    if (byAccel != null) {
+      _lastFallbackDecision = byAccel;
+      return byAccel;
     }
     _lastFallbackDecision = byFallback;
     if (_lastAccelMs != null &&
@@ -210,5 +274,9 @@ class MotionAutoPauseDetector implements AutoPauseDetector {
     _still = false;
     _candidateSinceMs = null;
     _lastFallbackDecision = false;
+    _gpsFastSinceMs = null;
+    _lastGpsMs = null;
+    _lastGpsPosition = null;
+    _gpsSaysMoving = false;
   }
 }

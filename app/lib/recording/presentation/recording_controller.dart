@@ -34,6 +34,10 @@ const int kWaypointFlushBatch = 10;
 /// monotonico das amostras). Mudanca de estado (pausa) atualiza na hora.
 const int kNotificationUpdateIntervalMs = 3000;
 
+/// Intervalo do tique do relogio da gravacao: o cronometro da tela anda de
+/// segundo em segundo mesmo sem fix de GPS (GRA-01).
+const Duration kRecordingTickInterval = Duration(seconds: 1);
+
 class RecordingController extends StateNotifier<RecordingUiState> {
   final LocationSource _source;
   final RecordingRepository _repo;
@@ -54,7 +58,12 @@ class RecordingController extends StateNotifier<RecordingUiState> {
   /// Estrategia de pausa automatica por esporte (padrao: a do dominio).
   final AutoPauseDetector Function(ActivityType)? _autoPauseFactory;
 
+  /// Agora no relogio monotonico das fontes (mesma base das amostras). Sem
+  /// ele, o relogio da gravacao so anda com amostras.
+  final int Function()? _monotonicNow;
+
   RecordingSession? _session;
+  Timer? _ticker;
   StreamSubscription<LocationSample>? _sub;
   StreamSubscription<AccelSample>? _accelSub;
   StreamSubscription<RecordingCommand>? _commandSub;
@@ -79,6 +88,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     double? Function()? weightKg,
     bool Function()? useMetric,
     AutoPauseDetector Function(ActivityType)? autoPauseFactory,
+    int Function()? monotonicNow,
   }) : _source = source,
        _repo = repo,
        _service = service,
@@ -89,6 +99,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
        _weightKg = weightKg ?? (() => null),
        _useMetric = useMetric ?? (() => true),
        _autoPauseFactory = autoPauseFactory,
+       _monotonicNow = monotonicNow,
        super(const RecordingUiState());
 
   String? get activityGuid => _guid;
@@ -189,13 +200,27 @@ class RecordingController extends StateNotifier<RecordingUiState> {
       _accelSub = _accel.samples().listen(_onAccel, onError: (Object _) {});
     }
     _commandSub = _service.commands.listen(_onCommand);
+    if (_monotonicNow != null) {
+      _ticker = Timer.periodic(kRecordingTickInterval, (_) => tick());
+    }
     _emit();
+  }
+
+  /// Avanca o relogio da gravacao sem amostra de GPS (chamado pelo tique).
+  void tick() {
+    final session = _session;
+    final now = _monotonicNow?.call();
+    if (session == null || now == null) return;
+    if (now > _lastMonotonicMs) _lastMonotonicMs = now;
+    session.tick(_lastMonotonicMs);
+    _emit();
+    _maybeNotify();
   }
 
   Future<void> _onSample(LocationSample s) async {
     final session = _session;
     if (session == null) return;
-    _lastMonotonicMs = s.monotonicMs;
+    if (s.monotonicMs > _lastMonotonicMs) _lastMonotonicMs = s.monotonicMs;
     session.addSample(s);
     if (_batch.length >= kWaypointFlushBatch) {
       await _flush();
@@ -245,17 +270,19 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     final closed = session.lap(_lastMonotonicMs);
     if (closed == null) return null;
     _emit();
-    await _repo.saveLap(
-      guid,
-      number: closed.number,
-      startTimerMs: closed.startTimerMs,
-      endTimerMs: closed.endTimerMs,
-      endElapsedMs: closed.endElapsedMs,
-      startDistanceMeters: closed.startDistanceMeters,
-      endDistanceMeters: closed.endDistanceMeters,
-    );
+    await _saveLap(guid, closed);
     return closed;
   }
+
+  Future<void> _saveLap(String guid, LapRecord lap) => _repo.saveLap(
+    guid,
+    number: lap.number,
+    startTimerMs: lap.startTimerMs,
+    endTimerMs: lap.endTimerMs,
+    endElapsedMs: lap.endElapsedMs,
+    startDistanceMeters: lap.startDistanceMeters,
+    endDistanceMeters: lap.endDistanceMeters,
+  );
 
   Future<void> stop() async {
     final session = _session;
@@ -265,8 +292,19 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     // Evita reentrada (ex.: Encerrar na tela e na notificacao ao mesmo tempo).
     _session = null;
     await _service.stop();
+    final now = _monotonicNow?.call();
+    if (now != null && now > _lastMonotonicMs) _lastMonotonicMs = now;
+    session.tick(_lastMonotonicMs);
+    // A volta em aberto fecha no Encerrar (E2E-01): sem isso, a soma das
+    // voltas nao bate com o total. So quando o usuario usou voltas.
+    final openLap = session.laps.isNotEmpty
+        ? session.lap(_lastMonotonicMs)
+        : null;
     session.finish();
     await _flush();
+    if (openLap != null && openLap.distanceMeters > 0) {
+      await _saveLap(guid, openLap);
+    }
     final st = session.stats;
     final endBattery = await _battery.level();
     final calories = estimateCaloriesKcal(
@@ -287,6 +325,8 @@ class RecordingController extends StateNotifier<RecordingUiState> {
   }
 
   Future<void> _cancelSubscriptions() async {
+    _ticker?.cancel();
+    _ticker = null;
     await _sub?.cancel();
     _sub = null;
     await _accelSub?.cancel();
@@ -341,6 +381,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
 
   @override
   void dispose() {
+    _ticker?.cancel();
     _sub?.cancel();
     _accelSub?.cancel();
     _commandSub?.cancel();
