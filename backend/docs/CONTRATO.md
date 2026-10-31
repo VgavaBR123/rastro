@@ -16,7 +16,7 @@ Convencoes:
 
 | Rota | Resposta |
 | --- | --- |
-| `GET /health` | 200 `{"status":"ok","db":"ok"}`; 503 `{"status":"degraded","db":"erro"}` se o banco nao responde |
+| `GET /health` | 200 `{"status":"ok","db":"ok","safety":{"lastTickAt":0,"ok":true}}`; 503 `{"status":"degraded",...}` se o banco nao responde ou se o vigia do Rastro Seguro esta ligado e sem tick concluido ha mais de 3 intervalos (`safety.ok: false`). Ver CONTRATO-RASTRO-SEGURO.md |
 
 ## Conta
 
