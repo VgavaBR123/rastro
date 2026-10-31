@@ -669,7 +669,10 @@ class SafetySessionController extends StateNotifier<SafetyUiState> {
   /// aparelho: nao mexe. Sem rede ou sem login: nada.
   Future<void> reconcile({Future<bool> Function(String guid)? interrupted}) async {
     await _run(() async {
-      await sendPendingArrivals(_api, _local, ownerUserId: _currentUserId(), except: _pendingArrival);
+      // So os desta conta (sem conta conhecida, nao manda: o token de outra
+      // conta levaria 404 e apagaria o pendente dela).
+      final uid = _currentUserId();
+      if (uid != null) await sendPendingArrivals(_api, _local, ownerUserId: uid, except: _pendingArrival);
       if (state.active) return;
       final SafetySession? s;
       try {
@@ -712,7 +715,8 @@ class SafetySessionController extends StateNotifier<SafetyUiState> {
   /// no registro local com a conta, para o proximo login dela.
   Future<void> beforeSignOut() async {
     if (state.active) await arrive();
-    await _run(() => sendPendingArrivals(_api, _local, ownerUserId: _currentUserId()));
+    final uid = _currentUserId();
+    if (uid != null) await _run(() => sendPendingArrivals(_api, _local, ownerUserId: uid));
     _pendingArrival = null;
     _stopTicks();
     if (mounted) state = const SafetyUiState();

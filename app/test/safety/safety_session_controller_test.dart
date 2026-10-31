@@ -457,6 +457,25 @@ void main() {
       expect(ticker.hasListener, isFalse);
     });
 
+    test('sem conta conhecida, a recuperacao nao manda pendente de ninguem', () async {
+      await local.created(sessionId: 'ss_y', activityGuid: 'g', ownerUserId: 'u_outra', nowMs: 1);
+      await local.markPendingArrival('ss_y');
+      ctrl.dispose();
+      ctrl = SafetySessionController(
+        api: api(),
+        local: local,
+        ticker: ticker,
+        now: () => nowMs,
+        lastSample: () => null,
+        recording: () => const RecordingUiState(),
+        recordingGuid: () => null,
+        narrator: Narrator(voice, now: () => nowMs),
+      );
+      await ctrl.reconcile();
+      expect(server.requestsTo('POST', '/ss_y/arrived'), isEmpty);
+      expect(await local.pendingArrivals(), hasLength(1));
+    });
+
     test('pendente de outra conta nao sai com esta', () async {
       await local.created(sessionId: 'ss_x', activityGuid: 'g', ownerUserId: 'u_outra', nowMs: 1);
       await local.markPendingArrival('ss_x');
