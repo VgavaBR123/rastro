@@ -74,7 +74,8 @@ Future<void> main() async {
 
   // Rastro Seguro (F08): tempos do vigia e endereco publico do link vem de
   // SAFETY_TICK_MS, SAFETY_SILENCE_MS, SAFETY_STOP_MS, SAFETY_CHECK_MS,
-  // SAFETY_ETA_MIN_MS e PUBLIC_BASE_URL (padroes no contrato). Push pelo FCM
+  // SAFETY_ETA_MIN_MS, SAFETY_SESSION_TIMEOUT_MS, SAFETY_TICK_TIMEOUT_MS e
+  // PUBLIC_BASE_URL (padroes no contrato). Push pelo FCM
   // so com FIREBASE_SERVICE_ACCOUNT (caminho do JSON da conta de servico);
   // sem ela, o push so vai para o log e o app le a caixa de entrada.
   final SafetyConfig safetyConfig = SafetyConfig.fromEnv(Platform.environment);
@@ -97,7 +98,8 @@ Future<void> main() async {
   stdout.writeln('Rastro Seguro: tick ${safetyConfig.tickMs} ms, silencio '
       '${safetyConfig.silenceMs} ms, parada ${safetyConfig.stopMs} ms, '
       'checagem ${safetyConfig.checkMs} ms, eta minimo '
-      '${safetyConfig.etaMinMs} ms, link em ${safetyConfig.publicBaseUrl}');
+      '${safetyConfig.etaMinMs} ms, prazos ${safetyConfig.sessionTimeoutMs}/'
+      '${safetyConfig.tickTimeoutMs} ms, link em ${safetyConfig.publicBaseUrl}');
 
   // logRequests registra so metodo, caminho e status: nunca corpo (senha) nem
   // headers (Authorization).

@@ -94,8 +94,13 @@ WHERE encode(fit, 'escape') ~ '^\{[0-9]{1,3}(,[0-9]{1,3})*\}$'
 ];
 
 class PostgresActivityStore implements ActivityStore {
-  final Connection _conn;
+  /// Pool de conexoes: quando o banco derruba uma conexao (reinicio, rede,
+  /// failover), o pool descarta a morta e abre outra na proxima consulta.
+  final Pool<void> _conn;
   PostgresActivityStore(this._conn);
+
+  /// Conexoes simultaneas no maximo (a API e o vigia dividem o pool).
+  static const int maxConexoes = 4;
 
   static Future<PostgresActivityStore> connect({
     required String host,
@@ -103,24 +108,31 @@ class PostgresActivityStore implements ActivityStore {
     required String database,
     required String username,
     required String password,
+    String applicationName = 'rastro-backend',
   }) async {
-    final conn = await Connection.open(
-      Endpoint(
-        host: host,
-        port: port,
-        database: database,
-        username: username,
-        password: password,
+    final pool = Pool<void>.withEndpoints(
+      [
+        Endpoint(
+          host: host,
+          port: port,
+          database: database,
+          username: username,
+          password: password,
+        )
+      ],
+      settings: PoolSettings(
+        sslMode: SslMode.disable,
+        applicationName: applicationName,
+        maxConnectionCount: maxConexoes,
       ),
-      settings: const ConnectionSettings(sslMode: SslMode.disable),
     );
-    final store = PostgresActivityStore(conn);
+    final store = PostgresActivityStore(pool);
     await store._ensureSchema();
     return store;
   }
 
-  /// Conexao compartilhada com o PostgresUserStore.
-  Connection get connection => _conn;
+  /// Pool compartilhado com o PostgresUserStore e o PostgresSafetyStore.
+  Pool<void> get connection => _conn;
 
   /// Ajustes de esquema que o init.sql so aplica em volume novo. Idempotente.
   /// Se o banco tiver dados que violam uma regra nova (ex.: guid repetido do

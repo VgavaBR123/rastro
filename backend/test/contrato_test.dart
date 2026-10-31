@@ -129,14 +129,20 @@ void main() {
     test('200 com db ok', () async {
       final r = await chamar('GET', '/health');
       expect(r.statusCode, 200);
-      expect(await jsonOf(r), {'status': 'ok', 'db': 'ok'});
+      final j = await jsonOf(r);
+      expect(j['status'], 'ok');
+      expect(j['db'], 'ok');
+      // Vigia do Rastro Seguro nao ligado nos testes: so informativo.
+      expect(j['safety'], {'lastTickAt': null, 'ok': false});
     });
 
     test('503 degraded quando o banco nao responde', () async {
       montar(s: StoreForaDoAr());
       final r = await chamar('GET', '/health');
       expect(r.statusCode, 503);
-      expect(await jsonOf(r), {'status': 'degraded', 'db': 'erro'});
+      final j = await jsonOf(r);
+      expect(j['status'], 'degraded');
+      expect(j['db'], 'erro');
     });
   });
 

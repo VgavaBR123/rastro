@@ -13,6 +13,8 @@ void main() {
     expect(c.checkMs, 2 * 60 * 1000);
     expect(c.etaMinMs, 5 * 60 * 1000);
     expect(c.publicBaseUrl, 'http://localhost:8081');
+    expect(c.sessionTimeoutMs, 10000);
+    expect(c.tickTimeoutMs, 30000);
   });
 
   test('le as variaveis; invalidas ficam no padrao', () {
@@ -22,6 +24,8 @@ void main() {
       'SAFETY_STOP_MS': ' 30000 ',
       'SAFETY_CHECK_MS': '15000',
       'SAFETY_ETA_MIN_MS': '60000',
+      'SAFETY_SESSION_TIMEOUT_MS': '4000',
+      'SAFETY_TICK_TIMEOUT_MS': '9000',
       'PUBLIC_BASE_URL': 'https://rastro.exemplo',
     });
     expect(c.tickMs, 1000);
@@ -29,6 +33,8 @@ void main() {
     expect(c.stopMs, 30000);
     expect(c.checkMs, 15000);
     expect(c.etaMinMs, 60000);
+    expect(c.sessionTimeoutMs, 4000);
+    expect(c.tickTimeoutMs, 9000);
     expect(c.publicBaseUrl, 'https://rastro.exemplo');
     final ruim = SafetyConfig.fromEnv(
         const {'SAFETY_TICK_MS': 'abc', 'SAFETY_CHECK_MS': '0'});

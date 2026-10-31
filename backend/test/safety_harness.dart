@@ -52,6 +52,38 @@ class StoreFalhavel extends InMemorySafetyStore {
   /// vez so).
   void falharNaGravacao(int n) => _faltam = n;
 
+  /// Quantas listagens de sessoes abertas seguidas lancam erro (banco fora).
+  int falharListagens = 0;
+
+  /// Se definido, a proxima listagem de sessoes abertas fica pendurada.
+  Completer<void>? travarListagem;
+
+  /// Leituras desta sessao ficam penduradas enquanto [travarSessao] existir.
+  String? sessaoTravada;
+  Completer<void>? travarSessao;
+
+  @override
+  Future<List<SafetySessionRecord>> openSessions() async {
+    if (falharListagens > 0) {
+      falharListagens--;
+      throw StateError('conexao com o banco caiu (simulado)');
+    }
+    final Completer<void>? t = travarListagem;
+    if (t != null) {
+      travarListagem = null;
+      await t.future;
+    }
+    return super.openSessions();
+  }
+
+  @override
+  Future<SafetySessionRecord?> findSession(String id) async {
+    if (id == sessaoTravada && travarSessao != null) {
+      await travarSessao!.future;
+    }
+    return super.findSession(id);
+  }
+
   @override
   Future<void> addNotification(NotificationRecord n) async {
     if (_faltam != null) {

@@ -336,9 +336,17 @@ Handler createApi(
     } catch (_) {
       ok = false;
     }
-    return ok
-        ? _json({'status': 'ok', 'db': 'ok'})
-        : _json({'status': 'degraded', 'db': 'erro'}, status: 503);
+    // Vigia do Rastro Seguro ligado e parado (sem tick ha mais de 3
+    // intervalos) tambem e degradado: ninguem seria avisado.
+    final Map<String, dynamic> vigia = seguro.saude();
+    final bool vigiaParado = seguro.vigiaLigado && vigia['ok'] != true;
+    return ok && !vigiaParado
+        ? _json({'status': 'ok', 'db': 'ok', 'safety': vigia})
+        : _json({
+            'status': 'degraded',
+            'db': ok ? 'ok' : 'erro',
+            'safety': vigia,
+          }, status: 503);
   });
 
   router.post('/auth/register', (Request req) async {

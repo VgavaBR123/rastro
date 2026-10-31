@@ -47,6 +47,8 @@ class SafetyConfig {
     this.pushRetryBaseMs = 15000,
     this.maxClockAheadMs = 2 * 60 * 1000,
     this.maxPositionBeforeStartMs = 60 * 60 * 1000,
+    this.sessionTimeoutMs = 10000,
+    this.tickTimeoutMs = 30000,
   });
 
   /// Le as variaveis do contrato; ausentes ou invalidas ficam no padrao.
@@ -66,6 +68,8 @@ class SafetyConfig {
       stopMs: ler('SAFETY_STOP_MS', p.stopMs),
       checkMs: ler('SAFETY_CHECK_MS', p.checkMs),
       etaMinMs: ler('SAFETY_ETA_MIN_MS', p.etaMinMs),
+      sessionTimeoutMs: ler('SAFETY_SESSION_TIMEOUT_MS', p.sessionTimeoutMs),
+      tickTimeoutMs: ler('SAFETY_TICK_TIMEOUT_MS', p.tickTimeoutMs),
       publicBaseUrl: base.isEmpty ? p.publicBaseUrl : base,
     );
   }
@@ -104,6 +108,12 @@ class SafetyConfig {
 
   /// recordedAtMs mais que isto antes do inicio da sessao vira batimento.
   final int maxPositionBeforeStartMs;
+
+  /// Prazo do vigia para uma sessao (SAFETY_SESSION_TIMEOUT_MS).
+  final int sessionTimeoutMs;
+
+  /// Prazo do vigia para um tick inteiro (SAFETY_TICK_TIMEOUT_MS).
+  final int tickTimeoutMs;
 }
 
 /// Formato do token do link: 32 bytes em base64url sem padding = 43 chars.
@@ -812,13 +822,25 @@ class SafetyService {
   /// Fim do ultimo tick concluido.
   int? _ultimoTickMs;
 
-  /// Liga o timer do vigia (a cada [SafetyConfig.tickMs]).
+  /// Fim do ultimo tick concluido (null = nenhum ainda).
+  int? get lastTickAtMs => _ultimoTickMs;
+
+  int? _ligadoEmMs;
+
+  /// Liga o timer do vigia (a cada [SafetyConfig.tickMs]). Um tick que
+  /// passar de [SafetyConfig.tickTimeoutMs] e abandonado (o Dart nao cancela
+  /// o Future; ele termina sozinho em segundo plano) e o proximo tick roda.
   void start() {
-    _timer ??= Timer.periodic(Duration(milliseconds: config.tickMs), (_) async {
+    if (_timer != null) return;
+    _ligadoEmMs = _now();
+    _timer = Timer.periodic(Duration(milliseconds: config.tickMs), (_) async {
       if (_rodando) return; // tick anterior ainda nao acabou
       _rodando = true;
       try {
-        await tick();
+        await tick().timeout(Duration(milliseconds: config.tickTimeoutMs));
+      } on TimeoutException {
+        stderr.writeln('vigia: o tick estourou o prazo de '
+            '${config.tickTimeoutMs} ms e foi abandonado');
       } catch (e) {
         stderr.writeln('vigia do Rastro Seguro falhou: $e');
       } finally {
@@ -832,6 +854,18 @@ class SafetyService {
     _timer = null;
   }
 
+  bool get vigiaLigado => _timer != null;
+
+  /// Para o /health: ok se o ultimo tick concluido (ou o momento em que o
+  /// vigia ligou, antes do primeiro) tem no maximo 3 intervalos.
+  Map<String, dynamic> saude() {
+    final int? ref = _ultimoTickMs ?? _ligadoEmMs;
+    return {
+      'lastTickAt': _ultimoTickMs,
+      'ok': ref != null && _now() - ref <= 3 * config.tickMs,
+    };
+  }
+
   /// Uma passada do vigia sobre as sessoes abertas, mais a limpeza LGPD.
   Future<void> tick() async {
     final int inicio = _now();
@@ -842,20 +876,41 @@ class SafetyService {
           'agora');
       _carenciaDesdeMs = inicio;
     }
-    for (final SafetySessionRecord previa in await _store.openSessions()) {
+    final List<SafetySessionRecord> abertas;
+    try {
+      abertas = await _store.openSessions();
+    } catch (e) {
+      // Banco fora: o tick nao conclui (o /health mostra) e o proximo tenta.
+      stderr.writeln('vigia: nao conseguiu ler as sessoes (banco fora?): $e');
+      return;
+    }
+    for (final SafetySessionRecord previa in abertas) {
       try {
         // Cada sessao numa transacao: a mudanca de status e as notificacoes
         // ficam juntas ou nao ficam (o proximo tick tenta de novo).
-        await _comTrava(
-            previa.id, () => _store.transaction((tx) => _vigiar(previa.id, tx)));
+        await _comTrava(previa.id,
+                () => _store.transaction((tx) => _vigiar(previa.id, tx)))
+            .timeout(Duration(milliseconds: config.sessionTimeoutMs));
+      } on TimeoutException {
+        stderr.writeln('vigia: sessao ${previa.id} estourou o prazo de '
+            '${config.sessionTimeoutMs} ms; segue para as outras');
       } catch (e) {
         stderr.writeln('vigia: sessao ${previa.id}: $e');
       }
     }
-    await _limparLgpd();
-    await drenarPush();
+    try {
+      await _limparLgpd();
+    } catch (e) {
+      stderr.writeln('vigia: limpeza de 24 h falhou: $e');
+    }
+    try {
+      await drenarPush();
+    } catch (e) {
+      stderr.writeln('vigia: outbox de push falhou: $e');
+    }
     _ultimoTickMs = _now();
   }
+
 
   /// 24 h depois do fim: a sessao (posicao e link) some e as notificacoes
   /// dela perdem lat, lon e shareUrl, numa transacao so.

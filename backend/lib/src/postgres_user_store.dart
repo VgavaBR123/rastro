@@ -8,7 +8,8 @@ import 'package:postgres/postgres.dart';
 import 'user_store.dart';
 
 class PostgresUserStore implements UserStore {
-  final Connection _conn;
+  /// Conexao ou pool (o servidor passa o pool do PostgresActivityStore).
+  final Session _conn;
   PostgresUserStore(this._conn);
 
   static const String _selectUsers =
