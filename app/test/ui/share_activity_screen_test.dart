@@ -124,7 +124,7 @@ void main() {
     await pumpScreen(tester);
     await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
-    expect(sharer.texts, ['Treino no parque\nCorrida | 1.20 km | 6:00 | 5:00 /km']);
+    expect(sharer.texts, ['Treino no parque\nCorrida | 1,20 km | 6:00 | 5:00 /km']);
     expect(sharer.images, isEmpty);
   });
 

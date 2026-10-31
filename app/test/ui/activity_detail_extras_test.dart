@@ -144,7 +144,7 @@ void main() {
     expect(textoDe(tester, const Key('elevationMin')), '100 m');
     expect(textoDe(tester, const Key('elevationGain')), '50 m');
     expect(textoDe(tester, const Key('elevationStartDistance')), '0 km');
-    expect(textoDe(tester, const Key('elevationEndDistance')), '1.5 km');
+    expect(textoDe(tester, const Key('elevationEndDistance')), '1,5 km');
   });
 
   testWidgets('perfil em pes e milhas quando imperial', (tester) async {
@@ -155,7 +155,7 @@ void main() {
 
     expect(textoDe(tester, const Key('elevationMax')), '492 ft');
     expect(textoDe(tester, const Key('elevationMin')), '328 ft');
-    expect(textoDe(tester, const Key('elevationEndDistance')), '0.9 mi');
+    expect(textoDe(tester, const Key('elevationEndDistance')), '0,9 mi');
   });
 
   testWidgets('voltas com distancia, tempo e pace em km', (tester) async {
@@ -165,7 +165,7 @@ void main() {
 
     expect(find.byKey(const Key('lapsSection')), findsOneWidget);
     expect(naVolta(1, 'Volta 1'), findsOneWidget);
-    expect(naVolta(1, '1.00 km'), findsOneWidget);
+    expect(naVolta(1, '1,00 km'), findsOneWidget);
     expect(naVolta(1, '5:00'), findsOneWidget);
     expect(naVolta(1, '5:00 /km'), findsOneWidget);
     expect(naVolta(2, 'Volta 2'), findsOneWidget);
@@ -180,9 +180,9 @@ void main() {
     await db.saveSettings(useMetric: false);
     await abrir(tester, db);
 
-    expect(naVolta(1, '0.62 mi'), findsOneWidget);
+    expect(naVolta(1, '0,62 mi'), findsOneWidget);
     expect(naVolta(1, '8:03 /mi'), findsOneWidget);
-    expect(naVolta(2, '0.31 mi'), findsOneWidget);
+    expect(naVolta(2, '0,31 mi'), findsOneWidget);
     expect(naVolta(2, '9:39 /mi'), findsOneWidget);
   });
 
@@ -254,7 +254,7 @@ void main() {
       expect(tinta('detailAscent'), colors.subida.tint);
       expect(tinta('detailCalories'), colors.extra.tint);
       expect(tinta('detailBattery'), colors.ciano.tint);
-      expect(naLinha('detailDistance', '1.50 km'), findsOneWidget);
+      expect(naLinha('detailDistance', '1,50 km'), findsOneWidget);
       expect(naLinha('detailAscent', '50 m'), findsOneWidget);
       final y = tester.getTopLeft(find.byKey(const Key('detailDistance'))).dy;
       expect(tester.getTopLeft(find.byKey(const Key('detailPace'))).dy, y);
@@ -329,7 +329,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('share_text_only')));
     await tester.pump();
-    expect(sharer.texts, ['Tiro na pista\nCorrida | 1.50 km | 8:00 | 5:20 /km']);
+    expect(sharer.texts, ['Tiro na pista\nCorrida | 1,50 km | 8:00 | 5:20 /km']);
     await tester.tap(find.byKey(const Key('share_back')));
     await tester.pumpAndSettle();
 
@@ -357,7 +357,7 @@ void main() {
 
     expect(find.text('Velocidade'), findsOneWidget);
     expect(find.text('Pace'), findsNothing);
-    expect(naLinha('detailPace', '30.0 km/h'), findsOneWidget);
+    expect(naLinha('detailPace', '30,0 km/h'), findsOneWidget);
     expect(naLinha('detailAscent', '-- m'), findsOneWidget);
     // Sem descricao salva, a linha nao aparece.
     expect(find.byKey(const Key('detailDescription')), findsNothing);

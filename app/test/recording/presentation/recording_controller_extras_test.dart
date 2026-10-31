@@ -223,7 +223,7 @@ void main() {
       ctrl = build(metric: false);
       await ctrl.start(ActivityType.ride, autoPauseEnabled: false);
       await feed([0, 1]);
-      expect(service.updates.last.text, contains('mi'));
+      expect(service.updates.last.text, contains('ft'), reason: 'abaixo de 0,1 mi sai em pes (EST-05)');
       await ctrl.stop();
     });
   });

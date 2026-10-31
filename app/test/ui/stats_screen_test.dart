@@ -120,7 +120,7 @@ void main() {
 
         expect(find.text('Estatisticas'), findsOneWidget);
         // Padrao: 4 semanas (corrida e pedal).
-        expect(tileValue(tester, 'stats_total_distance'), '50.00 km');
+        expect(tileValue(tester, 'stats_total_distance'), '50,00 km');
         expect(tileValue(tester, 'stats_total_time'), '2:20:00');
         expect(tileValue(tester, 'stats_total_count'), '2');
         expect(tileValue(tester, 'stats_total_gain'), '0 m');
@@ -140,7 +140,7 @@ void main() {
 
         await tester.tap(find.byKey(const Key('stats_period_week')));
         await tester.pumpAndSettle();
-        expect(tileValue(tester, 'stats_total_distance'), '10.00 km');
+        expect(tileValue(tester, 'stats_total_distance'), '10,00 km');
         expect(tileValue(tester, 'stats_total_count'), '1');
         expect(find.byKey(const Key('stats_sport_ride')), findsNothing);
 
@@ -172,14 +172,14 @@ void main() {
       ) async {
         await pump(tester, const ProfileScreen(), theme: theme);
         expect(find.byKey(const Key('profile_signin')), findsOneWidget);
-        expect(tileValue(tester, 'profile_week_distance'), '10.00 km');
+        expect(tileValue(tester, 'profile_week_distance'), '10,00 km');
         expect(tileValue(tester, 'profile_week_count'), '1');
         final record = find.byKey(
           const Key('profile_record_ride_longestDistance'),
         );
         await tester.scrollUntilVisible(record, 200);
         expect(find.text('Pedal mais longo'), findsOneWidget);
-        expect(find.text('40.00 km'), findsOneWidget);
+        expect(find.text('40,00 km'), findsOneWidget);
         expect(
           find.byKey(const Key('profile_record_run_bestPace')),
           findsOneWidget,

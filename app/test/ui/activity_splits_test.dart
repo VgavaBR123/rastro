@@ -66,8 +66,8 @@ void main() {
     expect(find.text('2'), findsOneWidget);
     expect(find.text('3 (parcial)'), findsOneWidget);
     // Marcas de 1 km e 2 km.
-    expect(find.text('1.00 km'), findsOneWidget);
-    expect(find.text('2.00 km'), findsOneWidget);
+    expect(find.text('1,00 km'), findsOneWidget);
+    expect(find.text('2,00 km'), findsOneWidget);
     // O trecho parcial nao atingiu marca: mostra a distancia percorrida.
     expect(find.text('500 m'), findsOneWidget);
     // Trechos de 5 min a 5:00 /km; o parcial tem 2:30.

@@ -136,7 +136,7 @@ void main() {
     expect(find.text('ana@exemplo.com'), findsOneWidget);
     expect(find.byKey(const Key('profile_count')), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-    expect(find.text('12.50 km'), findsOneWidget);
+    expect(find.text('12,50 km'), findsOneWidget);
 
     final logout = find.byKey(const Key('profile_logout'));
     await tester.ensureVisible(logout);

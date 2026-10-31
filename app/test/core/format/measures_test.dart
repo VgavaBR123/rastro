@@ -10,15 +10,26 @@ void main() {
       expect(formatDistance(999.4), '999 m');
     });
 
-    test('metrico igual ou acima de 1 km em km com 2 casas', () {
-      expect(formatDistance(1000), '1.00 km');
-      expect(formatDistance(1234.5), '1.23 km');
-      expect(formatDistance(2500), '2.50 km');
+    test(
+      'INI-04: metrico igual ou acima de 1 km em km com 2 casas e virgula',
+      () {
+        expect(formatDistance(1000), '1,00 km');
+        expect(formatDistance(1234.5), '1,23 km');
+        expect(formatDistance(2500), '2,50 km');
+      },
+    );
+
+    test('INI-04: imperial em milhas com 2 casas e virgula', () {
+      expect(formatDistance(1609.344, metric: false), '1,00 mi');
+      expect(formatDistance(804.672, metric: false), '0,50 mi');
     });
 
-    test('imperial em milhas com 2 casas', () {
-      expect(formatDistance(1609.344, metric: false), '1.00 mi');
-      expect(formatDistance(804.672, metric: false), '0.50 mi');
+    test('EST-05: imperial abaixo de 0,1 mi em pes inteiros', () {
+      expect(formatDistance(0, metric: false), '0 ft');
+      expect(formatDistance(100, metric: false), '328 ft');
+      // 0,1 mi = 160,9344 m: dai para cima volta para milhas.
+      expect(formatDistance(160, metric: false), '525 ft');
+      expect(formatDistance(160.9344, metric: false), '0,10 mi');
     });
 
     test('negativo vira zero', () {
@@ -72,13 +83,13 @@ void main() {
 
   group('formatSpeed', () {
     test('metrico em km/h com 1 casa', () {
-      expect(formatSpeed(10), '36.0 km/h');
-      expect(formatSpeed(0), '0.0 km/h');
+      expect(formatSpeed(10), '36,0 km/h');
+      expect(formatSpeed(0), '0,0 km/h');
     });
 
     test('imperial em mph com 1 casa', () {
       // 10 m/s => 22.369... mph
-      expect(formatSpeed(10, metric: false), '22.4 mph');
+      expect(formatSpeed(10, metric: false), '22,4 mph');
     });
 
     test('nao finito retorna placeholder', () {
@@ -99,6 +110,65 @@ void main() {
 
     test('nao finito retorna placeholder', () {
       expect(formatElevation(double.nan, metric: false), '-- ft');
+    });
+  });
+
+  group('formatDecimal', () {
+    test('INI-04: virgula como separador decimal', () {
+      expect(formatDecimal(12.345, 1), '12,3');
+      expect(formatDecimal(0, 2), '0,00');
+      expect(formatDecimal(7, 0), '7');
+    });
+  });
+
+  group('formatTotalDuration (EST-04)', () {
+    test('zero e negativos', () {
+      expect(formatTotalDuration(0), '0 min');
+      expect(formatTotalDuration(-5000), '0 min');
+    });
+
+    test('abaixo de 1 minuto em segundos', () {
+      expect(formatTotalDuration(6000), '6 s');
+      expect(formatTotalDuration(59999), '59 s');
+    });
+
+    test('abaixo de 1 hora em minutos inteiros', () {
+      expect(formatTotalDuration(60000), '1 min');
+      expect(formatTotalDuration(6 * 60000 + 59000), '6 min');
+      expect(formatTotalDuration(59 * 60000), '59 min');
+    });
+
+    test('com horas em H:MM h', () {
+      expect(formatTotalDuration(3600000), '1:00 h');
+      expect(formatTotalDuration(3600000 + 5 * 60000 + 30000), '1:05 h');
+      expect(formatTotalDuration(12 * 3600000 + 30 * 60000), '12:30 h');
+    });
+  });
+
+  group('spokenMeasure (leitor de tela)', () {
+    test('troca a abreviacao pela palavra', () {
+      expect(spokenMeasure('12,4 km'), '12,4 quilometros');
+      expect(spokenMeasure('500 m'), '500 metros');
+      expect(spokenMeasure('1 m'), '1 metro');
+      expect(spokenMeasure('0,50 mi'), '0,50 milhas');
+      expect(spokenMeasure('328 ft'), '328 pes');
+      expect(spokenMeasure('36,0 km/h'), '36,0 quilometros por hora');
+      expect(spokenMeasure('22,4 mph'), '22,4 milhas por hora');
+      expect(spokenMeasure('5:00 /km'), '5:00 por quilometro');
+      expect(spokenMeasure('6 s'), '6 segundos');
+      expect(spokenMeasure('1 min'), '1 minuto');
+      expect(spokenMeasure('6 min'), '6 minutos');
+    });
+
+    test('horas viram "H horas e M minutos"', () {
+      expect(spokenMeasure('1:05 h'), '1 hora e 5 minutos');
+      expect(spokenMeasure('2:00 h'), '2 horas');
+      expect(spokenMeasure('12:30 h'), '12 horas e 30 minutos');
+    });
+
+    test('sem unidade conhecida fica igual', () {
+      expect(spokenMeasure('7'), '7');
+      expect(spokenMeasure('1:02:03'), '1:02:03');
     });
   });
 }

@@ -58,7 +58,7 @@ void main() {
       expect(find.text('Distancia'), findsOneWidget);
       expect(find.text('Tempo'), findsOneWidget);
       expect(find.text('Subida'), findsOneWidget);
-      expect(find.textContaining('25.00'), findsOneWidget);
+      expect(find.textContaining('25,00'), findsOneWidget);
       expect(find.textContaining('1:30:00'), findsOneWidget);
       expect(find.textContaining('142'), findsOneWidget);
       for (var i = 0; i < 7; i++) {
@@ -75,7 +75,7 @@ void main() {
     await pump(tester, buildWeekSummary(const [], now: now), AppTheme.dark, metric: false);
     expect(find.text('Nenhum treino'), findsOneWidget);
     expect(find.textContaining(' de '), findsNothing);
-    expect(find.textContaining('0.00'), findsOneWidget); // 0.00 mi
-    expect(find.textContaining('ft'), findsOneWidget);
+    // Zero em imperial: distancia e subida em pes (EST-05).
+    expect(find.textContaining('ft'), findsNWidgets(2));
   });
 }

@@ -11,12 +11,12 @@ import 'theme/app_colors.dart';
 import 'theme/app_typography.dart';
 
 /// Rotulo do eixo de distancia: sempre em km ou mi, uma casa decimal
-/// ("0 km", "1.5 km", "0.9 mi").
+/// ("0 km", "1,5 km", "0,9 mi").
 String formatAxisDistance(double meters, {required bool metric}) {
   final unit = metric ? 'km' : 'mi';
   if (!meters.isFinite || meters <= 0) return '0 $unit';
   final v = meters / (metric ? 1000.0 : 1609.344);
-  return '${v.toStringAsFixed(1)} $unit';
+  return '${formatDecimal(v, 1)} $unit';
 }
 
 /// Secao do detalhe com o perfil: titulo, ganho, min/max e o grafico, tudo

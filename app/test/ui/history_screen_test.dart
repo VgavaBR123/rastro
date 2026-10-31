@@ -72,7 +72,7 @@ void main() {
       final card = tester.widget<ActivityCard>(find.byType(ActivityCard));
       expect(card.compact, isTrue);
       expect(find.text('Ver detalhe'), findsNothing);
-      expect(find.text('1.20 km'), findsOneWidget);
+      expect(find.text('1,20 km'), findsOneWidget);
       expect(find.byKey(const Key('menu-a')), findsOneWidget);
     });
   }
@@ -194,6 +194,6 @@ void main() {
     expect(find.text('Distancia'), findsOneWidget);
     expect(find.text('Tempo'), findsOneWidget);
     expect(find.text('Pace'), findsOneWidget);
-    expect(find.text('1.20 km'), findsOneWidget); // 1200 m
+    expect(find.text('1,20 km'), findsOneWidget); // 1200 m
   });
 }
