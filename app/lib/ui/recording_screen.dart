@@ -212,6 +212,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     final timerMs = ref.read(recordingControllerProvider).timerMs;
     final guided = ref.read(guidedSessionProvider.notifier);
     final wasGuided = guided.isRunning;
+    // Plano 5 km (F06): o plano para aqui; nada fala nem vibra durante o stop.
+    guided.freeze();
     // Detalhes antes do stop: o stop poe a atividade na fila de upload, e um
     // sync ja em andamento subiria sem RPE, humor e corte das pontas (o
     // servidor e idempotente por guid e nao atualiza depois). Se gravar os
@@ -299,7 +301,9 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     // Atividade apagada: o Narrador nao fala o resumo do fim.
     ref.read(recordingNarrationProvider).suppressNextFinish();
     // Plano 5 km (F06): sessao descartada nao conta.
-    ref.read(guidedSessionProvider.notifier).abandon();
+    ref.read(guidedSessionProvider.notifier)
+      ..freeze()
+      ..abandon();
     await ctrl.stop();
     if (wasActive && guid != null) await repo.deleteActivity(guid);
     if (!mounted) return;

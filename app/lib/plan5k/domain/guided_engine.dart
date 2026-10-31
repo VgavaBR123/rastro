@@ -5,9 +5,11 @@
 // Regras:
 // - Cada troca de bloco fecha uma volta da gravacao (os blocos ficam gravados
 //   como voltas). O fim do desaquecimento tambem fecha a ultima.
-// - Salto grande entre duas chamadas (app suspenso, tick atrasado): fecha uma
-//   volta por bloco que passou, mas fala SO o bloco atual. Avisos que ficaram
-//   para tras (10 s, metade) sao descartados em silencio.
+// - Salto grande entre duas chamadas (app suspenso, tick atrasado): fecha UMA
+//   volta so, com o trecho todo (a gravacao nao fecha volta no passado, entao
+//   N voltas sairiam N-1 com 0 s), e conta os blocos pulados em
+//   [GuidedStep.skippedBlocks]. Fala SO o bloco atual; avisos que ficaram para
+//   tras (10 s, metade) sao descartados em silencio.
 // - "Faltam 10 segundos" antes de cada troca (nao antes do fim do
 //   desaquecimento, que nao tem proximo bloco), so em blocos com mais de 20 s.
 // - Metade da sessao avisada uma vez.
@@ -66,9 +68,14 @@ class SessionCompleted extends GuidedEvent {
 }
 
 class GuidedStep {
+  /// 0 ou 1: voltas a fechar neste passo.
   final int lapsToClose;
   final List<GuidedEvent> events;
-  const GuidedStep(this.lapsToClose, this.events);
+
+  /// Trocas de bloco alem da primeira neste passo (salto grande), que ficam
+  /// dentro da mesma volta.
+  final int skippedBlocks;
+  const GuidedStep(this.lapsToClose, this.events, {this.skippedBlocks = 0});
 
   static const none = GuidedStep(0, []);
 
@@ -196,7 +203,7 @@ class GuidedSessionEngine {
         isCompleted ? const SessionCompleted() : _enter(newIndex, planMs),
         if (crossed == 1 && halfCrossed && !isCompleted) const Halfway(),
       ];
-      return GuidedStep(crossed, events);
+      return GuidedStep(1, events, skippedBlocks: crossed - 1);
     }
 
     final events = <GuidedEvent>[];

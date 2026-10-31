@@ -12,5 +12,7 @@ class MainActivity : FlutterActivity() {
         ShareChannel.register(this, flutterEngine.dartExecutor.binaryMessenger)
         // Checklist "Gravacao confiavel": fabricante e telas de ajuste dele.
         DeviceSettingsChannel.register(this, flutterEngine.dartExecutor.binaryMessenger)
+        // Plano 5 km (F06): relogio que conta o sono do aparelho.
+        PlanClockChannel.register(flutterEngine.dartExecutor.binaryMessenger)
     }
 }

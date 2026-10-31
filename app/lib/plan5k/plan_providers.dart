@@ -2,7 +2,8 @@
 //
 // Para testes de ponta a ponta acelerarem o tempo, sobrescreva:
 // - [plan5kTableProvider]: tabela curta (ex.: blocos de 15 s);
-// - [planMonotonicNowProvider]: relogio do plano (ex.: Stopwatch x 30);
+// - [planTimeSourceProvider]: relogio do plano (ex.: FunctionTimeSource com
+//   um Stopwatch x 30);
 // - [planTickerProvider]: o tick que faz o plano andar (1 s por padrao).
 library;
 
@@ -21,6 +22,7 @@ import 'domain/plan_table.dart';
 import 'guided_session.dart';
 import 'plan_repository.dart';
 import 'plan_service.dart';
+import 'plan_time_source.dart';
 
 final bool _underFlutterTest =
     !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
@@ -42,10 +44,15 @@ final planServiceProvider = Provider<PlanService>(
 /// Vibracao das trocas de bloco.
 final planHapticsProvider = Provider<PlanHaptics>((_) => const SystemPlanHaptics());
 
-/// Relogio monotonico do plano (ms).
-final planMonotonicNowProvider = Provider<int Function()>((_) {
-  final sw = Stopwatch()..start();
-  return () => sw.elapsedMilliseconds;
+/// Relogio do plano. No aparelho: o nativo que conta o sono (Android
+/// elapsedRealtime, iOS CLOCK_MONOTONIC), com o relogio de parede limitado
+/// como reserva. Em `flutter test`: Stopwatch.
+final planTimeSourceProvider = Provider<PlanTimeSource>((_) {
+  if (_underFlutterTest || kIsWeb) {
+    final sw = Stopwatch()..start();
+    return FunctionTimeSource(() => sw.elapsedMilliseconds);
+  }
+  return NativeElapsedTimeSource();
 });
 
 /// Tick do plano. Em `flutter test` nao bate (sem Timer pendente nos testes
@@ -70,13 +77,14 @@ final guidedSessionProvider =
         narrator: ref.watch(narratorProvider),
         voiceOn: () => ref.read(settingsProvider).plan5kVoice,
         haptics: ref.watch(planHapticsProvider),
-        monotonicNow: ref.watch(planMonotonicNowProvider),
+        time: ref.watch(planTimeSourceProvider),
         wallNow: () => DateTime.now().millisecondsSinceEpoch,
         ticker: ref.watch(planTickerProvider),
         closeLap: recording.lap,
         setNotice: recording.setGuidedNotice,
         activityGuid: () => recording.activityGuid,
         recording: () => ref.read(recordingControllerProvider),
+        recordingStopping: () => recording.isStopping,
         table: () => ref.read(plan5kTableProvider),
       );
       ref.listen<RecordingUiState>(

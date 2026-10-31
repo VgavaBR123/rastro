@@ -4,6 +4,8 @@
 //
 // O plano anda pelos ticks: quase todos os cenarios rodam SEM ponto de GPS
 // depois do inicio (tela desligada / GPS fraco), provando que nao trava.
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +18,9 @@ import 'package:strava_estudo_app/plan5k/domain/plan_progress.dart';
 import 'package:strava_estudo_app/plan5k/domain/plan_table.dart';
 import 'package:strava_estudo_app/plan5k/guided_session.dart';
 import 'package:strava_estudo_app/plan5k/plan_providers.dart';
+import 'package:strava_estudo_app/plan5k/plan_repository.dart';
+import 'package:strava_estudo_app/plan5k/plan_time_source.dart';
+import 'package:strava_estudo_app/persistence/recording_repository.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/location_sample.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
@@ -39,6 +44,82 @@ final testTable = [
     for (var n = 1; n <= kSessionsPerWeek; n++)
       PlanSession(week: w, number: n, blocks: testSession),
 ];
+
+/// Ordem das escritas: progresso do plano x volta da gravacao (item 9).
+final List<String> writes = [];
+
+class _SpyPlanRepo extends PlanRepository {
+  bool failFinish = false;
+  bool failBegin = false;
+
+  /// Segura a proxima escrita de progresso ate o teste soltar (fila ocupada).
+  Completer<void>? gate;
+  _SpyPlanRepo(super.db);
+  @override
+  Future<void> saveProgress(String guid, {required int movingMs}) async {
+    writes.add('progresso $movingMs');
+    final g = gate;
+    gate = null;
+    if (g != null) await g.future;
+    return super.saveProgress(guid, movingMs: movingMs);
+  }
+
+  @override
+  Future<int> beginSession({
+    required int week,
+    required int number,
+    required int round,
+    required int requiredMs,
+    required String guid,
+    required int nowMs,
+  }) {
+    if (failBegin) throw StateError('disco cheio');
+    return super.beginSession(
+      week: week,
+      number: number,
+      round: round,
+      requiredMs: requiredMs,
+      guid: guid,
+      nowMs: nowMs,
+    );
+  }
+
+  @override
+  Future<void> finishSession(
+    String guid, {
+    required int movingMs,
+    required SessionStatus status,
+    required int nowMs,
+  }) {
+    if (failFinish) throw StateError('disco cheio');
+    return super.finishSession(guid, movingMs: movingMs, status: status, nowMs: nowMs);
+  }
+}
+
+class _SpyRecordingRepo extends RecordingRepository {
+  _SpyRecordingRepo(super.db);
+  @override
+  Future<void> saveLap(
+    String guid, {
+    required int number,
+    required int startTimerMs,
+    required int endTimerMs,
+    required int endElapsedMs,
+    required double startDistanceMeters,
+    required double endDistanceMeters,
+  }) {
+    writes.add('volta $number');
+    return super.saveLap(
+      guid,
+      number: number,
+      startTimerMs: startTimerMs,
+      endTimerMs: endTimerMs,
+      endElapsedMs: endElapsedMs,
+      startDistanceMeters: startDistanceMeters,
+      endDistanceMeters: endDistanceMeters,
+    );
+  }
+}
 
 class FakeHaptics implements PlanHaptics {
   int changes = 0;
@@ -66,6 +147,7 @@ void main() {
   late FakeHeartbeatTicker ticker;
   late FakeRecordingService service;
   late ProviderContainer container;
+  late _SpyPlanRepo planRepo;
   var nowMs = 0;
 
   ProviderContainer build() => ProviderContainer(
@@ -77,7 +159,9 @@ void main() {
       voiceAnnouncerProvider.overrideWithValue(voice),
       planHapticsProvider.overrideWithValue(haptics),
       planTickerProvider.overrideWithValue(ticker),
-      planMonotonicNowProvider.overrideWithValue(() => nowMs),
+      planTimeSourceProvider.overrideWithValue(FunctionTimeSource(() => nowMs)),
+      planRepositoryProvider.overrideWith((ref) => planRepo = _SpyPlanRepo(db)),
+      recordingRepositoryProvider.overrideWith((ref) => _SpyRecordingRepo(db)),
       plan5kTableProvider.overrideWithValue(testTable),
     ],
   );
@@ -90,6 +174,7 @@ void main() {
     ticker = FakeHeartbeatTicker();
     service = FakeRecordingService();
     nowMs = 0;
+    writes.clear();
     container = build();
   });
 
@@ -259,13 +344,17 @@ void main() {
     expect(await g.whenFinished, SessionStatus.done);
   });
 
-  test('salto grande entre ticks: fecha as voltas certas e fala so o bloco atual', () async {
+  test('salto grande entre ticks (CPU suspensa): uma volta so com o trecho todo e fala so o bloco atual', () async {
     await startGuided();
     voice.spoken.clear();
-    nowMs += 100 * s; // app suspenso: um tick so depois de 100 s
+    // Aparelho dormiu: o relogio do plano (que conta o sono) pulou 100 s e o
+    // tick so voltou agora. Passou por 3 trocas de bloco.
+    nowMs += 100 * s;
     ticker.tick();
     await settle();
-    expect(container.read(recordingControllerProvider).completedLaps, 3);
+    expect(container.read(guidedSessionProvider)!.view.elapsedMs, 100 * s);
+    expect(container.read(recordingControllerProvider).completedLaps, 1);
+    expect(container.read(guidedSessionProvider)!.skippedBlocks, 2);
     expect(voice.spoken, ['Ultimo bloco de corrida. Corra por 30 segundos.']);
     expect(haptics.changes, 1);
     await container.read(recordingControllerProvider.notifier).stop();
@@ -364,5 +453,86 @@ void main() {
     expect(p.state.repeatsOf(1), 1);
     expect(p.next!.week, 1);
     expect(p.next!.number, 1);
+  });
+
+  test('o instante e lido no evento, nao quando o passo roda na fila', () async {
+    await startGuided();
+    await tickFor(14);
+    // O passo dos 15 s fica preso gravando o progresso: a fila esta ocupada.
+    final gate = planRepo.gate = Completer<void>();
+    nowMs = 15 * s;
+    ticker.tick();
+    await settle();
+    // Tick dos 16 s chega enquanto a fila esta ocupada.
+    nowMs = 16 * s;
+    ticker.tick();
+    await settle();
+    nowMs = 500 * s; // o relogio andou muito antes de a fila andar
+    gate.complete();
+    await settle();
+    expect(container.read(guidedSessionProvider)!.view.elapsedMs, 16 * s);
+    await container.read(recordingControllerProvider.notifier).stop();
+  });
+
+  test('congelado (Encerrar): ticks nao andam o plano, nem falam nem vibram', () async {
+    final g = await startGuided();
+    await tickFor(10);
+    voice.spoken.clear();
+    g.freeze();
+    await tickFor(60);
+    expect(container.read(guidedSessionProvider)!.view.elapsedMs, 10 * s);
+    expect(voice.spoken, isEmpty);
+    expect(haptics.changes, 0);
+    await container.read(recordingControllerProvider.notifier).stop();
+    // O resultado usa o tempo do congelamento.
+    expect(await g.whenFinished, SessionStatus.partial);
+    expect((await planRepo.results()).single.movingMs, 10 * s);
+  });
+
+  test('durante o stop() da gravacao (Encerrar pela notificacao) os ticks sao ignorados', () async {
+    final g = await startGuided();
+    await tickFor(25);
+    voice.spoken.clear();
+    final stopping = container.read(recordingControllerProvider.notifier).stop();
+    nowMs += 60 * s;
+    ticker.tick();
+    await stopping;
+    await settle();
+    expect(voice.spoken, isEmpty);
+    expect(await g.whenFinished, isNotNull);
+  });
+
+  test('falha ao gravar o fim da sessao: whenFinished completa mesmo assim', () async {
+    final g = await startGuided();
+    planRepo.failFinish = true;
+    await tickFor(5);
+    await container.read(recordingControllerProvider.notifier).stop();
+    expect(await g.whenFinished.timeout(const Duration(seconds: 1)), SessionStatus.partial);
+  });
+
+  test('falha ao ligar a sessao no banco: o plano nao fica pela metade', () async {
+    await container.read(settingsProvider.notifier).ensureLoaded();
+    final plan = container.read(planServiceProvider);
+    await plan.startPlan(1);
+    final next = (await plan.progress()).next!;
+    await container.read(recordingControllerProvider.notifier).start(ActivityType.run, autoPauseEnabled: false);
+    planRepo.failBegin = true;
+    final g = container.read(guidedSessionProvider.notifier);
+    expect(await g.begin(next, round: 0), isFalse);
+    expect(g.isRunning, isFalse);
+    expect(container.read(guidedSessionProvider), isNull);
+    await tickFor(40);
+    expect(container.read(recordingControllerProvider).completedLaps, 0);
+    await container.read(recordingControllerProvider.notifier).stop();
+  });
+
+  test('troca de bloco salva o progresso ANTES de fechar a volta (sem volta duplicada na retomada)', () async {
+    await startGuided();
+    writes.clear();
+    await tickFor(30);
+    final lap = writes.indexOf('volta 1');
+    expect(lap, greaterThan(0));
+    expect(writes[lap - 1], 'progresso ${30 * s}');
+    await container.read(recordingControllerProvider.notifier).stop();
   });
 }

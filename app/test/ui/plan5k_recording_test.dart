@@ -13,6 +13,7 @@ import 'package:strava_estudo_app/plan5k/domain/plan_table.dart';
 import 'package:strava_estudo_app/plan5k/guided_session.dart';
 import 'package:strava_estudo_app/plan5k/plan_providers.dart';
 import 'package:strava_estudo_app/plan5k/plan_repository.dart';
+import 'package:strava_estudo_app/plan5k/plan_time_source.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/settings/app_settings.dart';
 import 'package:strava_estudo_app/settings/settings_controller.dart';
@@ -120,7 +121,7 @@ void main() {
           closingServiceProvider.overrideWith((ref) => _FakeClosing(ref.watch(recordingRepositoryProvider))),
           plan5kTableProvider.overrideWithValue(table),
           planTickerProvider.overrideWithValue(ticker),
-          planMonotonicNowProvider.overrideWithValue(() => nowMs),
+          planTimeSourceProvider.overrideWithValue(FunctionTimeSource(() => nowMs)),
           planHapticsProvider.overrideWithValue(_NoHaptics()),
         ],
         child: MaterialApp(

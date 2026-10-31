@@ -1,22 +1,26 @@
 // Sessao guiada do plano 5 km (F06) durante a gravacao. A sessao conta como
 // concluida ao chegar no desaquecimento (ver statusFor). Costura o motor de
 // blocos (dominio puro) com a gravacao (voltas, notificacao), a voz (mesma
-// fila do Narrador, prioridade alta), a vibracao e o banco.
+// fila do Narrador), a vibracao e o banco.
 //
 // Tempo do plano: relogio proprio ([PlanClock]) observado a cada tick (1 s) e
 // a cada estado da gravacao, com a regra de pausa da gravacao. NAO usa o
 // timerMs da gravacao para andar, porque ele so avanca quando chega ponto de
-// GPS (com a tela desligada ou GPS fraco o plano travaria).
+// GPS (com a tela desligada ou GPS fraco o plano travaria). O instante vem de
+// um relogio que conta o sono do aparelho ([PlanTimeSource]) e e lido no
+// evento (tick ou estado), nao quando o passo roda na fila.
 //
 // Retomada apos crash: o plano continua do maior entre o tempo de plano salvo
-// (a cada troca de bloco e a cada 15 s) e o tempo em movimento recuperado da
-// gravacao. O tempo com o app fora conta como pausa, como na gravacao.
+// (a cada troca de bloco, ANTES de fechar a volta, e a cada 15 s) e o tempo
+// em movimento recuperado da gravacao. O tempo com o app fora conta como
+// pausa, como na gravacao.
 library;
 
 // ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -31,6 +35,7 @@ import 'domain/plan_phrases.dart';
 import 'domain/plan_progress.dart';
 import 'domain/plan_table.dart';
 import 'plan_repository.dart';
+import 'plan_time_source.dart';
 
 /// Vibracao das trocas. Sem pacote novo: HapticFeedback do Flutter.
 abstract interface class PlanHaptics {
@@ -77,21 +82,28 @@ class GuidedUiState {
   /// Resultado quando a gravacao terminou; null durante a sessao.
   final SessionStatus? result;
 
+  /// Trocas de bloco que cairam dentro de uma volta so por salto grande entre
+  /// ticks (registro; o normal e 0).
+  final int skippedBlocks;
+
   const GuidedUiState({
     required this.session,
     required this.round,
     required this.view,
     this.result,
+    this.skippedBlocks = 0,
   });
 
   bool get running => result == null;
 
-  GuidedUiState copyWith({GuidedView? view, SessionStatus? result}) => GuidedUiState(
-    session: session,
-    round: round,
-    view: view ?? this.view,
-    result: result ?? this.result,
-  );
+  GuidedUiState copyWith({GuidedView? view, SessionStatus? result, int? skippedBlocks}) =>
+      GuidedUiState(
+        session: session,
+        round: round,
+        view: view ?? this.view,
+        result: result ?? this.result,
+        skippedBlocks: skippedBlocks ?? this.skippedBlocks,
+      );
 }
 
 class GuidedSessionController extends StateNotifier<GuidedUiState?> {
@@ -99,13 +111,14 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
   final Narrator _narrator;
   final bool Function() _voiceOn;
   final PlanHaptics _haptics;
-  final int Function() _monoNow;
+  final PlanTimeSource _time;
   final int Function() _wallNow;
   final HeartbeatTicker _ticker;
   final Future<Object?> Function() _closeLap;
   final void Function(String?) _setNotice;
   final String? Function() _activityGuid;
   final RecordingUiState Function() _recording;
+  final bool Function() _recordingStopping;
   final List<PlanSession> Function() _table;
 
   GuidedSessionEngine? _engine;
@@ -117,30 +130,36 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
   int _lastSavedMs = 0;
   Completer<SessionStatus?>? _done;
 
+  /// Congelado: o Encerrar foi pedido; ticks e estados nao andam mais o plano.
+  bool _frozen = false;
+  Future<int>? _frozenAt;
+
   GuidedSessionController({
     required PlanRepository repo,
     required Narrator narrator,
     required bool Function() voiceOn,
     required PlanHaptics haptics,
-    required int Function() monotonicNow,
+    required PlanTimeSource time,
     required int Function() wallNow,
     required HeartbeatTicker ticker,
     required Future<Object?> Function() closeLap,
     required void Function(String?) setNotice,
     required String? Function() activityGuid,
     required RecordingUiState Function() recording,
+    bool Function()? recordingStopping,
     List<PlanSession> Function()? table,
   }) : _repo = repo,
        _narrator = narrator,
        _voiceOn = voiceOn,
        _haptics = haptics,
-       _monoNow = monotonicNow,
+       _time = time,
        _wallNow = wallNow,
        _ticker = ticker,
        _closeLap = closeLap,
        _setNotice = setNotice,
        _activityGuid = activityGuid,
        _recording = recording,
+       _recordingStopping = recordingStopping ?? (() => false),
        _table = table ?? (() => kPlan5k),
        super(null);
 
@@ -148,25 +167,37 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
   bool get isRunning => _engine != null && (state?.running ?? false);
 
   /// Completa com o resultado quando a gravacao da sessao termina (null se
-  /// foi descartada ou nao havia sessao).
+  /// foi descartada, falhou ao ligar ou nao havia sessao).
   Future<SessionStatus?> get whenFinished => _done?.future ?? Future.value(null);
 
-  /// Comeca a sessao [session] na gravacao que acabou de iniciar.
-  Future<void> begin(PlanSession session, {required int round}) async {
+  /// Comeca a sessao [session] na gravacao que acabou de iniciar. Devolve se
+  /// ligou; se gravar no banco falhar, desfaz tudo e a gravacao segue comum.
+  Future<bool> begin(PlanSession session, {required int round}) async {
     final guid = _activityGuid();
-    if (guid == null || !_recording().isActive) return;
+    if (guid == null || !_recording().isActive) return false;
     _setup(session, round, guid, PlanClock());
-    _clock!.observe(_monoNow(), paused: _recording().isPaused);
-    await _repo.beginSession(
-      week: session.week,
-      number: session.number,
-      round: round,
-      requiredMs: session.requiredMs,
-      guid: guid,
-      nowMs: _wallNow(),
-    );
-    await _run(() => _apply(_engine!.start()));
+    final at = _time.nowMs();
+    try {
+      await _repo.beginSession(
+        week: session.week,
+        number: session.number,
+        round: round,
+        requiredMs: session.requiredMs,
+        guid: guid,
+        nowMs: _wallNow(),
+      );
+    } catch (e) {
+      debugPrint('Sessao do plano nao pode ser ligada: $e');
+      _teardown();
+      return false;
+    }
+    final paused = _recording().isPaused;
+    await _run(() async {
+      _observe(await at, paused);
+      await _apply(_engine!.start());
+    });
     _listenTicks();
+    return true;
   }
 
   /// Gravacao [guid] recuperada apos um crash: se ela era uma sessao guiada
@@ -180,21 +211,39 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
     final startMs = r.movingMs > rec.timerMs ? r.movingMs : rec.timerMs;
     _setup(session, r.round, guid, PlanClock(startMs: startMs));
     _lastSavedMs = startMs;
-    _clock!.observe(_monoNow(), paused: rec.isPaused);
-    await _run(() => _apply(_engine!.restore(startMs), haptic: false));
+    final at = _time.nowMs();
+    final paused = rec.isPaused;
+    await _run(() async {
+      _observe(await at, paused);
+      await _apply(_engine!.restore(startMs), haptic: false);
+    });
     _listenTicks();
     return true;
   }
 
   void _setup(PlanSession session, int round, String guid, PlanClock clock) {
     _tick?.cancel();
+    _tick = null;
     _engine = GuidedSessionEngine(session);
     _clock = clock;
     _guid = guid;
     _discard = false;
+    _frozen = false;
+    _frozenAt = null;
     _lastSavedMs = 0;
     _done = Completer<SessionStatus?>();
     state = GuidedUiState(session: session, round: round, view: _engine!.view());
+  }
+
+  void _teardown() {
+    _tick?.cancel();
+    _tick = null;
+    _engine = null;
+    _clock = null;
+    _guid = null;
+    final done = _done;
+    if (done != null && !done.isCompleted) done.complete(null);
+    if (mounted) state = null;
   }
 
   void _listenTicks() {
@@ -204,21 +253,37 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
   /// A gravacao vai ser descartada: a sessao nao conta. Chamar antes do stop.
   void abandon() => _discard = true;
 
+  /// Encerrar pedido (tela Salvar ou descarte): o plano para de andar, falar e
+  /// vibrar; o resultado usa o tempo deste instante. Chamar antes do stop.
+  void freeze() {
+    if (!isRunning || _frozen) return;
+    _frozen = true;
+    _frozenAt = _time.nowMs();
+  }
+
+  /// Parado: congelado, ou a gravacao esta no meio do stop() (ex.: Encerrar
+  /// pela notificacao, que nao passa pela tela).
+  bool get _halted => _frozen || _recordingStopping();
+
   /// Novo estado da gravacao (o provider liga isto ao controller).
   void onRecording(RecordingUiState s) {
     if (!isRunning) return;
     if (s.state == RecordingState.finished) {
-      unawaited(_run(_finish));
+      final at = _frozenAt ?? _time.nowMs();
+      unawaited(_run(() => _finish(at)));
       return;
     }
+    if (_halted) return;
+    final at = _time.nowMs();
     final paused = s.isPaused;
-    unawaited(_run(() => _advance(paused)));
+    unawaited(_run(() => _advance(at, paused)));
   }
 
   void _onTick() {
-    if (!isRunning) return;
+    if (!isRunning || _halted) return;
+    final at = _time.nowMs();
     final paused = _recording().isPaused;
-    unawaited(_run(() => _advance(paused)));
+    unawaited(_run(() => _advance(at, paused)));
   }
 
   /// Serializa o trabalho: voltas e escritas em ordem, um passo por vez.
@@ -226,20 +291,31 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
     final next = _chain.then((_) async {
       try {
         await op();
-      } catch (_) {
+      } catch (e) {
         // Falha de banco ou de volta nao derruba o plano.
+        debugPrint('Passo do plano falhou: $e');
       }
     });
     _chain = next;
     return next;
   }
 
-  Future<void> _advance(bool paused) async {
+  int _observe(int nowMs, bool paused) {
+    final clock = _clock!;
+    final before = clock.ignoredSteps;
+    final planMs = clock.observe(nowMs, paused: paused, maxStepMs: _time.maxStepMs);
+    if (clock.ignoredSteps != before) {
+      debugPrint('Relogio do plano: salto ignorado (${clock.ignoredSteps} na sessao)');
+    }
+    return planMs;
+  }
+
+  Future<void> _advance(Future<int> at, bool paused) async {
     final engine = _engine;
-    final clock = _clock;
     final guid = _guid;
-    if (engine == null || clock == null || guid == null || !isRunning) return;
-    final planMs = clock.observe(_monoNow(), paused: paused);
+    if (engine == null || _clock == null || guid == null || !isRunning || _halted) return;
+    final planMs = _observe(await at, paused);
+    if (_halted) return;
     await _apply(engine.advanceTo(planMs));
     if (planMs - _lastSavedMs >= kPlanSaveEveryMs) {
       _lastSavedMs = planMs;
@@ -251,34 +327,48 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
     final engine = _engine;
     final guid = _guid;
     if (engine == null || guid == null) return;
+    if (step.blockChanged) {
+      // Progresso ANTES da volta: um crash entre os dois nao duplica a volta
+      // na retomada (no pior caso, a volta desta troca fica faltando).
+      _lastSavedMs = engine.elapsedMs;
+      await _repo.saveProgress(guid, movingMs: engine.elapsedMs);
+    }
     for (var i = 0; i < step.lapsToClose; i++) {
       await _closeLap();
     }
-    final changed = step.blockChanged || step.events.any((e) => e is BlockStarted || e is RunPhaseDone);
+    if (step.skippedBlocks > 0) {
+      debugPrint('Plano: ${step.skippedBlocks} troca(s) de bloco na mesma volta (salto entre ticks)');
+    }
+    final changed = step.blockChanged ||
+        step.events.any((e) => e is BlockStarted || e is RunPhaseDone);
     if (step.blockChanged && haptic) {
       unawaited(_haptics.blockChange());
     } else if (step.events.any((e) => e is TenSecondsLeft) && haptic) {
       unawaited(_haptics.warning());
     }
     if (changed) _setNotice(_noticeText(engine.view()));
-    if (step.blockChanged) {
-      _lastSavedMs = engine.elapsedMs;
-      await _repo.saveProgress(guid, movingMs: engine.elapsedMs);
-    }
     final texts = [for (final e in step.events) ?planPhrase(e)];
     if (texts.isNotEmpty && _voiceOn()) {
       _narrator.enqueue(
         Announcement(
           texts.join(' '),
-          priority: AnnouncementPriority.high,
+          priority: priorityOf(step),
           key: kPlanAnnouncementKey,
           maxAgeMs: 20000,
         ),
       );
     }
     final s = state;
-    if (s != null && mounted) state = s.copyWith(view: engine.view());
+    if (s != null && mounted) {
+      state = s.copyWith(
+        view: engine.view(),
+        skippedBlocks: s.skippedBlocks + step.skippedBlocks,
+      );
+    }
   }
+
+  /// Prioridade da fala do plano na fila do Narrador.
+  static AnnouncementPriority priorityOf(GuidedStep step) => AnnouncementPriority.high;
 
   static String _noticeText(GuidedView v) {
     final b = v.block;
@@ -287,30 +377,40 @@ class GuidedSessionController extends StateNotifier<GuidedUiState?> {
         '(bloco ${v.index + 1} de ${v.blockCount})';
   }
 
-  Future<void> _finish() async {
-    await _tick?.cancel();
-    _tick = null;
-    final engine = _engine;
-    final clock = _clock;
-    final guid = _guid;
+  Future<void> _finish(Future<int> at) async {
     final done = _done;
-    if (engine == null || clock == null || guid == null) return;
-    // O trecho desde o ultimo tick conta se a gravacao estava rodando.
-    final planMs = clock.observe(_monoNow(), paused: true);
-    _engine = null;
-    SessionStatus? status;
-    if (_discard) {
-      await _repo.discardSession(guid);
-      if (mounted) state = null;
-    } else {
-      status = statusFor(movingMs: planMs, requiredMs: engine.session.requiredMs);
-      await _repo.finishSession(guid, movingMs: planMs, status: status, nowMs: _wallNow());
+    try {
+      await _tick?.cancel();
+      _tick = null;
+      final engine = _engine;
+      final clock = _clock;
+      final guid = _guid;
+      if (engine == null || clock == null || guid == null) return;
+      // O trecho desde o ultimo passo conta se a gravacao estava rodando.
+      final planMs = _observe(await at, true);
+      _engine = null;
+      if (_discard) {
+        if (mounted) state = null;
+        await _repo.discardSession(guid);
+        return;
+      }
+      final status = statusFor(movingMs: planMs, requiredMs: engine.session.requiredMs);
       final s = state;
       if (s != null && mounted) {
-        state = s.copyWith(view: GuidedView(engine.session, engine.view().index, planMs), result: status);
+        state = s.copyWith(
+          view: GuidedView(engine.session, engine.view().index, planMs),
+          result: status,
+        );
       }
+      try {
+        await _repo.finishSession(guid, movingMs: planMs, status: status, nowMs: _wallNow());
+      } finally {
+        if (done != null && !done.isCompleted) done.complete(status);
+      }
+    } finally {
+      // Sempre completa: o fechamento e a decisao da semana nao ficam presos.
+      if (done != null && !done.isCompleted) done.complete(null);
     }
-    if (done != null && !done.isCompleted) done.complete(status);
   }
 
   /// Fecha o cartao do plano (depois do fechamento da gravacao).

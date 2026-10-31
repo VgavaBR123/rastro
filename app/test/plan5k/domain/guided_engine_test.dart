@@ -43,6 +43,7 @@ void main() {
     expect(e.advanceTo(295 * s).events, isEmpty);
     final change = e.advanceTo(300 * s);
     expect(change.lapsToClose, 1);
+    expect(change.skippedBlocks, 0);
     final b = change.events.single as BlockStarted;
     expect(b.index, 1);
     expect(b.block.kind, BlockKind.run);
@@ -57,12 +58,13 @@ void main() {
     expect(e.view().elapsedMs, 100 * s);
   });
 
-  test('salto grande entre ticks: fecha uma volta por bloco passado e fala so o atual', () {
+  test('salto grande entre ticks: fecha UMA volta com o trecho todo e fala so o atual', () {
     e.start();
     // Do aquecimento direto para o meio da caminhada: passou a 1a corrida e o
     // aviso de 10 s ficou para tras.
     final st = e.advanceTo(300 * s + 60 * s + 30 * s);
-    expect(st.lapsToClose, 2);
+    expect(st.lapsToClose, 1);
+    expect(st.skippedBlocks, 1);
     final b = st.events.single as BlockStarted;
     expect(b.index, 2);
     expect(b.block.kind, BlockKind.walk);
@@ -80,8 +82,9 @@ void main() {
 
   test('salto de mais de um bloco que passa da metade nao fala a metade', () {
     e.start();
-    final st = e.advanceTo(480 * s); // na 2a corrida
-    expect(st.lapsToClose, 3);
+    final st = e.advanceTo(480 * s); // na 2a corrida: passou 3 trocas
+    expect(st.lapsToClose, 1);
+    expect(st.skippedBlocks, 2);
     expect(types(st), [BlockStarted]);
     expect(e.advanceTo(481 * s).events, isEmpty);
   });
@@ -115,14 +118,16 @@ void main() {
   test('salto alem do fim: fecha todas as voltas que faltam e fala so o fim', () {
     e.start();
     final st = e.advanceTo(2 * 3600 * s);
-    expect(st.lapsToClose, 5);
+    expect(st.lapsToClose, 1);
+    expect(st.skippedBlocks, 4);
     expect(types(st), [SessionCompleted]);
   });
 
   test('salto que cai no desaquecimento fala o fim das corridas', () {
     e.start();
     final st = e.advanceTo(600 * s);
-    expect(st.lapsToClose, 4);
+    expect(st.lapsToClose, 1);
+    expect(st.skippedBlocks, 3);
     expect(types(st), [RunPhaseDone]);
   });
 

@@ -33,6 +33,30 @@ import workmanager_apple
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "StravaEstudoShare") {
       ShareChannel.register(messenger: registrar.messenger())
     }
+    // Plano 5 km (F06): relogio que conta o sono do aparelho.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "StravaEstudoClock") {
+      ClockChannel.register(messenger: registrar.messenger())
+    }
+  }
+}
+
+/// Canal `stravaestudo/clock` (plano 5 km, F06): `elapsedRealtime` devolve
+/// clock_gettime_nsec_np(CLOCK_MONOTONIC) em ms. No Darwin o CLOCK_MONOTONIC
+/// continua contando com o aparelho dormindo (o CLOCK_UPTIME_RAW nao).
+enum ClockChannel {
+  static let name = "stravaestudo/clock"
+
+  static func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: name, binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "elapsedRealtime":
+        let ms = clock_gettime_nsec_np(CLOCK_MONOTONIC) / 1_000_000
+        result(NSNumber(value: ms))
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
   }
 }
 

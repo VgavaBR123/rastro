@@ -112,6 +112,10 @@ class RecordingController extends StateNotifier<RecordingUiState> {
 
   String? get activityGuid => _guid;
 
+  /// No meio do stop(): a sessao ja foi solta, mas o estado final ainda nao
+  /// saiu. Quem anda junto com a gravacao (plano 5 km) para aqui.
+  bool get isStopping => _session == null && _guid != null && state.isActive;
+
   /// Inicio (epoch ms) da atividade em gravacao, o mesmo do cabecalho no
   /// banco. Nao muda com pausas. Null antes de comecar.
   int? get startTimestampMs => _startMs;
