@@ -85,6 +85,11 @@ class RecordingController extends StateNotifier<RecordingUiState> {
   /// Pontos aceitos ate agora, para desenhar a rota (polyline).
   List<GeoPoint> get route => List.unmodifiable(_route);
 
+  /// Ultima amostra de GPS recebida nesta gravacao (aceita ou nao), ou null.
+  /// O Rastro Seguro (F08) manda esta posicao aos contatos.
+  LocationSample? get lastSample => _lastSample;
+  LocationSample? _lastSample;
+
   RecordingController({
     required LocationSource source,
     required RecordingRepository repo,
@@ -220,6 +225,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     _gapNotice = null;
     _gpsLost = false;
     _guidedNotice = null;
+    _lastSample = null;
     final session = RecordingSession(
       activityType: type,
       autoPauseEnabled: autoPauseEnabled,
@@ -263,6 +269,7 @@ class RecordingController extends StateNotifier<RecordingUiState> {
     final session = _session;
     if (session == null) return;
     _lastMonotonicMs = s.monotonicMs;
+    _lastSample = s;
     // Lacuna avaliada com o estado de pausa de ANTES deste ponto.
     final nowMs = _now();
     final gap = _gaps.onPoint(nowMs);
