@@ -75,6 +75,26 @@ void main() {
     });
   }
 
+  testWidgets('com o teclado aberto Salvar e Descartar saem do caminho (GRA-04)', (tester) async {
+    await pumpView(tester, AppTheme.dark);
+    expect(find.byKey(const Key('save_activity')), findsOneWidget);
+    expect(find.byKey(const Key('discard_activity')), findsOneWidget);
+
+    // O Scaffold tira o teclado do MediaQuery do corpo; a tela precisa ver o
+    // teclado mesmo assim.
+    tester.view.viewInsets = const FakeViewPadding(bottom: 700);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('save_activity')), findsNothing);
+    expect(find.byKey(const Key('discard_activity')), findsNothing);
+    expect(find.byKey(const Key('save_description')), findsOneWidget);
+
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('save_activity')), findsOneWidget);
+    expect(find.byKey(const Key('discard_activity')), findsOneWidget);
+  });
+
   testWidgets('Descartar so dispara depois de confirmar', (tester) async {
     final events = await pumpView(tester, AppTheme.dark);
     await tester.tap(find.byKey(const Key('discard_activity')));

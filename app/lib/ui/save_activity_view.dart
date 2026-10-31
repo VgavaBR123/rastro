@@ -74,7 +74,7 @@ class SaveActivityView extends StatefulWidget {
   State<SaveActivityView> createState() => _SaveActivityViewState();
 }
 
-class _SaveActivityViewState extends State<SaveActivityView> {
+class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBindingObserver {
   late final TextEditingController _title = TextEditingController(
     text: suggestedActivityTitle(widget.type, widget.startedAt),
   );
@@ -82,7 +82,20 @@ class _SaveActivityViewState extends State<SaveActivityView> {
   ActivityVisibility _visibility = ActivityVisibility.everyone;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// O teclado abriu ou fechou: reavalia se os botoes aparecem.
+  @override
+  void didChangeMetrics() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _title.dispose();
     _description.dispose();
     super.dispose();
@@ -134,6 +147,11 @@ class _SaveActivityViewState extends State<SaveActivityView> {
     final (pace, paceUnit) = splitMeasure(formatPace(widget.avgPaceSecondsPerMeter, metric: m));
     final (ascent, ascentUnit) = splitMeasure(formatElevation(widget.ascentMeters, metric: m));
     final muted = AppText.label.copyWith(color: c.textMuted);
+    // GRA-04: com o teclado aberto os botoes fixos somem e o formulario usa a
+    // altura toda; voltam quando o teclado fecha (tocar fora ou rolar). Le o
+    // View e nao o MediaQuery: o Scaffold de fora tira o teclado do MediaQuery
+    // do corpo.
+    final keyboardOpen = View.of(context).viewInsets.bottom > 0;
 
     return SafeArea(
       key: const Key('save_activity_view'),
@@ -286,29 +304,30 @@ class _SaveActivityViewState extends State<SaveActivityView> {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppShape.gutter, 8, AppShape.gutter, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                BigActionButton(
-                  key: const Key('save_activity'),
-                  label: 'Salvar',
-                  icon: Icons.check_rounded,
-                  onPressed: widget.busy ? null : _save,
-                ),
-                const SizedBox(height: 12),
-                BigActionButton(
-                  key: const Key('discard_activity'),
-                  label: 'Descartar',
-                  icon: Icons.delete_outline_rounded,
-                  variant: BigActionVariant.danger,
-                  height: 56,
-                  onPressed: widget.busy ? null : _confirmDiscard,
-                ),
-              ],
+          if (!keyboardOpen)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppShape.gutter, 8, AppShape.gutter, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BigActionButton(
+                    key: const Key('save_activity'),
+                    label: 'Salvar',
+                    icon: Icons.check_rounded,
+                    onPressed: widget.busy ? null : _save,
+                  ),
+                  const SizedBox(height: 12),
+                  BigActionButton(
+                    key: const Key('discard_activity'),
+                    label: 'Descartar',
+                    icon: Icons.delete_outline_rounded,
+                    variant: BigActionVariant.danger,
+                    height: 56,
+                    onPressed: widget.busy ? null : _confirmDiscard,
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
