@@ -5,12 +5,29 @@ library;
 
 // ignore_for_file: prefer_initializing_formals
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../persistence/database.dart';
+import 'upload/activity_uploader.dart';
 import 'upload/sync_service.dart';
 
 const String kSignInToSyncMessage = 'Entre na sua conta para sincronizar';
+const String kSessionExpiredMessage =
+    'Sua sessao expirou. Entre de novo para sincronizar';
+const String kSyncOfflineMessage =
+    'Sem conexao com o servidor. Tente de novo mais tarde';
+const String kSyncGenericErrorMessage =
+    'Nao foi possivel sincronizar. Tente de novo';
+
+/// Mensagem amigavel para uma falha da rodada (HIS-03): nunca o texto cru da
+/// excecao, que nao diz nada ao usuario.
+String syncErrorMessage(Object error) => switch (error) {
+  UnauthorizedUploadException() => kSessionExpiredMessage,
+  NetworkUploadException() || TimeoutException() => kSyncOfflineMessage,
+  _ => kSyncGenericErrorMessage,
+};
 
 class SyncUiState {
   final bool running;
@@ -45,14 +62,16 @@ class SyncController extends StateNotifier<SyncUiState> {
       return;
     }
     state = SyncUiState(running: true, messageSeq: state.messageSeq);
-    await _service.prepareRound(userId);
-    await _service.processRemoteDeletions(ownerUserId: userId);
-    final before = (await _db.pendingActivities(ownerUserId: userId)).length;
-    if (before == 0) {
-      _finish('Nada para sincronizar');
-      return;
-    }
+    // Tudo depois de `running: true` fica no try: uma excecao em qualquer
+    // passo precisa devolver o botao (HIS-03).
     try {
+      await _service.prepareRound(userId);
+      await _service.processRemoteDeletions(ownerUserId: userId);
+      final before = (await _db.pendingActivities(ownerUserId: userId)).length;
+      if (before == 0) {
+        _finish('Nada para sincronizar');
+        return;
+      }
       final ok = await _service.processPending(ownerUserId: userId);
       final failed = before - ok;
       _finish(
@@ -60,8 +79,8 @@ class SyncController extends StateNotifier<SyncUiState> {
             ? '$ok sincronizada(s)'
             : '$ok sincronizada(s), $failed falhou(aram)',
       );
-    } catch (e) {
-      _finish('Falha na sincronizacao: $e');
+    } on Object catch (e) {
+      _finish(syncErrorMessage(e));
     }
   }
 

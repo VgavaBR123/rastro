@@ -76,7 +76,7 @@ void main() {
     await pumpHome(tester, db);
 
     expect(find.text('Atividade interrompida'), findsOneWidget);
-    expect(find.textContaining('1.11 km'), findsOneWidget);
+    expect(find.textContaining('1,11 km'), findsOneWidget);
     await tester.tap(find.byKey(const Key('recovery_save')));
     await tester.pumpAndSettle();
 

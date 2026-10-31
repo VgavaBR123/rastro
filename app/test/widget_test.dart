@@ -94,7 +94,7 @@ void main() {
       expect(find.text('Ver detalhe'), findsOneWidget);
       expect(find.byKey(const Key('home_empty')), findsNothing);
       // Distancia aparece no resumo e no cartao.
-      expect(find.textContaining('1.20'), findsNWidgets(2));
+      expect(find.textContaining('1,20'), findsNWidgets(2));
 
       await tester.ensureVisible(find.byKey(const Key('share-a')));
       await tester.pumpAndSettle();
@@ -103,7 +103,7 @@ void main() {
       expect(find.byKey(const Key('share_card')), findsOneWidget);
       await tester.tap(find.byKey(const Key('share_text_only')));
       await tester.pump();
-      expect(sharer.texts, ['Corrida da manha\nCorrida | 1.20 km | 6:00 | 5:00 /km']);
+      expect(sharer.texts, ['Corrida da manha\nCorrida | 1,20 km | 6:00 | 5:00 /km']);
     });
   }
 

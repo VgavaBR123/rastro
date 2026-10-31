@@ -83,6 +83,13 @@ class ActivityCard extends StatelessWidget {
       ],
     );
 
+    final title = displayActivityTitle(
+      activity.title,
+      type,
+      DateTime.fromMillisecondsSinceEpoch(activity.startTimestampMs),
+    );
+    final date = formatDateTimeMs(activity.startTimestampMs);
+
     final body = Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -91,9 +98,12 @@ class ActivityCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: SportChip(type: type, trailing: formatDateTimeMs(activity.startTimestampMs)),
+                child: ExcludeSemantics(
+                  excluding: compact,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: SportChip(type: type, trailing: date),
+                  ),
                 ),
               ),
               // E2E-05: quem pode ver, so quando nao e publica.
@@ -105,19 +115,18 @@ class ActivityCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            displayActivityTitle(
-              activity.title,
-              type,
-              DateTime.fromMillisecondsSinceEpoch(activity.startTimestampMs),
+          ExcludeSemantics(
+            excluding: compact,
+            child: Text(
+              title,
+              key: Key('title-${activity.guid}'),
+              style: AppText.sectionTitle.copyWith(color: c.text),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            key: Key('title-${activity.guid}'),
-            style: AppText.sectionTitle.copyWith(color: c.text),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
-          metrics,
+          ExcludeSemantics(excluding: compact, child: metrics),
           if (!compact) ...[
             const SizedBox(height: 14),
             ClipRRect(
@@ -179,7 +188,19 @@ class ActivityCard extends StatelessWidget {
         side: BorderSide(color: c.line),
       ),
       clipBehavior: Clip.antiAlias,
-      child: compact ? InkWell(onTap: onOpen, child: body) : body,
+      // Compacto: o cartao inteiro e um botao com rotulo legivel (HIS-11);
+      // o menu do canto continua um elemento proprio.
+      child: compact
+          ? Semantics(
+              container: true,
+              button: true,
+              label:
+                  '$title, ${activityTypeLabel(type)}, $date, '
+                  '${spokenMeasure(formatDistance(activity.distanceMeters, metric: useMetric))}, '
+                  '${spokenMeasure(formatTotalDuration(activity.timerTimeMs))}, abrir detalhe',
+              child: InkWell(onTap: onOpen, child: body),
+            )
+          : body,
     );
   }
 }

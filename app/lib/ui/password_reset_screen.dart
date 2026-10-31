@@ -51,7 +51,12 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     super.dispose();
   }
 
+  /// O erro do servidor vale para a tentativa que falhou: some ao editar e
+  /// ao tentar de novo (VOC-04).
+  void _clearError() => ref.read(authControllerProvider.notifier).clearError();
+
   Future<void> _sendCode() async {
+    _clearError();
     // No passo 2 (reenviar) o formulario do e-mail nao esta na arvore.
     final form = _emailForm.currentState;
     if (form != null && !form.validate()) return;
@@ -68,6 +73,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
   }
 
   Future<void> _reset() async {
+    _clearError();
     if (!_resetForm.currentState!.validate()) return;
     final ok = await ref
         .read(authControllerProvider.notifier)
@@ -76,7 +82,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
   }
 
   void _useOtherEmail() {
-    ref.read(authControllerProvider.notifier).clearError();
+    _clearError();
     setState(() {
       _codeSent = false;
       _code.clear();
@@ -163,6 +169,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   decoration: const InputDecoration(labelText: 'E-mail'),
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
+                  onChanged: (_) => _clearError(),
                   onFieldSubmitted: (_) => _sendCode(),
                   validator: (v) => (v == null || !v.contains('@'))
                       ? 'E-mail invalido'
@@ -220,6 +227,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                     LengthLimitingTextInputFormatter(6),
                   ],
                   textInputAction: TextInputAction.next,
+                  onChanged: (_) => _clearError(),
                   validator: (v) =>
                       (v == null || !RegExp(r'^\d{6}$').hasMatch(v.trim()))
                       ? 'O codigo tem 6 digitos'
@@ -232,6 +240,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   decoration: const InputDecoration(labelText: 'Nova senha'),
                   obscureText: true,
                   textInputAction: TextInputAction.next,
+                  onChanged: (_) => _clearError(),
                   validator: (v) => (v == null || v.length < 8)
                       ? 'Minimo de 8 caracteres'
                       : null,
@@ -244,6 +253,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                     labelText: 'Confirmar nova senha',
                   ),
                   obscureText: true,
+                  onChanged: (_) => _clearError(),
                   onFieldSubmitted: (_) => _reset(),
                   validator: (v) =>
                       v != _password.text ? 'As senhas nao conferem' : null,

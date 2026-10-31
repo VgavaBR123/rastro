@@ -53,3 +53,9 @@ class UploadException implements Exception {
 class UnauthorizedUploadException extends UploadException {
   UnauthorizedUploadException() : super('sessao invalida ou ausente (401)');
 }
+
+/// Nao chegou ao servidor (sem rede, DNS, timeout). Separada para a UI dizer
+/// "sem conexao" em vez de um erro generico.
+class NetworkUploadException extends UploadException {
+  NetworkUploadException(super.message);
+}

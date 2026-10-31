@@ -48,7 +48,7 @@ void main() {
   });
 
   test('separa valor e unidade', () {
-    expect(splitMeasure('1.20 km'), ('1.20', 'km'));
+    expect(splitMeasure('1,20 km'), ('1,20', 'km'));
     expect(splitMeasure('5:00 /km'), ('5:00', '/km'));
     expect(splitMeasure('25:00'), ('25:00', null));
   });
@@ -75,7 +75,7 @@ void main() {
       expect(find.text('Distancia'), findsOneWidget);
       expect(find.text('Pace'), findsOneWidget);
       expect(find.text('Tempo'), findsOneWidget);
-      expect(find.textContaining('5.00'), findsOneWidget);
+      expect(find.textContaining('5,00'), findsOneWidget);
       expect(find.text('5:00 /km'), findsOneWidget); // 25 min em 5 km
       expect(find.text('25:00'), findsOneWidget);
 
@@ -102,8 +102,8 @@ void main() {
     expect(find.text('Velocidade'), findsOneWidget);
     expect(find.text('Pace'), findsNothing);
     expect(find.textContaining('mph'), findsOneWidget); // 12 km/h = 7.5 mph
-    expect(find.textContaining('7.5'), findsOneWidget);
-    expect(find.textContaining('3.11'), findsOneWidget); // 5 km em milhas
+    expect(find.textContaining('7,5'), findsOneWidget);
+    expect(find.textContaining('3,11'), findsOneWidget); // 5 km em milhas
     expect(find.text('Pedal da tarde'), findsOneWidget);
   });
 

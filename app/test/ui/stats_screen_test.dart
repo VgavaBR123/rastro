@@ -120,8 +120,14 @@ void main() {
 
         expect(find.text('Estatisticas'), findsOneWidget);
         // Padrao: 4 semanas (corrida e pedal).
-        expect(tileValue(tester, 'stats_total_distance'), '50.00 km');
-        expect(tileValue(tester, 'stats_total_time'), '2:20:00');
+        expect(tileValue(tester, 'stats_total_distance'), '50,00 km');
+        // EST-04: total com unidade, sem o "H:MM:SS" do cronometro.
+        expect(tileValue(tester, 'stats_total_time'), '2:20 h');
+        // Maior semana: o pedal de 90 min.
+        expect(
+          tester.widget<Text>(find.byKey(const Key('stats_chart_max'))).data,
+          '1:30 h',
+        );
         expect(tileValue(tester, 'stats_total_count'), '2');
         expect(tileValue(tester, 'stats_total_gain'), '0 m');
         expect(find.byKey(const Key('stats_week_chart')), findsOneWidget);
@@ -140,7 +146,7 @@ void main() {
 
         await tester.tap(find.byKey(const Key('stats_period_week')));
         await tester.pumpAndSettle();
-        expect(tileValue(tester, 'stats_total_distance'), '10.00 km');
+        expect(tileValue(tester, 'stats_total_distance'), '10,00 km');
         expect(tileValue(tester, 'stats_total_count'), '1');
         expect(find.byKey(const Key('stats_sport_ride')), findsNothing);
 
@@ -158,7 +164,7 @@ void main() {
       testWidgets('sem treinos mostra zeros e o aviso', (tester) async {
         await pump(tester, const StatsScreen(), theme: theme, withData: false);
         expect(tileValue(tester, 'stats_total_count'), '0');
-        expect(tileValue(tester, 'stats_total_time'), '0:00');
+        expect(tileValue(tester, 'stats_total_time'), '0 min');
         expect(find.byKey(const Key('stats_chart_max')), findsOneWidget);
         await tester.scrollUntilVisible(
           find.byKey(const Key('stats_empty')),
@@ -172,14 +178,14 @@ void main() {
       ) async {
         await pump(tester, const ProfileScreen(), theme: theme);
         expect(find.byKey(const Key('profile_signin')), findsOneWidget);
-        expect(tileValue(tester, 'profile_week_distance'), '10.00 km');
+        expect(tileValue(tester, 'profile_week_distance'), '10,00 km');
         expect(tileValue(tester, 'profile_week_count'), '1');
         final record = find.byKey(
           const Key('profile_record_ride_longestDistance'),
         );
         await tester.scrollUntilVisible(record, 200);
         expect(find.text('Pedal mais longo'), findsOneWidget);
-        expect(find.text('40.00 km'), findsOneWidget);
+        expect(find.text('40,00 km'), findsOneWidget);
         expect(
           find.byKey(const Key('profile_record_run_bestPace')),
           findsOneWidget,
@@ -190,6 +196,53 @@ void main() {
       });
     });
   }
+
+  testWidgets('EST-01: barra por esporte tem altura e largura proporcional', (
+    tester,
+  ) async {
+    await pump(tester, const StatsScreen(), theme: AppTheme.dark);
+    final ride = find.byKey(const Key('stats_sport_bar_ride'));
+    final run = find.byKey(const Key('stats_sport_bar_run'));
+    await tester.scrollUntilVisible(ride, 200);
+    final rideSize = tester.getSize(ride);
+    final runSize = tester.getSize(run);
+    expect(rideSize.height, 14);
+    expect(runSize.height, 14);
+    // 90 de 140 min no pedal, 50 na corrida.
+    expect(
+      rideSize.width / (rideSize.width + runSize.width),
+      closeTo(90 / 140, 0.01),
+    );
+  });
+
+  testWidgets('EST-07: cada total e um elemento proprio com rotulo e valor', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, const StatsScreen(), theme: AppTheme.dark);
+    final dist = tester.getSemantics(
+      find.byKey(const Key('stats_total_distance')),
+    );
+    final time = tester.getSemantics(find.byKey(const Key('stats_total_time')));
+    final gain = tester.getSemantics(find.byKey(const Key('stats_total_gain')));
+    final count = tester.getSemantics(
+      find.byKey(const Key('stats_total_count')),
+    );
+    expect(
+      {dist.id, time.id, gain.id, count.id}.length,
+      4,
+      reason: 'um no por bloco, nao um so para a grade',
+    );
+    expect(dist, isSemantics(label: 'Distancia', value: '50,00 quilometros'));
+    expect(time, isSemantics(label: 'Tempo', value: '2 horas e 20 minutos'));
+    expect(gain, isSemantics(label: 'Subida', value: '0 metros'));
+    expect(count, isSemantics(label: 'Treinos', value: '2'));
+    expect(
+      tester.getSemantics(find.byKey(const Key('stats_chart_max'))),
+      isSemantics(label: 'Maior semana', value: '1 hora e 30 minutos'),
+    );
+    handle.dispose();
+  });
 
   test('alturas das fatias sao proporcionais ao maior tempo', () {
     final w = WeekBar(

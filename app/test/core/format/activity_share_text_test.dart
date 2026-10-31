@@ -12,7 +12,7 @@ void main() {
         timerMs: 1500000,
         metric: true,
       ),
-      'Longao\nCorrida | 5.00 km | 25:00 | 5:00 /km',
+      'Longao\nCorrida | 5,00 km | 25:00 | 5:00 /km',
     );
   });
 
@@ -25,7 +25,7 @@ void main() {
         timerMs: 600000,
         metric: false,
       ),
-      'Passeio\nCaminhada | 1.00 mi | 10:00 | 10:00 /mi',
+      'Passeio\nCaminhada | 1,00 mi | 10:00 | 10:00 /mi',
     );
   });
 
@@ -38,7 +38,7 @@ void main() {
         timerMs: 3600000,
         metric: true,
       ),
-      'Pedal da tarde\nPedal | 20.00 km | 1:00:00 | 20.0 km/h',
+      'Pedal da tarde\nPedal | 20,00 km | 1:00:00 | 20,0 km/h',
     );
   });
 }
