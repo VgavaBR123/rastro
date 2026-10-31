@@ -295,8 +295,9 @@ class SafetySessionController extends StateNotifier<SafetyUiState> {
     if (!mounted) return;
     if (e.kind == SafetyErrorKind.network) {
       state = state.copyWith(offline: true);
-    } else if (e.kind == SafetyErrorKind.notFound) {
-      // A sessao sumiu no backend (encerrou sozinha em eta + 6 h).
+    } else if (e.kind == SafetyErrorKind.notFound || e.kind == SafetyErrorKind.conflict) {
+      // A sessao sumiu ou ja encerrou no backend (fim sozinho em eta + 6 h:
+      // 404, ou 409 "sessao encerrada").
       _stopTicks();
       state = const SafetyUiState();
     }

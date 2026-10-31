@@ -85,6 +85,7 @@ class SafetyApi {
       messages: const {
         404: 'Essa pessoa nao tem conta no Rastro. Peca para ela criar uma e tente de novo.',
         400: 'Nao da para convidar o proprio email.',
+        429: 'Muitos convites seguidos. Tente de novo mais tarde.',
       },
       conflictMessage: _inviteConflict,
     );
@@ -111,7 +112,10 @@ class SafetyApi {
     await _send(
       'POST',
       '/safety/contacts/${Uri.encodeComponent(contactId)}/accept',
-      messages: const {404: 'Convite nao encontrado. Ele pode ter sido cancelado.'},
+      messages: const {
+        404: 'Convite nao encontrado. Ele pode ter sido cancelado.',
+        409: 'Quem convidou voce ja tem 3 contatos aceitos, o maximo.',
+      },
     ),
   );
 

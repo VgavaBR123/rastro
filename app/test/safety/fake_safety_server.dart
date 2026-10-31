@@ -188,10 +188,8 @@ class FakeSafetyServer implements HttpClientAdapter {
       if (email == me.email) return (400, {'error': 'nao da para convidar o proprio email'});
       final other = _byEmail(email);
       if (other == null) return (404, {'error': 'sem conta no Rastro'});
-      final dup = contacts.any(
-        (c) =>
-            (c['ownerId'] == me.id && c['otherId'] == other.id) || (c['ownerId'] == other.id && c['otherId'] == me.id),
-      );
+      // Convite por sentido (decisao do backend): so repete no mesmo sentido.
+      final dup = contacts.any((c) => c['ownerId'] == me.id && c['otherId'] == other.id);
       if (dup) return (409, {'error': 'convite ja existe'});
       final accepted = contacts.where((c) => c['ownerId'] == me.id && c['status'] == 'accepted').length;
       if (accepted >= 3) return (409, {'error': 'limite de 3 contatos aceitos'});
@@ -237,7 +235,7 @@ class FakeSafetyServer implements HttpClientAdapter {
           ids.isNotEmpty &&
           ids.every(
             (id) => contacts.any(
-              (c) => c['id'] == id && c['status'] == 'accepted' && (c['ownerId'] == me.id || c['otherId'] == me.id),
+              (c) => c['id'] == id && c['status'] == 'accepted' && c['ownerId'] == me.id,
             ),
           );
       if (!okIds) return (400, {'error': 'contato invalido'});
@@ -273,6 +271,7 @@ class FakeSafetyServer implements HttpClientAdapter {
       if (s == null || s['ownerId'] != me.id) return (404, {'error': 'nao encontrada'});
       if (seg.length == 3 && method == 'GET') return (200, _sessionJson(s));
       final action = seg.length == 4 ? seg[3] : '';
+      if (s['status'] == 'ended' && action != 'arrived' && action != '') return (409, {'error': 'sessao encerrada'});
       switch (action) {
         case 'positions':
           s['lastSignalAt'] = now();

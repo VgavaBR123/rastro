@@ -50,12 +50,11 @@ class ContactLists {
   static List<TrustedContact> _list(Object? v) =>
       v is List ? [for (final e in v) TrustedContact.fromJson(e as Map<String, dynamic>)] : const [];
 
-  /// Contatos aceitos dos dois lados (quem pode ser avisado numa sessao).
-  /// O contrato aceita `contactIds` de convites enviados ou recebidos.
+  /// Quem pode ser avisado numa sessao: so os convites ENVIADOS e aceitos
+  /// (decisao do backend: o contato e por sentido; quem me convidou me tem
+  /// como contato dele, nao o contrario).
   List<TrustedContact> get accepted => [
     for (final c in outgoing)
-      if (c.accepted) c,
-    for (final c in incoming)
       if (c.accepted) c,
   ];
 }

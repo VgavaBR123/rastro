@@ -296,6 +296,14 @@ void main() {
     expect(ctrl.state.session!.activityGuid, 'act_1');
   });
 
+  test('sessao encerrada no backend (409): a faixa sai e o tick para', () async {
+    await begin();
+    server.sessionById(ctrl.sessionId!)!['status'] = 'ended';
+    await tick();
+    expect(ctrl.state.active, isFalse);
+    expect(ticker.hasListener, isFalse);
+  });
+
   group('recuperacao apos crash', () {
     late String id;
     setUp(() async {

@@ -45,7 +45,9 @@ void main() {
       await c.load();
       final id = c.state.lists!.incoming.single.id;
       expect(await c.accept(id), isNull);
-      expect(c.state.accepted.single.id, id);
+      expect(c.state.lists!.incoming.single.accepted, isTrue);
+      // Contato por sentido: quem aceitou nao ganha a Ana como contato dela.
+      expect(c.state.accepted, isEmpty);
       expect(await c.remove(id), isNull);
       expect(c.state.lists!.incoming, isEmpty);
     });
