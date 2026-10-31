@@ -160,6 +160,9 @@ class StatsTotalsGrid extends StatelessWidget {
     final (gain, gainUnit) = splitMeasure(
       formatElevation(totals.elevationGainMeters, metric: metric),
     );
+    final (time, timeUnit) = splitMeasure(
+      formatTotalDuration(totals.timerTimeMs),
+    );
     Widget tile(
       String key,
       String label,
@@ -167,14 +170,22 @@ class StatsTotalsGrid extends StatelessWidget {
       String? unit,
       RoleColors role,
     ) => Expanded(
-      child: MetricTile(
-        key: Key('${keyPrefix}_$key'),
+      // Um elemento de acessibilidade por bloco, com rotulo e valor falado
+      // (EST-07); sem isso a grade inteira virava um no so.
+      child: Semantics(
+        container: true,
         label: label,
-        value: value,
-        unit: unit,
-        role: role,
-        block: true,
-        valueStyle: AppText.metricM,
+        value: spokenMeasure([value, ?unit].join(' ')),
+        excludeSemantics: true,
+        child: MetricTile(
+          key: Key('${keyPrefix}_$key'),
+          label: label,
+          value: value,
+          unit: unit,
+          role: role,
+          block: true,
+          valueStyle: AppText.metricM,
+        ),
       ),
     );
     return Column(
@@ -183,13 +194,7 @@ class StatsTotalsGrid extends StatelessWidget {
           children: [
             tile('distance', 'Distancia', dist, distUnit, c.dist),
             const SizedBox(width: 10),
-            tile(
-              'time',
-              'Tempo',
-              formatDuration(totals.timerTimeMs),
-              null,
-              c.tempo,
-            ),
+            tile('time', 'Tempo', time, timeUnit, c.tempo),
           ],
         ),
         const SizedBox(height: 10),
@@ -235,23 +240,30 @@ class WeeklyStackedChart extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text('Maior semana', style: muted),
-            const Spacer(),
-            Text(
-              formatDuration(max),
-              key: const Key('stats_chart_max'),
-              style: AppText.metricS.copyWith(color: c.tempo.fg),
-            ),
-          ],
+        Semantics(
+          container: true,
+          label: 'Maior semana',
+          value: spokenMeasure(formatTotalDuration(max)),
+          excludeSemantics: true,
+          child: Row(
+            children: [
+              Text('Maior semana', style: muted),
+              const Spacer(),
+              Text(
+                formatTotalDuration(max),
+                key: const Key('stats_chart_max'),
+                style: AppText.metricS.copyWith(color: c.tempo.fg),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         Semantics(
+          container: true,
           label: 'Tempo por semana nas ultimas ${weeks.length} semanas',
           value: [
             for (final w in weeks)
-              '${two(w.start.day)}/${two(w.start.month)}: ${formatDuration(w.totalTimerMs)}',
+              '${two(w.start.day)}/${two(w.start.month)}: ${spokenMeasure(formatTotalDuration(w.totalTimerMs))}',
           ].join(', '),
           child: SizedBox(
             height: height,
@@ -444,10 +456,14 @@ class _SportDistribution extends StatelessWidget {
           borderRadius: BorderRadius.circular(7),
           child: SizedBox(
             height: 14,
+            // stretch: sem ele a Row repassa altura frouxa e o ColoredBox sem
+            // filho fica com 0 px (EST-01).
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (final s in shares)
                   Expanded(
+                    key: Key('stats_sport_bar_${s.type.name}'),
                     flex: (s.fraction * 1000).round().clamp(1, 1000),
                     child: ColoredBox(color: c.sport(s.type).fill),
                   ),
@@ -473,37 +489,48 @@ class _SportRow extends StatelessWidget {
     final role = c.sport(share.type);
     final t = share.totals;
     final count = t.count == 1 ? '1 treino' : '${t.count} treinos';
-    return Padding(
-      key: Key('stats_sport_${share.type.name}'),
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: role.fill, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  activityTypeLabel(share.type),
-                  style: AppText.bodyStrong.copyWith(color: c.text),
-                ),
-                Text(
-                  '$count · ${formatDistance(t.distanceMeters, metric: metric)} · ${formatDuration(t.timerTimeMs)}',
-                  style: AppText.label.copyWith(color: c.textMuted),
-                ),
-              ],
+    final dist = formatDistance(t.distanceMeters, metric: metric);
+    final time = formatTotalDuration(t.timerTimeMs);
+    final percent = (share.fraction * 100).round();
+    return Semantics(
+      container: true,
+      label: activityTypeLabel(share.type),
+      value:
+          '$count, ${spokenMeasure(dist)}, ${spokenMeasure(time)}, '
+          '$percent por cento',
+      excludeSemantics: true,
+      child: Padding(
+        key: Key('stats_sport_${share.type.name}'),
+        padding: const EdgeInsets.only(top: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: role.fill,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-          Text(
-            '${(share.fraction * 100).round()}%',
-            style: AppText.metricS.copyWith(color: role.fg),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    activityTypeLabel(share.type),
+                    style: AppText.bodyStrong.copyWith(color: c.text),
+                  ),
+                  Text(
+                    '$count · $dist · $time',
+                    style: AppText.label.copyWith(color: c.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Text('$percent%', style: AppText.metricS.copyWith(color: role.fg)),
+          ],
+        ),
       ),
     );
   }
