@@ -18,6 +18,7 @@ import 'components/segmented_selector.dart';
 import 'components/sport_chip.dart';
 import 'components/visibility_badge.dart';
 import 'route_map.dart';
+import 'components/adaptive_controls.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
@@ -170,7 +171,7 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                 key: const Key('save_back'),
                 style: TextButton.styleFrom(foregroundColor: c.ciano.fg, minimumSize: const Size(44, 44)),
                 onPressed: widget.busy ? null : widget.onBack,
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: Icon(adaptiveBackIcon(context)),
                 label: const Text('Voltar a gravacao'),
               ),
             ),

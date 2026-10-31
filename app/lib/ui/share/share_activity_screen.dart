@@ -21,6 +21,7 @@ import '../components/big_action_button.dart';
 import '../components/segmented_selector.dart';
 import '../share_activity.dart';
 import '../theme/app_colors.dart';
+import '../components/adaptive_controls.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import 'share_card.dart';
@@ -126,7 +127,7 @@ class _ShareActivityScreenState extends ConsumerState<ShareActivityScreen> {
                   IconButton(
                     key: const Key('share_back'),
                     tooltip: 'Voltar',
-                    icon: const Icon(Icons.arrow_back_rounded),
+                    icon: Icon(adaptiveBackIcon(context)),
                     onPressed: () => Navigator.of(context).maybePop(),
                   ),
                   const SizedBox(width: 4),
