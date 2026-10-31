@@ -79,7 +79,10 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
     text: suggestedActivityTitle(widget.type, widget.startedAt),
   );
   final TextEditingController _description = TextEditingController();
-  ActivityVisibility _visibility = ActivityVisibility.everyone;
+  // GRA-05: comeca em So eu. Publicar o trajeto (que mostra onde a pessoa
+  // mora ou corre) tem que ser escolha, nao descuido. "Ultimo usado" exigiria
+  // guardar a escolha em coluna nova (schema novo); fica para depois.
+  ActivityVisibility _visibility = ActivityVisibility.onlyMe;
 
   @override
   void initState() {

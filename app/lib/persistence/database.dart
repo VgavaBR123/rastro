@@ -53,8 +53,10 @@ class Activities extends Table {
   TextColumn get description => text().nullable()();
 
   /// Quem pode ver: 'private' | 'followers' | 'everyone' (ver
-  /// [ActivityVisibility]). Padrao 'everyone', o mesmo da tela Salvar; as
-  /// atividades antigas ganham esse valor na migracao. Por enquanto so local.
+  /// [ActivityVisibility]). O padrao da coluna e 'everyone' (as atividades
+  /// antigas ganharam esse valor na migracao), mas o repositorio cria toda
+  /// atividade nova como 'private', o mesmo padrao da tela Salvar (GRA-05).
+  /// Por enquanto so local.
   TextColumn get visibility =>
       text().withDefault(const Constant('everyone'))();
 

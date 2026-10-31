@@ -44,6 +44,23 @@ void main() {
     expect(pts.last.altitudeMeters, 100 + 2000);
   });
 
+  test('atividade nasce privada: encerrar sem a tela Salvar nao publica (GRA-05)', () async {
+    // Encerrar pela notificacao ou salvar uma interrompida nao passa pela
+    // tela Salvar; a visibilidade fica a da criacao.
+    await repo.startActivity(guid: 'a1', type: ActivityType.run, startTimestampMs: 1000);
+    await repo.finish('a1', 2000, distanceMeters: 10, timerTimeMs: 1000);
+    final row = (await repo.recent()).single;
+    expect(row.visibility, 'private');
+
+    // Sem visibilidade explicita, saveDetails tambem fica em So eu.
+    await repo.saveDetails('a1', title: 'Treino');
+    final saved = await (db.select(db.activities)..where((t) => t.guid.equals('a1'))).getSingle();
+    expect(saved.visibility, 'private');
+    // Valor desconhecido (ou null) le como So eu, o lado seguro.
+    expect(ActivityVisibility.fromDb(null), ActivityVisibility.onlyMe);
+    expect(ActivityVisibility.fromDb('everyone'), ActivityVisibility.everyone);
+  });
+
   test('atividade nao finalizada aparece na recuperacao; some apos finish', () async {
     await repo.startActivity(
       guid: 'a2',

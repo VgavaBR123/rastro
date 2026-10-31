@@ -75,6 +75,13 @@ void main() {
     });
   }
 
+  testWidgets('visibilidade padrao e So eu (GRA-05)', (tester) async {
+    final events = await pumpView(tester, AppTheme.dark);
+    await tester.tap(find.byKey(const Key('save_activity')));
+    await tester.pump();
+    expect((events.single as ActivityDraft).visibility, ActivityVisibility.onlyMe);
+  });
+
   testWidgets('com o teclado aberto Salvar e Descartar saem do caminho (GRA-04)', (tester) async {
     await pumpView(tester, AppTheme.dark);
     expect(find.byKey(const Key('save_activity')), findsOneWidget);
