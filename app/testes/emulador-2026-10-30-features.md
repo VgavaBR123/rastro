@@ -11,6 +11,7 @@ feature fecha (commit por feature), para que uma queda de energia nao leve o his
 | F04 Fechamento gentil | `c3c0b27` + `93394c1` | 782 / 131 | 2 cenarios novos passam; fluxo antigo de sync passa |
 | F05 Capitulos mensais com marcos | `8e52f54`..`e4c0d36` + `1f03635`..`b1e41af` | 878 / 131 | 2 cenarios novos passam; F04 e sync passam de novo |
 | F06 Plano Do Zero aos 5 km | `195aa74`..`023a8e9` + `8493499`..`1c5df4d` | 982 / 131 | 1 cenario longo passa (parcial, concluidas, voltas, segundo plano, repetir semana); F04, F05 e sync passam de novo |
+| F07 Seus dados | `775fa9b`..`3ec738e` + `a500dac`..`4f54ed4` | 1101 / 131 | 1 cenario passa (importar exportacao de conta, duplicata, exportar com privacidade); F04, F05, F06 e sync passam de novo; CI do .ipa verde |
 
 ## Como foi testado
 
@@ -118,3 +119,42 @@ saida do `flutter test`, manda `adb shell input keyevent 3` e traz o app de volt
 - Voz real (TTS) e TalkBack: no teste a voz e Noop.
 - Fora do escopo da F06, confirmado pelo agente: o tempo em movimento da gravacao comum nao anda sem ponto de
   GPS (GRA-01 do teste no iPhone). O plano tem relogio proprio; a gravacao comum continua com o problema.
+
+## F07 Seus dados
+
+Arquivo novo: `app/integration_test/seus_dados_test.dart`. Sem backend. As entradas sao montadas no proprio teste,
+de forma independente dos geradores dos testes de unidade: GPX (horario em -03:00) e TCX escritos a mao, FIT pelo
+`fit_writer` do upload e o ZIP pelo pacote `archive`. O seletor de arquivos e o compartilhar do sistema sao trocados
+por versoes do teste (o dialogo do sistema ficaria por cima do app).
+
+| Cenario | Resultado | Evidencia |
+|---|---|---|
+| ZIP no formato da exportacao de conta: `activities.csv` + GPX, TCX.gz, FIT.gz, uma natacao, uma linha sem arquivo e um GPX quebrado | Passou | "3 importadas", "1 de natacao ignorada, 1 de sem arquivo ignorada", erro "activities/105.gpx: XML mal formado". Corrida GPX 1739 m em 599 s, pedal TCX 6101 m em 899 s, corrida FIT 1298 m em 479 s; todas "so eu" e na fila de sync. |
+| GPX com horario em -03:00 | Passou | Inicio 2026-03-01 10:00 UTC (07:00 local). |
+| Titulo | Passou | Vem do CSV ("Corrida no parque"), com prioridade sobre o `<name>` do GPX. |
+| Reimportar o mesmo GPX solto | Passou | "1 duplicada", nenhuma atividade nova. |
+| Exportar tudo com corte de privacidade (300 m nas pontas da corrida) | Passou | ZIP com 3 GPX, `atividades.csv` e `LEIA-ME.txt`; 1o ponto exportado a 302 m do original; titulo `Parque & lagoa <manhã>` escapado no XML e sem `<>` no nome do arquivo; o CSV nao leva a rota. |
+| Regressao: plano 5 km (com segundo plano), capitulos, fechamento gentil e sync | Passou | Servidor `rpe=7 mood=tired`; Perfil 1 e depois 0. |
+| CI do `.ipa` (Swift do `shareFile` e `file_picker_darwin`) | Passou | Execucao `41161217858` no commit `4f54ed4`. |
+
+As distancias cerca de 3% abaixo do "esperado" vieram do gerador do teste (usei 111.320 m por grau tambem na
+longitude, que em BH vale cerca de 6% menos): o app mediu certo. A subida alta vem da elevacao sintetica em
+dente de serra.
+
+### Achados
+
+| Id | Gravidade | O que | Situacao |
+|---|---|---|---|
+| F07-REV-01 | Critica | Gzip bomb: um `.gz` de 2 MB virava ~2 GB na memoria antes do teto de tamanho e derrubava o app. | Corrigido em `a500dac`: descompressao por partes com teto; entradas maiores que o declarado e diretorio central gigante tambem falham. |
+| F07-REV-02 | Alta | Exportacao de conta em portugues: todos os pedais seriam ignorados ("pedalada" desconhecido). | Corrigido em `5e5d232`; tipo do CSV fora das tabelas cai no esporte do arquivo. |
+| F07-REV-03 | Warning | GPX/TCX lido como arvore DOM inteira (OOM com arquivo grande). | Corrigido em `e2034d4`: leitura por eventos. |
+| F07-REV-04 a 08 | Media | `routes/` do ZIP entrando como erros; exportacao apagando arquivo em uso; inicio do GPX pela data do `<metadata>`; duplicata falha com tipo inferido; tempo em movimento do TCX. | Corrigidos em `e2034d4`, `5e5d232` e `6870f5d`. |
+| F07-REV-09 a 14 | Baixa e notas | Fim abrupto do isolate parecia sucesso; caracteres invalidos no GPX; CSV sem protecao para tab/CR; copia do seletor sem progresso; anuncio por item e fim sem anuncio no leitor de tela. | Corrigidos em `6870f5d`, `a7fab80` e `b42b640`. |
+
+### Nao verificado no aparelho
+
+- Exportacao real do Strava (formato e nomes das colunas do CSV, inclusive em portugues): os testes usam arquivos
+  montados a partir da documentacao publica.
+- ZIP grande (1 a 2 GB): o `file_picker` copia o arquivo para o cache antes de devolver o caminho, dobrando o espaco
+  ocupado por um tempo. Seletor nativo sem copia ficou como pendencia.
+- TalkBack real nos anuncios de progresso e de fim.
