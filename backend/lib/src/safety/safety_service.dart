@@ -565,9 +565,12 @@ class SafetyService {
     return _alterar(u, id, (s) async {
       _exigirAberta(s);
       await _respondeu(s, u);
+      // Com o eta ja vencido, os minutos contam de agora (senao "mais 15
+      // min" uma hora depois do eta continuaria no passado).
       s
-        ..etaMs = s.etaMs + m.toInt() * 60 * 1000
+        ..etaMs = max(s.etaMs, _now()) + m.toInt() * 60 * 1000
         ..etaRecheckAfterMs = null;
+
     });
   }
 

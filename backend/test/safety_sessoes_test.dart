@@ -262,7 +262,16 @@ void main() {
       }
     });
 
+    test('extend com o eta ja vencido conta a partir de agora', () async {
+      final s = await h.criarSessao(ana, [ctBia], etaMs: h.agora + 10 * minuto);
+      h.agora += 40 * minuto; // 30 min depois do eta
+      final r = await h.json('POST', '/safety/sessions/${s['id']}/extend',
+          body: {'minutes': 15}, token: ana.token);
+      expect(r['etaMs'], h.agora + 15 * minuto);
+    });
+
     test('arrived encerra, e idempotente; ok/extend/sos depois = 409',
+
         () async {
       final s = await h.criarSessao(ana, [ctBia]);
       final r = await h.json('POST', '/safety/sessions/${s['id']}/arrived',
