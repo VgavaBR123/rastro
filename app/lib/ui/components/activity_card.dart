@@ -109,7 +109,11 @@ class ActivityCard extends StatelessWidget {
               // E2E-05: quem pode ver, so quando nao e publica.
               if (visibility != ActivityVisibility.everyone) ...[
                 const SizedBox(width: 8),
-                VisibilityBadge(visibility: visibility),
+                // Compacto: entra no rotulo unico do cartao.
+                ExcludeSemantics(
+                  excluding: compact,
+                  child: VisibilityBadge(visibility: visibility),
+                ),
               ],
               ?trailing,
             ],
@@ -197,7 +201,9 @@ class ActivityCard extends StatelessWidget {
               label:
                   '$title, ${activityTypeLabel(type)}, $date, '
                   '${spokenMeasure(formatDistance(activity.distanceMeters, metric: useMetric))}, '
-                  '${spokenMeasure(formatTotalDuration(activity.timerTimeMs))}, abrir detalhe',
+                  '${spokenMeasure(formatTotalDuration(activity.timerTimeMs))}, '
+                  '${visibility == ActivityVisibility.everyone ? '' : 'quem pode ver: ${visibilityLabel(visibility)}, '}'
+                  'abrir detalhe',
               child: InkWell(onTap: onOpen, child: body),
             )
           : body,

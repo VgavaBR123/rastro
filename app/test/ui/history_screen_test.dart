@@ -179,6 +179,8 @@ void main() {
     expect(node, isSemantics(isButton: true, hasTapAction: true));
     expect(node.label, contains('1,20 quilometros'));
     expect(node.label, contains('1 minuto'));
+    // Atividade nova nasce "So eu" (GRA-05): o selo entra no rotulo unico.
+    expect(node.label, contains('quem pode ver: So eu'));
     // O menu do cartao continua alcancavel como elemento proprio.
     final buttons = <SemanticsNode>[];
     void collect(SemanticsNode n) {

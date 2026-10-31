@@ -145,7 +145,7 @@ void main() {
       );
       expect(find.byKey(const Key('visibility_badge')), findsOneWidget);
       // No compacto o cartao inteiro e um botao e junta os rotulos num no so.
-      expect(find.bySemanticsLabel(RegExp('Quem pode ver: $label')), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('[Qq]uem pode ver: $label')), findsOneWidget);
       semantics.dispose();
     });
   }
