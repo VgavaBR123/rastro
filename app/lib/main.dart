@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -64,6 +65,11 @@ class StravaEstudoApp extends ConsumerWidget {
     return MaterialApp.router(
       routerConfig: ref.watch(appRouterProvider),
       title: 'Rastro',
+      // Rotulos e formatos do Material/Cupertino em pt-BR (INI-06): sem isso
+      // o voltar e outros botoes do sistema saem em ingles ("Back").
+      locale: const Locale('pt', 'BR'),
+      supportedLocales: const [Locale('pt', 'BR')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       // Escuro por padrao (relatorio 11); o claro existe, mas e secundario.
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
