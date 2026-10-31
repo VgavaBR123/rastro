@@ -37,6 +37,16 @@ const List<String> kExportCsvHeader = [
   'arquivo_gpx',
 ];
 
+/// Ja ha uma exportacao em andamento (tudo ou uma atividade).
+class ExportBusyException implements Exception {
+  const ExportBusyException();
+  @override
+  String toString() => 'Ja ha uma exportacao em andamento';
+}
+
+/// Subpastas de exportacao com mais que isto sao apagadas na proxima.
+const Duration kExportKeep = Duration(hours: 1);
+
 class ExportResult {
   final String path;
   final int count;
@@ -73,6 +83,19 @@ class ExportService {
 
   ExportService(this.db, {DateTime Function()? now}) : _now = now ?? DateTime.now;
 
+  /// Uma exportacao por vez no app inteiro (todas as instancias).
+  static bool _busy = false;
+
+  Future<T> _exclusive<T>(Future<T> Function() body) async {
+    if (_busy) throw const ExportBusyException();
+    _busy = true;
+    try {
+      return await body();
+    } finally {
+      _busy = false;
+    }
+  }
+
   /// Exporta todas as atividades finalizadas. Devolve null se cancelado (e
   /// nao deixa arquivo pela metade).
   Future<ExportResult?> exportAll({
@@ -80,11 +103,11 @@ class ExportService {
     required bool applyPrivacy,
     void Function(int done, int total)? onProgress,
     bool Function()? isCancelled,
-  }) async {
-    await _clean(outDir);
+  }) => _exclusive(() async {
     final now = _now();
+    final folder = await _prepare(outDir, now);
     final stamp = '${now.year}${_two(now.month)}${_two(now.day)}-${_two(now.hour)}${_two(now.minute)}';
-    final path = '${outDir.path}/rastro-atividades-$stamp.zip';
+    final path = '${folder.path}/rastro-atividades-$stamp.zip';
     final activities = await db.finishedActivitiesAscending();
     final zip = ZipWriter.create(path, now: now);
     final privacy = PrivacyRepository(db);
@@ -145,25 +168,25 @@ class ExportService {
       if (await f.exists()) await f.delete();
       rethrow;
     }
-  }
+  });
 
   /// Exporta [a] como GPX e devolve o caminho.
   Future<String> exportOne(
     Activity a, {
     required Directory outDir,
     required bool applyPrivacy,
-  }) async {
-    await _clean(outDir);
+  }) => _exclusive(() async {
+    final folder = await _prepare(outDir, _now());
     final title = _title(a);
     final points = applyPrivacy
         ? await PrivacyRepository(db).exportWaypoints(a)
         : _accepted(await db.waypointsForActivity(a.guid));
     final start = DateTime.fromMillisecondsSinceEpoch(a.startTimestampMs);
-    final file = File('${outDir.path}/${start.year}-${_two(start.month)}-${_two(start.day)} '
+    final file = File('${folder.path}/${start.year}-${_two(start.month)}-${_two(start.day)} '
         '${safeFileName(title)}.gpx');
     await file.writeAsString(_gpx(a, title, points), flush: true);
     return file.path;
-  }
+  });
 
   static String _title(Activity a) => displayActivityTitle(
     a.title,
@@ -191,14 +214,30 @@ class ExportService {
     ],
   );
 
-  static Future<void> _clean(Directory dir) async {
-    if (await dir.exists()) {
-      await for (final f in dir.list()) {
-        if (f is File) await f.delete();
+  /// Cria a subpasta desta exportacao (`<outDir>/<epoch ms>`) e apaga as
+  /// antigas (mais de [kExportKeep]) e arquivos soltos do formato anterior.
+  /// A atual e as recentes ficam: o app de destino pode estar lendo.
+  static Future<Directory> _prepare(Directory outDir, DateTime now) async {
+    final nowMs = now.millisecondsSinceEpoch;
+    if (await outDir.exists()) {
+      await for (final e in outDir.list()) {
+        final name = e.uri.pathSegments.where((s) => s.isNotEmpty).last;
+        if (e is File) {
+          await e.delete();
+        } else if (e is Directory) {
+          final ms = int.tryParse(name.split('-').first);
+          if (ms == null || nowMs - ms > kExportKeep.inMilliseconds) {
+            await e.delete(recursive: true);
+          }
+        }
       }
-    } else {
-      await dir.create(recursive: true);
     }
+    var dir = Directory('${outDir.path}/$nowMs');
+    for (var n = 2; await dir.exists(); n++) {
+      dir = Directory('${outDir.path}/$nowMs-$n');
+    }
+    await dir.create(recursive: true);
+    return dir;
   }
 
   static String _readme(DateTime now, int count, bool privacy) {

@@ -186,13 +186,34 @@ void main() {
     test('cancelar no meio nao deixa arquivo', () async {
       final r = await service.exportAll(outDir: dir, applyPrivacy: true, isCancelled: () => true);
       expect(r, isNull);
-      expect(dir.listSync().whereType<File>(), isEmpty);
+      expect(dir.listSync(recursive: true).whereType<File>(), isEmpty);
     });
 
-    test('a exportacao anterior e apagada da pasta', () async {
-      final old = File('${dir.path}/velho.zip')..writeAsStringSync('x');
-      await service.exportAll(outDir: dir, applyPrivacy: true);
+    test('cada exportacao numa subpasta; so as com mais de 1 hora sao apagadas', () async {
+      final nowMs = DateTime(2026, 10, 30, 8, 5).millisecondsSinceEpoch;
+      final old = Directory('${dir.path}/${nowMs - 2 * 3600000}')..createSync(recursive: true);
+      File('${old.path}/velho.zip').writeAsStringSync('x');
+      final recent = Directory('${dir.path}/${nowMs - 600000}')..createSync(recursive: true);
+      final inUse = File('${recent.path}/em-uso.gpx')..writeAsStringSync('x');
+      final loose = File('${dir.path}/solto.zip')..writeAsStringSync('x');
+      final r = await service.exportAll(outDir: dir, applyPrivacy: true);
       expect(old.existsSync(), isFalse);
+      expect(inUse.existsSync(), isTrue, reason: 'o app de destino pode estar lendo');
+      expect(loose.existsSync(), isFalse, reason: 'arquivo do formato antigo, direto na pasta');
+      expect(File(r!.path).parent.parent.path, dir.path);
+      expect(File(r.path).existsSync(), isTrue);
+    });
+
+    test('exportOne e exportAll nao rodam ao mesmo tempo', () async {
+      final a = (await db.finishedActivitiesAscending()).first;
+      final all = service.exportAll(outDir: dir, applyPrivacy: true);
+      await expectLater(
+        ExportService(db).exportOne(a, outDir: dir, applyPrivacy: true),
+        throwsA(isA<ExportBusyException>()),
+      );
+      expect(await all, isNotNull);
+      // Terminada a primeira, a proxima roda.
+      expect(await service.exportOne(a, outDir: dir, applyPrivacy: true), endsWith('.gpx'));
     });
 
     test('exportar uma atividade so como GPX', () async {
@@ -202,7 +223,8 @@ void main() {
       expect(parseGpx(File(cut).readAsStringSync()).points.length, lessThan(100));
       final full = await service.exportOne(a, outDir: dir, applyPrivacy: false);
       expect(parseGpx(File(full).readAsStringSync()).points, hasLength(100));
-      expect(dir.listSync().whereType<File>(), hasLength(1), reason: 'um arquivo por vez');
+      expect(File(cut).existsSync(), isTrue, reason: 'a anterior ainda pode estar em uso');
+      expect(File(cut).parent.path, isNot(File(full).parent.path));
     });
   });
 }

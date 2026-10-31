@@ -145,6 +145,16 @@ void main() {
     expect((steps.single as ImportStepError).reason, 'arquivo vazio');
   });
 
+  test('isolate que sai sem a mensagem de fim: leitura interrompida, nao fim normal', () async {
+    final paths = [
+      for (var i = 0; i < 3; i++) writeTemp(dir, '$i.gpx', runGpx(startMs: kT0 + i * 86400000)),
+    ];
+    final feed = await IsolateImportFeed.open(paths, debugExitAfter: 1);
+    expect(await feed.next(), isA<ImportStepActivity>());
+    await expectLater(feed.next(), throwsA(isA<StateError>()));
+    await feed.close();
+  });
+
   test('no isolate: mesmo resultado e fechar no meio para', () async {
     final paths = [
       for (var i = 0; i < 4; i++)

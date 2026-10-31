@@ -324,13 +324,15 @@ class IsolateImportFeed implements ImportFeed {
 
   IsolateImportFeed._(this._isolate, this._port, this._replies, this._commands, this.total);
 
-  static Future<IsolateImportFeed> open(List<String> paths) async {
+  /// [debugExitAfter]: so para testes; o isolate sai (sem a mensagem de fim)
+  /// depois de entregar esse numero de itens, como se tivesse caido.
+  static Future<IsolateImportFeed> open(List<String> paths, {int? debugExitAfter}) async {
     final port = ReceivePort();
     // Erro nao tratado ou saida do isolate chegam pela mesma porta: quem
     // espera uma resposta nunca fica pendurado.
     final isolate = await Isolate.spawn(
       _worker,
-      (port.sendPort, paths),
+      (port.sendPort, paths, debugExitAfter),
       onError: port.sendPort,
       onExit: port.sendPort,
     );
@@ -359,14 +361,15 @@ class IsolateImportFeed implements ImportFeed {
     if (_closed) return null;
     final r = _replies.current;
     if (r is ImportStep) return r;
-    if (r == null) {
-      // Fim da fila (ou o isolate saiu): nada mais vem.
+    if (r == _endMessage) {
+      // Fim explicito da fila.
       _done = true;
       return null;
     }
-    // Erro nao tratado no isolate ([erro, pilha]).
+    // null (o isolate saiu antes do fim) ou [erro, pilha]: leitura
+    // interrompida, nao fim normal.
     await close();
-    throw StateError('isolate da importacao falhou: $r');
+    throw StateError(r == null ? 'isolate da importacao saiu antes do fim' : 'isolate da importacao falhou: $r');
   }
 
   @override
@@ -379,15 +382,22 @@ class IsolateImportFeed implements ImportFeed {
     _port.close();
   }
 
-  static Future<void> _worker((SendPort, List<String>) args) async {
-    final (out, paths) = args;
+  /// Mensagem do isolate quando a fila acabou de verdade.
+  static const String _endMessage = 'fim';
+
+  static Future<void> _worker((SendPort, List<String>, int?) args) async {
+    final (out, paths, exitAfter) = args;
     final commands = ReceivePort();
     out.send(commands.sendPort);
     final feed = await LocalImportFeed.open(paths);
     out.send(feed.total);
+    var sent = 0;
     await for (final cmd in commands) {
       if (cmd == 'next') {
-        out.send(await feed.next());
+        if (exitAfter != null && sent >= exitAfter) Isolate.exit();
+        final step = await feed.next();
+        out.send(step ?? _endMessage);
+        sent++;
       } else {
         await feed.close();
         commands.close();

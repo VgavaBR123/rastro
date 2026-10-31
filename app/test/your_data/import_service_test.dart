@@ -219,6 +219,7 @@ void main() {
     final s = await service.run(feed);
     expect(s.imported, 1);
     expect(s.errors.single.reason, contains('interrompida'));
+    expect(s.interrupted, isTrue);
     expect(feed.closed, isTrue);
     expect(await db.finishedActivitiesAscending(), hasLength(1));
   });

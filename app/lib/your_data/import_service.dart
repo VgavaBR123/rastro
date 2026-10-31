@@ -44,6 +44,9 @@ class ImportSummary {
   final List<ImportFailure> errors;
   final bool cancelled;
 
+  /// A leitura parou por um erro antes do fim (nao concluida).
+  final bool interrupted;
+
   const ImportSummary({
     required this.total,
     required this.imported,
@@ -51,6 +54,7 @@ class ImportSummary {
     required this.ignored,
     required this.errors,
     required this.cancelled,
+    this.interrupted = false,
   });
 
   /// "12 de natacao ignoradas", na ordem de quantidade.
@@ -82,6 +86,7 @@ class ImportService {
     final ignored = <String, int>{};
     final errors = <ImportFailure>[];
     var cancelled = false;
+    var interrupted = false;
     void progress() =>
         onProgress?.call(ImportProgress(done: done, total: total, imported: imported));
 
@@ -98,6 +103,7 @@ class ImportService {
         } on Object {
           // A fila quebrou (isolate caiu): o que entrou fica, o resto para.
           errors.add(const ImportFailure('importacao', 'leitura interrompida por um erro'));
+          interrupted = true;
           break;
         }
         if (step == null) break;
@@ -130,6 +136,7 @@ class ImportService {
       ignored: ignored,
       errors: errors,
       cancelled: cancelled,
+      interrupted: interrupted,
     );
   }
 
