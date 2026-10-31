@@ -233,19 +233,13 @@ void main() {
       4,
       reason: 'um no por bloco, nao um so para a grade',
     );
-    expect(
-      dist,
-      containsSemantics(label: 'Distancia', value: '50,00 quilometros'),
-    );
-    expect(
-      time,
-      containsSemantics(label: 'Tempo', value: '2 horas e 20 minutos'),
-    );
-    expect(gain, containsSemantics(label: 'Subida', value: '0 metros'));
-    expect(count, containsSemantics(label: 'Treinos', value: '2'));
+    expect(dist, isSemantics(label: 'Distancia', value: '50,00 quilometros'));
+    expect(time, isSemantics(label: 'Tempo', value: '2 horas e 20 minutos'));
+    expect(gain, isSemantics(label: 'Subida', value: '0 metros'));
+    expect(count, isSemantics(label: 'Treinos', value: '2'));
     expect(
       tester.getSemantics(find.byKey(const Key('stats_chart_max'))),
-      containsSemantics(label: 'Maior semana', value: '1 hora e 30 minutos'),
+      isSemantics(label: 'Maior semana', value: '1 hora e 30 minutos'),
     );
     handle.dispose();
   });

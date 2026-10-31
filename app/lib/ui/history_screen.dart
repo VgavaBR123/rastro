@@ -11,7 +11,8 @@ import '../app/providers.dart';
 import '../app/router.dart';
 import '../persistence/database.dart';
 import '../sync/background/background_sync_provider.dart';
-import '../sync/sync_controller.dart' show kSignInToSyncMessage;
+import '../sync/sync_controller.dart'
+    show kSessionExpiredMessage, kSignInToSyncMessage;
 import 'components/activity_card.dart';
 import 'components/app_nav_bar.dart';
 import 'share_activity.dart';
@@ -32,12 +33,18 @@ class HistoryScreen extends ConsumerWidget {
     ref.listen(syncControllerProvider, (prev, next) {
       final msg = next.message;
       if (msg != null && next.messageSeq != prev?.messageSeq) {
+        final signIn =
+            msg == kSignInToSyncMessage || msg == kSessionExpiredMessage;
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
             SnackBar(
               content: Text(msg),
-              action: msg == kSignInToSyncMessage
+              // Com acao o SnackBar fica fixo por padrao; aqui ele some
+              // sozinho como os outros avisos (HIS-02).
+              persist: false,
+              duration: const Duration(seconds: 4),
+              action: signIn
                   ? SnackBarAction(
                       label: 'Entrar',
                       onPressed: () => context.push(AppRoutes.auth),
@@ -69,9 +76,13 @@ class HistoryScreen extends ConsumerWidget {
                   ),
                   IconButton(
                     key: const Key('sync'),
-                    tooltip: pending > 0
-                        ? 'Sincronizar ($pending)'
-                        : 'Sincronizar',
+                    // Rotulo unico: o numero do selo nao e lido de novo
+                    // (HIS-11).
+                    tooltip: switch (pending) {
+                      0 => 'Sincronizar',
+                      1 => 'Sincronizar, 1 pendente',
+                      _ => 'Sincronizar, $pending pendentes',
+                    },
                     icon: sync.running
                         ? const SizedBox(
                             width: 20,
@@ -82,7 +93,7 @@ class HistoryScreen extends ConsumerWidget {
                             isLabelVisible: pending > 0,
                             backgroundColor: c.pace.fill,
                             textColor: c.onFill,
-                            label: Text('$pending'),
+                            label: ExcludeSemantics(child: Text('$pending')),
                             child: Icon(
                               Icons.cloud_upload_rounded,
                               color: c.pace.fg,
