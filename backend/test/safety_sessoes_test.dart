@@ -388,6 +388,61 @@ void main() {
       expect(r['contactIds'], [ctCaio]);
     });
 
+    String tokenDe(Map<String, dynamic> s) =>
+        (s['shareUrl'] as String).split('/').last;
+
+    test('avisa a dona e troca o link (o ex-contato perde o acesso)', () async {
+      final ctCaio = await h.contatoAceito(ana, caio);
+      final s = await h.criarSessao(ana, [ctBia, ctCaio]);
+      h.agora += seg;
+      expect(await h.status('DELETE', '/safety/contacts/$ctBia', token: bia.token),
+          204);
+      final r = await h.json('GET', '/safety/sessions/${s['id']}',
+          token: ana.token);
+      expect(r['shareUrl'], isNot(s['shareUrl']));
+      expect(await h.status('GET', '/s/${tokenDe(s)}'), 404);
+      expect(await h.status('GET', '/s/${tokenDe(r)}'), 200);
+      final n = (await h.caixa(ana)).first;
+      expect(n['type'], 'safety_contact_removed');
+      expect(n['body'], contains('Bia Lima'));
+      expect(n['data']['sessionId'], s['id']);
+      expect(n['data']['contactId'], ctBia);
+      expect(n['data']['shareUrl'], r['shareUrl']);
+    });
+
+    test('sem nenhum contato restante: safety_no_contacts', () async {
+      final s = await h.criarSessao(ana, [ctBia]);
+      h.agora += seg;
+      await h.status('DELETE', '/safety/contacts/$ctBia', token: ana.token);
+      final n = (await h.caixa(ana)).first;
+      expect(n['type'], 'safety_no_contacts');
+      expect(n['body'], 'Ninguem vai ser avisado se voce nao responder');
+      expect(n['data']['sessionId'], s['id']);
+    });
+
+    test('depois de um alerta, quem ficou recebe o link novo', () async {
+      final ctCaio = await h.contatoAceito(ana, caio);
+      final s = await h.criarSessao(ana, [ctBia, ctCaio]);
+      await h.avancar(8 * minuto);
+      expect((await h.json('GET', '/safety/sessions/${s['id']}',
+              token: ana.token))['status'],
+          'alerted');
+      h.agora += seg;
+      await h.status('DELETE', '/safety/contacts/$ctBia', token: bia.token);
+      final r = await h.json('GET', '/safety/sessions/${s['id']}',
+          token: ana.token);
+      final n = (await h.caixa(caio)).first;
+      expect(n['type'], 'safety_link_updated');
+      expect(n['data']['shareUrl'], r['shareUrl']);
+      expect((await h.tipos(bia)).contains('safety_link_updated'), isFalse);
+    });
+
+    test('contato removido sem sessao aberta nao notifica', () async {
+      h.agora += seg;
+      await h.status('DELETE', '/safety/contacts/$ctBia', token: bia.token);
+      expect(await h.tipos(ana), ['contact_accepted']);
+    });
+
     test('excluir a conta do contato tira o id da sessao da dona', () async {
       final s = await h.criarSessao(ana, [ctBia]);
       expect(

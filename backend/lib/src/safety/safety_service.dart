@@ -442,28 +442,78 @@ class SafetyService {
     await _removerContato(c);
   }
 
-  /// Apaga o contato e o tira da sessao aberta da dona.
+  /// Apaga o contato e, se ele estava na sessao aberta da dona, tira ele de
+  /// la, troca o token do link (o ex-contato perde o acesso) e avisa a dona.
+  /// Se a sessao ja tinha alertado, quem ficou recebe o link novo.
   Future<void> _removerContato(ContactRecord c) async {
-    await _store.deleteContact(c.id);
     final SafetySessionRecord? aberta =
         await _store.findOpenSessionOfOwner(c.ownerId);
-    if (aberta == null) return;
-    await _comTrava(aberta.id, () async {
-      final SafetySessionRecord? s = await _store.findSession(aberta.id);
-      if (s == null || s.ended || !s.contactIds.contains(c.id)) return;
-      s.contactIds = [...s.contactIds]..remove(c.id);
-      await _store.saveSession(s);
+    if (aberta == null) {
+      await _store.deleteContact(c.id);
+      return;
+    }
+    final UserRecord? contato = await _users.findById(c.contactUserId);
+    final UserRecord? dona = await _users.findById(c.ownerId);
+    final String nomeContato = contato?.displayName ?? 'Um contato';
+    await _comTrava(aberta.id, () {
+      return _store.transaction((tx) async {
+        await tx.deleteContact(c.id);
+        final SafetySessionRecord? s = await tx.findSession(aberta.id);
+        if (s == null || s.ended || !s.contactIds.contains(c.id)) return;
+        s
+          ..contactIds = ([...s.contactIds]..remove(c.id))
+          ..shareToken = _genToken();
+        await tx.saveSession(s);
+        final Map<String, dynamic> dados = {
+          'sessionId': s.id,
+          'contactId': c.id,
+          'contactName': nomeContato,
+          'shareUrl': shareUrlDe(s),
+        };
+        if (s.contactIds.isEmpty) {
+          await _notificar(
+            tx,
+            s.ownerId,
+            'safety_no_contacts',
+            'Sem contatos nesta atividade',
+            'Ninguem vai ser avisado se voce nao responder',
+            dados,
+          );
+        } else {
+          await _notificar(
+            tx,
+            s.ownerId,
+            'safety_contact_removed',
+            'Contato removido da atividade',
+            '$nomeContato nao e mais seu contato de confianca nesta atividade.',
+            dados,
+          );
+        }
+        if (s.status == 'alerted') {
+          final String nome = dona?.displayName ?? 'Sua contato';
+          await _avisarContatos(
+            tx,
+            s,
+            'safety_link_updated',
+            '${primeiroNome(nome)}: link novo',
+            'O link da ultima posicao de $nome mudou. Use este.',
+            {'sessionId': s.id, 'shareUrl': shareUrlDe(s), 'ownerName': nome},
+          );
+        }
+      });
     });
+    _dispararPush();
   }
 
   /// Exclusao de conta: tira a pessoa das sessoes de quem a tinha como
-  /// contato e apaga tudo dela.
+  /// contato e apaga tudo dela (as sessoes dela vao junto).
   Future<void> deleteAllForUser(String userId) async {
     for (final ContactRecord c in await _store.contactsOfUser(userId)) {
-      await _removerContato(c);
+      if (c.contactUserId == userId) await _removerContato(c);
     }
     await _store.deleteAllForUser(userId);
   }
+
 
   // ----------------------------------------------------------------- sessoes
 

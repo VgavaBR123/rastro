@@ -250,9 +250,10 @@ class PostgresSafetyStore implements SafetyStore {
       'check_started_at = @check_started::bigint, '
       'check_deadline = @check_deadline::bigint, alerted_at = @alerted::bigint, '
       'eta_recheck_after = @recheck::bigint, '
-      'share_expires_at = @share_exp::bigint '
+      'share_expires_at = @share_exp::bigint, share_token = @token '
+      // Campos imutaveis no WHERE: um id trocado nunca sobrescreve outra.
       'WHERE id = @id AND owner_id = @owner AND activity_guid = @guid '
-      'AND started_at = @started AND share_token = @token',
+      'AND started_at = @started',
       _paramsSessao(s),
     );
   }

@@ -133,8 +133,9 @@ class SafetySessionRecord {
   /// a perguntar a partir daqui (senao perguntaria de novo no tick seguinte).
   int? etaRecheckAfterMs;
 
-  /// Token do link publico (32 bytes aleatorios em base64url).
-  final String shareToken;
+  /// Token do link publico (32 bytes aleatorios em base64url). Trocado
+  /// quando um contato sai da sessao.
+  String shareToken;
 
   /// Null = o link vale enquanto a sessao existir (some na limpeza de 24 h).
   int? shareExpiresAtMs;

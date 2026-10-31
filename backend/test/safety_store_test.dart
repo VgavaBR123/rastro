@@ -106,6 +106,11 @@ void suite(String nome, Future<SafetyStore> Function() criar,
       expect(lido.contactIds, ['ct_1', 'ct_2']);
       expect((await s.findOpenSessionOfOwner(a))!.id, ss.id);
       expect((await s.findSessionByShareToken(ss.shareToken))!.id, ss.id);
+      final antigo = ss.shareToken;
+      ss.shareToken = '${antigo}_novo';
+      await s.saveSession(ss);
+      expect(await s.findSessionByShareToken(antigo), isNull);
+      expect((await s.findSessionByShareToken(ss.shareToken))!.id, ss.id);
       expect((await s.openSessions()).map((x) => x.id), contains(ss.id));
 
       ss
