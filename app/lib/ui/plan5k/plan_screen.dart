@@ -28,6 +28,13 @@ class PlanScreen extends ConsumerStatefulWidget {
 class _PlanScreenState extends ConsumerState<PlanScreen> {
   int _startWeek = 1;
   bool _busy = false;
+  final ScrollController _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -52,6 +59,16 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
   Future<void> _begin() => _guard(() async {
     await ref.read(planServiceProvider).startPlan(_startWeek);
     ref.invalidate(planProgressProvider);
+    // O botao Comecar fica no fim de um cartao alto: depois dele a lista
+    // estaria rolada para baixo e o cartao da proxima sessao (que entra no
+    // topo) ficaria fora da tela. Volta ao topo.
+    await ref.read(planProgressProvider.future);
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    });
   });
 
   Future<void> _restart() async {
@@ -100,6 +117,7 @@ class _PlanScreenState extends ConsumerState<PlanScreen> {
         error: (e, _) => Center(child: Text('Nao foi possivel abrir o plano: $e')),
         data: (p) => ListView(
           key: const Key('plan_list'),
+          controller: _scroll,
           padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 32),
           children: [
             const ScreenTitle(

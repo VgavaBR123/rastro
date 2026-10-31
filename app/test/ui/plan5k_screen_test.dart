@@ -241,4 +241,15 @@ void main() {
     expect(find.text('gravando plano'), findsNothing);
     expect(find.text('Sem sessao do plano agora.'), findsOneWidget);
   });
+
+  testWidgets('depois de Comecar o plano a lista volta ao topo e o Iniciar sessao fica a vista', (tester) async {
+    await pump(tester);
+    await tapVisible(tester, const Key('plan_begin'));
+    await tester.pumpAndSettle();
+    final start = find.byKey(const Key('plan_start_next'));
+    expect(start, findsOneWidget);
+    final r = tester.getRect(start);
+    expect(r.top, greaterThanOrEqualTo(0));
+    expect(r.bottom, lessThanOrEqualTo(915));
+  });
 }
