@@ -1,6 +1,8 @@
 // Link publico do Rastro Seguro: GET /s/<token> (HTML) e /s/<token>.json.
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 import 'package:strava_estudo_backend/src/safety/safety_api.dart';
 import 'package:strava_estudo_backend/src/safety/safety_service.dart';
 import 'package:test/test.dart';
@@ -121,6 +123,20 @@ void main() {
       expect(r.statusCode, 404, reason: t);
       expect(await r.readAsString(), contains(mensagemLinkExpirado));
     }
+  });
+
+  test('CSP libera so o script da pagina pelo hash sha256, sem unsafe-inline',
+      () async {
+    final r = await h.chamar('GET', '/s/$token');
+    final csp = r.headers['content-security-policy']!;
+    final html = await r.readAsString();
+    final m = RegExp(r'<script>(.*?)</script>', dotAll: true).firstMatch(html);
+    expect(m, isNotNull);
+    final hash = base64.encode(sha256.convert(utf8.encode(m!.group(1)!)).bytes);
+    final scriptSrc =
+        csp.split(';').map((d) => d.trim()).firstWhere((d) => d.startsWith('script-src'));
+    expect(scriptSrc, "script-src 'sha256-$hash'");
+    expect(csp, contains("default-src 'none'"));
   });
 
   test('escaparHtml cobre os 5 caracteres', () {

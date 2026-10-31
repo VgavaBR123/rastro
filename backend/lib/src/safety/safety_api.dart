@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io' show stderr;
 
 
+import 'package:crypto/crypto.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
 
@@ -231,6 +232,10 @@ const String _estilo = 'body{font-family:system-ui,sans-serif;margin:0;'
     '@media (prefers-color-scheme:dark){body{background:#111;color:#eee}'
     'a{color:#8ab4f8}}';
 
+/// Hash do script da pagina para o CSP: so ele roda, nada injetado roda.
+final String _hashScript =
+    'sha256-${base64.encode(sha256.convert(utf8.encode(_script)).bytes)}';
+
 // Troca o texto de cada <time> pela hora local de quem abre a pagina.
 const String _script = "document.querySelectorAll('time').forEach(function(t){"
     "var d=new Date(t.getAttribute('datetime'));"
@@ -251,7 +256,7 @@ Response paginaPublicaHtml(PublicSessionView? v) {
     ..._cabecalhosPublicos,
     'content-type': 'text/html; charset=utf-8',
     'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; "
-        "script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; "
+        "script-src '$_hashScript'; base-uri 'none'; form-action 'none'; "
         "frame-ancestors 'none'",
   };
   if (v == null) {
