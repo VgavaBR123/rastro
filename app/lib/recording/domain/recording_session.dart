@@ -83,6 +83,15 @@ const int kGpsSilencePauseMs = 10000;
 /// e nao parada: a pausa e desfeita e o trecho conta inteiro.
 const double kGapMovingSpeedMps = 1.0;
 
+/// Precisao (m) que um fix precisa ter para provar deslocamento depois do
+/// silencio. Fix de rede grosseiro salta dezenas de metros sem movimento.
+const double kGapFixMaxAccuracyMeters = 25.0;
+
+/// Silencio mais longo que isto nunca e creditado como tunel: com minutos sem
+/// sinal, a media do deslocamento nao separa "andou o tempo todo" de "ficou
+/// parado e depois andou".
+const int kGapMaxCreditMs = 5 * 60 * 1000;
+
 /// Porta de saida para persistir cada ponto aceito (etapa 05). A implementacao
 /// concreta (Drift) entra na camada de dados; o dominio so chama.
 typedef WaypointSink = void Function(Waypoint waypoint);
@@ -165,7 +174,10 @@ class RecordingSession {
         ? d.accelDecision(monotonicMs)
         : null;
     if (byAccel != null) {
-      // O acelerometro sabe se a pessoa se move mesmo sem GPS.
+      // O acelerometro sabe se a pessoa se move mesmo sem GPS. Cada decisao
+      // dele vale como sinal de vida: uma pausa por silencio depois (sensor
+      // sumiu) nunca recua para antes dela.
+      _silenceBaseMs = monotonicMs;
       if (byAccel && _state == RecordingState.recording) {
         _enterAutoPause(monotonicMs);
       } else if (!byAccel && _state == RecordingState.autoPaused) {
@@ -253,6 +265,9 @@ class RecordingSession {
       return null;
     }
     _advanceClock(monotonicMs);
+    // A pausa retroativa por silencio nao recua para dentro de uma volta ja
+    // fechada.
+    if (_lastMonotonicMs > _silenceBaseMs) _silenceBaseMs = _lastMonotonicMs;
     final cur = currentLap;
     final closed = LapRecord(
       number: cur.number,
@@ -322,8 +337,9 @@ class RecordingSession {
     _advanceClock(sample.monotonicMs);
     final bool holdPause = _afterSilence(sample);
     _lastSample = sample;
-    if (sample.monotonicMs > _silenceBaseMs)
+    if (sample.monotonicMs > _silenceBaseMs) {
       _silenceBaseMs = sample.monotonicMs;
+    }
 
     // Pausa automatica (so quando habilitada e nao em pausa manual).
     if (autoPauseEnabled && _state != RecordingState.manuallyPaused) {
@@ -378,10 +394,22 @@ class RecordingSession {
       return false;
     }
     final LocationSample? prev = _lastSample;
-    final double? moved = prev == null ? null : _speedBetween(prev, sample);
+    final double? acc = sample.horizontalAccuracyMeters;
+    final bool precise =
+        acc != null && acc > 0 && acc <= kGapFixMaxAccuracyMeters;
+    final double? moved = prev == null || !precise
+        ? null
+        : _speedBetween(prev, sample);
+    final double? reported = sample.speedMetersPerSecond;
     if (_gapPending) {
       _gapPending = false;
-      if (moved != null && moved >= kGapMovingSpeedMps) {
+      final int gapMs = prev == null
+          ? kGapMaxCreditMs + 1
+          : sample.monotonicMs - prev.monotonicMs;
+      if (moved != null &&
+          moved >= kGapMovingSpeedMps &&
+          (reported == null || reported >= kGapMovingSpeedMps) &&
+          gapMs <= kGapMaxCreditMs) {
         // Tunel: estava andando. O trecho sem sinal conta inteiro (tempo e
         // distancia em linha reta, pelo buffer do pipeline, que nao foi zerado).
         _clock.cancelPause();
@@ -392,7 +420,7 @@ class RecordingSession {
       // Parada: o trecho sem sinal nao soma distancia.
       _pipeline.resetRecentBuffer();
     }
-    final double? speed = sample.speedMetersPerSecond ?? moved;
+    final double? speed = reported ?? moved;
     if (speed != null && speed >= kGapMovingSpeedMps) {
       _silencePaused = false;
       return false;

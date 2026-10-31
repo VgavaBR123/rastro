@@ -10,12 +10,18 @@ class RecordingClock {
   int? _pauseStartedMonotonicMs;
   int _lastMonotonicMs = 0;
 
+  /// Inicio do trecho corrente (start, restore ou ultima retomada). Uma pausa
+  /// retroativa nunca comeca antes dele, senao descontaria de novo uma pausa
+  /// ja contada.
+  int _segmentStartMs = 0;
+
   bool get isRunning => _startMonotonicMs != null;
   bool get isPaused => _pauseStartedMonotonicMs != null;
 
   void start(int monotonicMs) {
     _startMonotonicMs = monotonicMs;
     _lastMonotonicMs = monotonicMs;
+    _segmentStartMs = monotonicMs;
     _accumulatedPauseMs = 0;
     _pauseStartedMonotonicMs = null;
   }
@@ -33,11 +39,14 @@ class RecordingClock {
     _accumulatedPauseMs = elapsedMs - timerMs;
     _pauseStartedMonotonicMs = null;
     _lastMonotonicMs = monotonicMs;
+    _segmentStartMs = monotonicMs;
   }
 
   void pause(int monotonicMs) {
     if (!isRunning || isPaused) return;
-    _pauseStartedMonotonicMs = monotonicMs;
+    _pauseStartedMonotonicMs = monotonicMs < _segmentStartMs
+        ? _segmentStartMs
+        : monotonicMs;
     _lastMonotonicMs = monotonicMs;
   }
 
@@ -46,6 +55,7 @@ class RecordingClock {
     _accumulatedPauseMs += monotonicMs - _pauseStartedMonotonicMs!;
     _pauseStartedMonotonicMs = null;
     _lastMonotonicMs = monotonicMs;
+    _segmentStartMs = monotonicMs;
   }
 
   /// Desfaz a pausa em curso: o intervalo pausado passa a contar como

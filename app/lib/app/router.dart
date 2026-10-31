@@ -104,8 +104,9 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
                     parentNavigatorKey: root,
                     pageBuilder: _page((_, state) {
                       final extra = state.extra;
-                      if (extra is Activity)
+                      if (extra is Activity) {
                         return ActivityDetailScreen(activity: extra);
+                      }
                       return _ActivityByGuid(state.pathParameters['guid']!);
                     }),
                   ),

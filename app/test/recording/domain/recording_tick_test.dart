@@ -12,14 +12,18 @@ import 'package:strava_estudo_app/recording/domain/recording_session.dart';
 /// ~1 m de longitude no equador, em graus.
 const double kDegPerMeter = 1 / 111319.49;
 
-LocationSample at(double meters, {required int t, double? speed}) =>
-    LocationSample(
-      position: GeoPoint(latitude: 0, longitude: meters * kDegPerMeter),
-      wallClockMs: t,
-      monotonicMs: t,
-      horizontalAccuracyMeters: 5.0,
-      speedMetersPerSecond: speed,
-    );
+LocationSample at(
+  double meters, {
+  required int t,
+  double? speed,
+  double accuracy = 5.0,
+}) => LocationSample(
+  position: GeoPoint(latitude: 0, longitude: meters * kDegPerMeter),
+  wallClockMs: t,
+  monotonicMs: t,
+  horizontalAccuracyMeters: accuracy,
+  speedMetersPerSecond: speed,
+);
 
 /// Caminha a 3,5 m/s de [fromMs] ate [toMs] (1 fix por segundo), a partir de
 /// [startMeters]. Devolve a posicao final.
@@ -256,5 +260,94 @@ void main() {
         expect(sess.stats.timerMs, 60900);
       },
     );
+  });
+
+  // Achados da revisao independente do commit bc9a974.
+  group('revisao', () {
+    void still(RecordingSession sess, int from, int to) {
+      for (var t = from; t <= to; t += 100) {
+        sess.addAccel(AccelSample(t, 0, 0, 9.81));
+      }
+    }
+
+    void running(RecordingSession sess, int from, int to) {
+      var i = 0;
+      for (var t = from; t <= to; t += 100) {
+        sess.addAccel(AccelSample(t, 0, 0, 9.81 + ((i++).isEven ? 3 : -3)));
+      }
+    }
+
+    void runWithGps(RecordingSession sess, int from, int to) {
+      for (var t = from; t <= to; t += 1000) {
+        running(sess, t, t + 900);
+        sess.addSample(at(3.5 * t / 1000, t: t, speed: 3.5));
+      }
+    }
+
+    test('pausa por silencio nao recua para antes de uma pausa ja contada', () {
+      final sess = RecordingSession(activityType: ActivityType.run)..start(0);
+      runWithGps(sess, 0, 20000);
+      for (var t = 21000; t <= 40000; t += 1000) {
+        still(sess, t, t + 900);
+        sess.tick(t + 900);
+      }
+      for (var t = 41000; t <= 60000; t += 1000) {
+        running(sess, t, t + 900);
+        sess.tick(t + 900);
+      }
+      final before = sess.stats.timerMs;
+      // O acelerometro some por 5 s (sem GPS tambem).
+      for (var t = 61000; t <= 66000; t += 1000) {
+        sess.tick(t + 900);
+      }
+      expect(sess.stats.timerMs, greaterThanOrEqualTo(before));
+    });
+
+    test('tunel correndo com soluco no acelerometro conta inteiro', () {
+      final sess = RecordingSession(activityType: ActivityType.run)..start(0);
+      runWithGps(sess, 0, 20000);
+      for (var t = 21000; t <= 80000; t += 1000) {
+        running(sess, t, t + 900);
+        sess.tick(t + 900);
+      }
+      for (var t = 81000; t <= 83000; t += 1000) {
+        sess.tick(t + 900);
+      }
+      for (var t = 84000; t <= 100000; t += 1000) {
+        running(sess, t, t + 900);
+        sess.tick(t + 900);
+      }
+      runWithGps(sess, 101000, 105000);
+      expect(sess.state, RecordingState.recording);
+      expect(sess.stats.timerMs, greaterThan(100000));
+      expect(sess.stats.distanceMeters, greaterThan(3.5 * 100));
+    });
+
+    test('fix grosseiro depois de parada sem sinal nao vira tunel', () {
+      final sess = RecordingSession(activityType: ActivityType.walk)..start(0);
+      final m = walk(sess, fromMs: 0, toMs: 60000);
+      final timer0 = sess.stats.timerMs;
+      final d0 = sess.stats.distanceMeters;
+      ticks(sess, fromMs: 61000, toMs: 90000);
+      // Parado; o fix de rede vem 45 m deslocado, precisao 80 m, sem velocidade.
+      sess.addSample(at(m + 45, t: 91000, accuracy: 80));
+      for (var t = 92000; t <= 100000; t += 1000) {
+        sess.tick(t);
+        sess.addSample(at(m, t: t, speed: 0));
+      }
+      expect(sess.stats.timerMs, lessThan(timer0 + 5000));
+      expect(sess.stats.distanceMeters, lessThan(d0 + 5));
+    });
+
+    test('volta marcada pouco antes do silencio nao fica negativa', () {
+      final sess = RecordingSession(activityType: ActivityType.walk)..start(0);
+      walk(sess, fromMs: 0, toMs: 60000);
+      sess.tick(65000);
+      final lap = sess.lap(65000)!;
+      ticks(sess, fromMs: 66000, toMs: 80000);
+      expect(sess.state, RecordingState.autoPaused);
+      expect(sess.stats.timerMs, greaterThanOrEqualTo(lap.endTimerMs));
+      expect(sess.currentLap.durationMs, greaterThanOrEqualTo(0));
+    });
   });
 }
