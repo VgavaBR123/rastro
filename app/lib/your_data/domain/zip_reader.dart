@@ -21,6 +21,12 @@ import 'import_models.dart';
 /// atividade tem de KB a poucos MB; acima disso e lixo ou ataque (zip bomb).
 const int kMaxEntryBytes = 96 * 1024 * 1024;
 
+/// Teto do diretorio central (cada entrada ocupa ~50-100 bytes nele).
+const int kMaxZipDirectoryBytes = 64 * 1024 * 1024;
+
+/// Teto de entradas de um ZIP (uma exportacao de conta tem milhares).
+const int kMaxZipEntries = 200000;
+
 const int _chunk = 64 * 1024;
 
 class ZipEntry {
@@ -51,10 +57,14 @@ class ZipReader {
 
   /// Abre [path] e le o diretorio central. Lanca [ImportFormatException] se
   /// nao for ZIP ou estiver truncado.
-  factory ZipReader.open(String path) {
+  factory ZipReader.open(
+    String path, {
+    int maxDirectoryBytes = kMaxZipDirectoryBytes,
+    int maxEntries = kMaxZipEntries,
+  }) {
     final file = File(path).openSync();
     try {
-      return ZipReader._(file, _readDirectory(file));
+      return ZipReader._(file, _readDirectory(file, maxDirectoryBytes, maxEntries));
     } on Object {
       file.closeSync();
       rethrow;
@@ -84,6 +94,8 @@ class ZipReader {
     final crc = Crc32();
     void collect(List<int> chunk) {
       if (out.length + chunk.length > maxBytes) _fail('arquivo grande demais');
+      // Mais dados que o declarado: entrada adulterada ou corrompida.
+      if (out.length + chunk.length > entry.size) _fail('dados corrompidos no ZIP (tamanho)');
       crc.add(chunk);
       out.add(chunk);
     }
@@ -107,6 +119,8 @@ class ZipReader {
           left -= part.length;
         }
         inflate.close();
+      } on ImportFormatException {
+        rethrow;
       } on FormatException {
         _fail('dados corrompidos no ZIP');
       } on FileSystemException {
@@ -139,7 +153,7 @@ int _u32(List<int> b, int o) =>
     b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24);
 int _u64(List<int> b, int o) => _u32(b, o) + (_u32(b, o + 4) << 32);
 
-List<ZipEntry> _readDirectory(RandomAccessFile file) {
+List<ZipEntry> _readDirectory(RandomAccessFile file, int maxDirectoryBytes, int maxEntries) {
   final length = file.lengthSync();
   if (length < 22) _fail('arquivo ZIP vazio ou invalido');
   final tailLen = length < 65557 ? length : 65557;
@@ -170,6 +184,9 @@ List<ZipEntry> _readDirectory(RandomAccessFile file) {
     count = _u64(z, 32);
     cdSize = _u64(z, 40);
     cdOffset = _u64(z, 48);
+  }
+  if (cdSize > maxDirectoryBytes || count > maxEntries) {
+    _fail('ZIP corrompido (diretorio central grande demais)');
   }
   if (cdOffset + cdSize > length) _fail('ZIP truncado');
 

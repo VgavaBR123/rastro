@@ -22,6 +22,7 @@ import 'domain/content_hash.dart';
 import 'domain/csv.dart';
 import 'domain/fit_reader.dart';
 import 'domain/gpx_reader.dart';
+import 'domain/gunzip.dart';
 import 'domain/import_models.dart';
 import 'domain/tcx_reader.dart';
 import 'domain/zip_reader.dart';
@@ -142,10 +143,16 @@ class LocalImportFeed implements ImportFeed {
   int _next = 0;
   bool _closed = false;
 
-  LocalImportFeed._(this._items, this._zips);
+  /// Teto de um arquivo de atividade (aberto). Os testes usam um menor.
+  final int maxEntryBytes;
+
+  LocalImportFeed._(this._items, this._zips, this.maxEntryBytes);
 
   /// Abre [paths] (ZIPs tem o diretorio central lido agora) e monta a fila.
-  static Future<LocalImportFeed> open(List<String> paths) async {
+  static Future<LocalImportFeed> open(
+    List<String> paths, {
+    int maxEntryBytes = kMaxEntryBytes,
+  }) async {
     final items = <_Item>[];
     final zips = <ZipReader>[];
     for (final path in paths) {
@@ -164,7 +171,7 @@ class LocalImportFeed implements ImportFeed {
         items.add(_LooseFile(path));
       }
     }
-    return LocalImportFeed._(items, zips);
+    return LocalImportFeed._(items, zips, maxEntryBytes);
   }
 
   static List<_Item> _zipItems(ZipReader zip) {
@@ -224,14 +231,14 @@ class LocalImportFeed implements ImportFeed {
       _Ready(:final step) => step,
       _LooseFile(:final path) => _guard(p.basename(path), () {
         final f = File(path);
-        if (f.lengthSync() > kMaxEntryBytes) {
+        if (f.lengthSync() > maxEntryBytes) {
           throw const ImportFormatException('arquivo grande demais');
         }
         return f.readAsBytesSync();
       }),
       _ZipFile(:final zip, :final entry, :final csvName, :final csvType) => _guard(
         _shortZipName(entry.name),
-        () => zip.read(entry),
+        () => zip.read(entry, maxBytes: maxEntryBytes),
         sportOverride: csvType,
         nameOverride: csvName,
       ),
@@ -256,16 +263,7 @@ class LocalImportFeed implements ImportFeed {
       var bytes = load();
       if (bytes.isEmpty) throw const ImportFormatException('arquivo vazio');
       if (ext.endsWith('.gz')) {
-        try {
-          bytes = Uint8List.fromList(gzip.decode(bytes));
-        } on FormatException {
-          throw const ImportFormatException('arquivo .gz corrompido');
-        } on FileSystemException {
-          throw const ImportFormatException('arquivo .gz corrompido');
-        }
-        if (bytes.length > kMaxEntryBytes) {
-          throw const ImportFormatException('arquivo grande demais');
-        }
+        bytes = gunzipLimited(bytes, maxBytes: maxEntryBytes);
         if (bytes.isEmpty) throw const ImportFormatException('arquivo vazio');
       }
       final parsed = switch (ext.replaceAll('.gz', '')) {
