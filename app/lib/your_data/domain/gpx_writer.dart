@@ -29,7 +29,23 @@ String gpxTypeOf(ActivityType t) => switch (t) {
   ActivityType.walk => 'walking',
 };
 
-String xmlEscape(String s) => s
+/// So os caracteres validos em XML 1.0: tab, LF, CR, U+0020..U+D7FF,
+/// U+E000..U+FFFD e U+10000..U+10FFFF. Controles e surrogates soltos saem.
+String xmlValidChars(String s) {
+  final b = StringBuffer();
+  for (final r in s.runes) {
+    final ok = r == 0x9 ||
+        r == 0xA ||
+        r == 0xD ||
+        (r >= 0x20 && r <= 0xD7FF) ||
+        (r >= 0xE000 && r <= 0xFFFD) ||
+        (r >= 0x10000 && r <= 0x10FFFF);
+    if (ok) b.writeCharCode(r);
+  }
+  return b.toString();
+}
+
+String xmlEscape(String s) => xmlValidChars(s)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -90,9 +106,11 @@ String buildGpx({
 final RegExp _unsafe = RegExp(r'[\\/:*?"<>|\x00-\x1F]');
 final RegExp _spaces = RegExp(r'\s+');
 
-/// Parte de nome de arquivo sem caracteres proibidos, ate 60 caracteres.
+/// Parte de nome de arquivo sem caracteres proibidos, ate 60 caracteres
+/// (contados por rune: nunca parte um emoji ao meio).
 String safeFileName(String s) {
-  var t = s.replaceAll(_unsafe, ' ').replaceAll(_spaces, ' ').trim();
-  if (t.length > 60) t = t.substring(0, 60).trim();
+  var t = xmlValidChars(s).replaceAll(_unsafe, ' ').replaceAll(_spaces, ' ').trim();
+  final runes = t.runes.toList();
+  if (runes.length > 60) t = String.fromCharCodes(runes.take(60)).trim();
   return t.isEmpty ? 'atividade' : t;
 }

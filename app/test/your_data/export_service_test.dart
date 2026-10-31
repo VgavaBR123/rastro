@@ -96,6 +96,22 @@ void main() {
       expect(back.points, isEmpty);
     });
 
+    test('caracteres invalidos em XML 1.0 saem do nome; o GPX continua legivel', () {
+      final bad = 'A\u0000B\u0007C\tD\nE\uD800F\u{1F3C3}G';
+      expect(xmlEscape(bad), 'ABC\tD\nEF\u{1F3C3}G');
+      final back = parseGpx(buildGpx(name: bad, type: ActivityType.run, startMs: kT0, points: const []));
+      expect(back.name, contains('\u{1F3C3}'));
+    });
+
+    test('safeFileName corta por caractere, sem partir emoji', () {
+      final name = '${'a' * 59}\u{1F3C3}\u{1F3C3}';
+      final cut = safeFileName(name);
+      expect(cut.runes.length, 60);
+      expect(cut.endsWith('\u{1F3C3}'), isTrue);
+      expect(() => utf8.encode(cut), returnsNormally);
+      expect(cut.codeUnits.last, isNot(inInclusiveRange(0xD800, 0xDBFF)));
+    });
+
     test('nome de arquivo seguro', () {
       expect(safeFileName('Corrida: 10/10 "top"?'), 'Corrida 10 10 top');
       expect(safeFileName('   '), 'atividade');

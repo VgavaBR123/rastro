@@ -128,6 +128,8 @@ void main() {
       expect(csvField('com, virgula'), '"com, virgula"');
       expect(csvField('com "aspas"'), '"com ""aspas"""');
       expect(csvField('=1+1'), "'=1+1", reason: 'evita formula no Excel');
+      expect(csvField('\t=1'), "'\t=1");
+      expect(csvField('\r=1'), '"\'\r=1"');
     });
   });
 }

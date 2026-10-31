@@ -60,11 +60,11 @@ List<List<String>> parseCsv(String text) {
 
 final RegExp _needsQuotes = RegExp('[",\r\n]');
 
-/// Campo pronto para o CSV. Texto que comeca com = + - @ ganha um apostrofo
-/// na frente, para a planilha nao executar como formula.
+/// Campo pronto para o CSV. Texto que comeca com = + - @ tab ou CR ganha um
+/// apostrofo na frente, para a planilha nao executar como formula.
 String csvField(String value) {
   var v = value;
-  if (v.isNotEmpty && '=+-@'.contains(v[0])) v = "'$v";
+  if (v.isNotEmpty && '=+-@\t\r'.contains(v[0])) v = "'$v";
   if (!_needsQuotes.hasMatch(v)) return v;
   return '"${v.replaceAll('"', '""')}"';
 }
