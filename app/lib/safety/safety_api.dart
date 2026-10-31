@@ -92,17 +92,15 @@ class SafetyApi {
     return TrustedContact.fromJson(body);
   }
 
-  /// 409 do convite: o contrato usa o mesmo codigo para "ja existe o convite"
-  /// e "ja tem 3 aceitos". O texto do erro decide; sem pista, a mensagem
-  /// cobre os dois casos.
+  /// 409 do convite pelo texto exato do backend (safety_service.dart):
+  /// `convite ja existe` ou `limite de N contatos aceitos`. Texto desconhecido:
+  /// a mensagem cobre os dois casos.
   static String _inviteConflict(Object? body) {
-    final err = body is Map && body['error'] is String ? (body['error'] as String).toLowerCase() : '';
-    if (err.contains('limite') || err.contains('3') || err.contains('max')) {
+    final err = body is Map && body['error'] is String ? body['error'] as String : '';
+    if (err.startsWith('limite de ')) {
       return 'Voce ja tem 3 contatos aceitos, o maximo. Remova um para convidar outro.';
     }
-    if (err.contains('convite') || err.contains('exist') || err.contains('ja ')) {
-      return 'Essa pessoa ja foi convidada (ou ja e seu contato).';
-    }
+    if (err == 'convite ja existe') return 'Essa pessoa ja foi convidada (ou ja e seu contato).';
     return 'Essa pessoa ja foi convidada, ou voce ja tem 3 contatos aceitos.';
   }
 

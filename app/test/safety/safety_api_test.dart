@@ -63,6 +63,34 @@ void main() {
       );
     });
 
+    test('409 do convite pelo texto exato do backend; 429 e 500', () async {
+      server.overrides['POST /safety/contacts'] = (409, {'error': 'ja existe 3 algo novo'});
+      await expectLater(
+        api.invite('bia@x.com'),
+        throwsA(isA<SafetyException>().having((e) => e.message, 'msg', contains('ja foi convidada, ou voce ja tem 3'))),
+      );
+      server.overrides['POST /safety/contacts'] = (409, {'error': 'limite de 3 contatos aceitos'});
+      await expectLater(
+        api.invite('bia@x.com'),
+        throwsA(isA<SafetyException>().having((e) => e.message, 'msg', startsWith('Voce ja tem 3 contatos aceitos'))),
+      );
+      server.overrides['POST /safety/contacts'] = (409, {'error': 'convite ja existe'});
+      await expectLater(
+        api.invite('bia@x.com'),
+        throwsA(isA<SafetyException>().having((e) => e.message, 'msg', startsWith('Essa pessoa ja foi convidada ('))),
+      );
+      server.overrides['POST /safety/contacts'] = (429, {'error': 'muitas tentativas'});
+      await expectLater(
+        api.invite('bia@x.com'),
+        throwsA(isA<SafetyException>().having((e) => e.message, 'msg', contains('Muitos convites'))),
+      );
+      server.overrides['POST /safety/contacts'] = (500, {'error': 'erro interno'});
+      await expectLater(
+        api.invite('bia@x.com'),
+        throwsA(isA<SafetyException>().having((e) => e.kind, 'kind', SafetyErrorKind.server)),
+      );
+    });
+
     test('lista enviados e recebidos, aceita e remove', () async {
       final sent = await api.invite('bia@x.com');
       token = 'tok-bia';
