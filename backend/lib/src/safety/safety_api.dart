@@ -40,8 +40,9 @@ const int tamanhoMaximoTokenPush = 4096;
 void montarRotasRastroSeguro(
   Router router,
   SafetyService safety,
-  Future<UserRecord?> Function(Request) autenticar,
-) {
+  Future<UserRecord?> Function(Request) autenticar, {
+  String Function(Request)? ipDe,
+}) {
   /// Autentica, roda e traduz SafetyError em resposta.
   FutureOr<Response> Function(Request) rota(
           Future<Response> Function(Request, UserRecord) h) =>
@@ -64,7 +65,9 @@ void montarRotasRastroSeguro(
     return comCorpo(req, (b) async {
       final Object? email = b['email'];
       if (email is! String) return _erro(400, 'email obrigatorio');
-      return _json(await safety.inviteContact(u, email), status: 201);
+      return _json(
+          await safety.inviteContact(u, email, ip: ipDe?.call(req) ?? 'unknown'),
+          status: 201);
     });
   }));
   router.get('/safety/contacts',

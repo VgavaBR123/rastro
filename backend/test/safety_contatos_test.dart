@@ -92,6 +92,47 @@ void main() {
           409);
     });
 
+    test('dois aceites simultaneos com 2 aceitos: so um passa', () async {
+      final outras = [
+        for (var i = 0; i < 4; i++) await h.conta('y$i@exemplo.com')
+      ];
+      await h.contatoAceito(ana, outras[0]);
+      await h.contatoAceito(ana, outras[1]);
+      final c3 = await h.json('POST', '/safety/contacts',
+          body: {'email': outras[2].email}, token: ana.token, esperado: 201);
+      final c4 = await h.json('POST', '/safety/contacts',
+          body: {'email': outras[3].email}, token: ana.token, esperado: 201);
+      final r = await Future.wait([
+        h.status('POST', '/safety/contacts/${c3['id']}/accept',
+            token: outras[2].token),
+        h.status('POST', '/safety/contacts/${c4['id']}/accept',
+            token: outras[3].token),
+      ]);
+      expect(r..sort(), [200, 409]);
+      final m = await h.json('GET', '/safety/contacts', token: ana.token);
+      expect(
+          (m['outgoing'] as List).where((c) => c['status'] == 'accepted').length,
+          3);
+    });
+
+    test('429 depois de 60 convites por hora do mesmo IP (varias contas)',
+        () async {
+      final contas = [
+        for (var i = 0; i < 4; i++) await h.conta('ip$i@exemplo.com')
+      ];
+      for (var c = 0; c < 3; c++) {
+        for (var i = 0; i < 20; i++) {
+          final st = await h.status('POST', '/safety/contacts',
+              body: {'email': 'z$c-$i@exemplo.com'}, token: contas[c].token);
+          expect(st, 404, reason: 'conta $c convite $i');
+        }
+      }
+      expect(
+          await h.status('POST', '/safety/contacts',
+              body: {'email': bia.email}, token: contas[3].token),
+          429);
+    });
+
     test('401 sem token', () async {
       expect(
           await h.status('POST', '/safety/contacts', body: {'email': bia.email}),

@@ -706,7 +706,7 @@ Handler createApi(
     });
   }));
 
-  montarRotasRastroSeguro(router, seguro, autenticar);
+  montarRotasRastroSeguro(router, seguro, autenticar, ipDe: ipDe);
 
   return router.call;
 }

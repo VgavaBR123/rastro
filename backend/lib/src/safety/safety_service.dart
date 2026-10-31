@@ -43,6 +43,7 @@ class SafetyConfig {
     this.arrivedLinkMs = 15 * 60 * 1000,
     this.maxAcceptedContacts = 3,
     this.invitesPerHour = 20,
+    this.invitesPerIpPerHour = 60,
     this.pushMaxAttempts = 5,
     this.pushRetryBaseMs = 15000,
     this.maxClockAheadMs = 2 * 60 * 1000,
@@ -96,6 +97,10 @@ class SafetyConfig {
   /// 404 "sem conta no Rastro" para descobrir quais emails tem conta.
   final int invitesPerHour;
 
+  /// Convites por IP por hora, somando todas as contas (em memoria, como os
+  /// outros limites: vale para uma instancia so do servidor).
+  final int invitesPerIpPerHour;
+
   /// Tentativas de cada push da outbox antes de desistir (a caixa de entrada
   /// ja tem a notificacao).
   final int pushMaxAttempts;
@@ -124,7 +129,8 @@ final RegExp _emailValido = RegExp(r'^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$');
 String _idAleatorio(String prefixo) {
   final Random r = Random.secure();
   final String hex = [
-    for (var i = 0; i < 12; i++) r.nextInt(256).toRadixString(16).padLeft(2, '0')
+    for (var i = 0; i < 12; i++)
+      r.nextInt(256).toRadixString(16).padLeft(2, '0')
   ].join();
   return '${prefixo}_$hex';
 }
@@ -132,9 +138,8 @@ String _idAleatorio(String prefixo) {
 /// 32 bytes de Random.secure em base64url, sem padding.
 String gerarTokenLink() {
   final Random r = Random.secure();
-  return base64Url
-      .encode([for (var i = 0; i < 32; i++) r.nextInt(256)])
-      .replaceAll('=', '');
+  return base64Url.encode(
+      [for (var i = 0; i < 32; i++) r.nextInt(256)]).replaceAll('=', '');
 }
 
 String primeiroNome(String nome) {
@@ -175,6 +180,10 @@ class SafetyService {
         maxAttempts: config.invitesPerHour,
         window: const Duration(hours: 1),
         nowMs: _now);
+    _convitesPorIp = RateLimiter(
+        maxAttempts: config.invitesPerIpPerHour,
+        window: const Duration(hours: 1),
+        nowMs: _now);
   }
 
   final SafetyStore _store;
@@ -185,6 +194,7 @@ class SafetyService {
   final String Function() _genToken;
   final SafetyConfig config;
   late final RateLimiter _convites;
+  late final RateLimiter _convitesPorIp;
 
   final Map<String, Future<void>> _travas = {};
 
@@ -269,7 +279,8 @@ class SafetyService {
 
   Future<void> _drenarUmaVez() async {
     for (final PushOutboxRecord o in await _store.duePushOutbox(_now())) {
-      final NotificationRecord? n = await _store.findNotification(o.notificationId);
+      final NotificationRecord? n =
+          await _store.findNotification(o.notificationId);
       final List<PushTokenRecord> tokens = await _store.pushTokensOf(o.userId);
       PushTokenRecord? t;
       for (final x in tokens) {
@@ -358,11 +369,13 @@ class SafetyService {
     };
   }
 
-  Future<Map<String, dynamic>> inviteContact(
-      UserRecord dona, String emailBruto) async {
-    final Duration? espera = _convites.check(dona.id);
-    if (espera != null) throw const SafetyError(429, 'muitas tentativas');
+  Future<Map<String, dynamic>> inviteContact(UserRecord dona, String emailBruto,
+      {String ip = 'unknown'}) async {
+    if (_convites.check(dona.id) != null || _convitesPorIp.check(ip) != null) {
+      throw const SafetyError(429, 'muitas tentativas');
+    }
     _convites.recordFailure(dona.id);
+    _convitesPorIp.recordFailure(ip);
 
     final String email = emailBruto.trim().toLowerCase();
     if (!_emailValido.hasMatch(email)) {
@@ -373,30 +386,33 @@ class SafetyService {
     }
     final UserRecord? convidado = await _users.findByEmail(email);
     if (convidado == null) throw const SafetyError(404, 'sem conta no Rastro');
-    if (await _store.countAcceptedContacts(dona.id) >=
-        config.maxAcceptedContacts) {
-      throw SafetyError(
-          409, 'limite de ${config.maxAcceptedContacts} contatos aceitos');
-    }
-    final ContactRecord c = await _store.transaction((tx) async {
-      final ContactRecord? c = await tx.createContact(ContactRecord(
-        id: _genId('ct'),
-        ownerId: dona.id,
-        contactUserId: convidado.id,
-        status: 'pending',
-        createdAtMs: _now(),
-      ));
-      if (c == null) throw const SafetyError(409, 'convite ja existe');
-      await _notificar(
-        tx,
-        convidado.id,
-        'contact_invite',
-        'Convite para o Rastro Seguro',
-        '${dona.displayName} quer ter voce como contato de confianca.',
-        {'contactId': c.id, 'ownerName': dona.displayName},
-      );
-      return c;
-    });
+    // Mesma trava do aceite: a contagem de aceitos nao muda no meio.
+    final ContactRecord c = await _comTrava(
+        'contatos:${dona.id}',
+        () => _store.transaction((tx) async {
+              if (await tx.countAcceptedContacts(dona.id) >=
+                  config.maxAcceptedContacts) {
+                throw SafetyError(409,
+                    'limite de ${config.maxAcceptedContacts} contatos aceitos');
+              }
+              final ContactRecord? c = await tx.createContact(ContactRecord(
+                id: _genId('ct'),
+                ownerId: dona.id,
+                contactUserId: convidado.id,
+                status: 'pending',
+                createdAtMs: _now(),
+              ));
+              if (c == null) throw const SafetyError(409, 'convite ja existe');
+              await _notificar(
+                tx,
+                convidado.id,
+                'contact_invite',
+                'Convite para o Rastro Seguro',
+                '${dona.displayName} quer ter voce como contato de confianca.',
+                {'contactId': c.id, 'ownerName': dona.displayName},
+              );
+              return c;
+            }));
     _dispararPush();
     return (await _contatoJson(c, dona.id))!;
   }
@@ -413,20 +429,26 @@ class SafetyService {
   }
 
   Future<Map<String, dynamic>> acceptContact(UserRecord u, String id) async {
-    final ContactRecord? c = await _store.findContact(id);
-    if (c == null || c.contactUserId != u.id) {
+    final ContactRecord? previo = await _store.findContact(id);
+    if (previo == null || previo.contactUserId != u.id) {
       throw const SafetyError(404, 'nao encontrado');
     }
-    if (!c.accepted) {
-      if (await _store.countAcceptedContacts(c.ownerId) >=
-          config.maxAcceptedContacts) {
-        throw SafetyError(409,
-            'a pessoa ja tem ${config.maxAcceptedContacts} contatos aceitos');
-      }
-      c
-        ..status = 'accepted'
-        ..acceptedAtMs = _now();
-      await _store.transaction((tx) async {
+    // Trava por dona: dois aceites simultaneos nao passam juntos do limite.
+    final ContactRecord c = await _comTrava('contatos:${previo.ownerId}', () {
+      return _store.transaction((tx) async {
+        final ContactRecord? c = await tx.findContact(id);
+        if (c == null || c.contactUserId != u.id) {
+          throw const SafetyError(404, 'nao encontrado');
+        }
+        if (c.accepted) return c;
+        if (await tx.countAcceptedContacts(c.ownerId) >=
+            config.maxAcceptedContacts) {
+          throw SafetyError(409,
+              'a pessoa ja tem ${config.maxAcceptedContacts} contatos aceitos');
+        }
+        c
+          ..status = 'accepted'
+          ..acceptedAtMs = _now();
         await tx.saveContact(c);
         await _notificar(
           tx,
@@ -436,10 +458,12 @@ class SafetyService {
           '${u.displayName} aceitou ser seu contato de confianca.',
           {'contactId': c.id, 'contactName': u.displayName},
         );
+        return c;
       });
-      _dispararPush();
-    }
+    });
+    _dispararPush();
     final Map<String, dynamic>? j = await _contatoJson(c, u.id);
+
     if (j == null) throw const SafetyError(404, 'nao encontrado');
     return j;
   }
@@ -524,7 +548,6 @@ class SafetyService {
     await _store.deleteAllForUser(userId);
   }
 
-
   // ----------------------------------------------------------------- sessoes
 
   Map<String, dynamic> sessionJson(SafetySessionRecord s) => {
@@ -569,7 +592,8 @@ class SafetyService {
     }
     final Object? ids = body['contactIds'];
     if (ids is! List || ids.isEmpty || ids.any((x) => x is! String)) {
-      throw const SafetyError(400, 'contactIds precisa ter ao menos um contato');
+      throw const SafetyError(
+          400, 'contactIds precisa ter ao menos um contato');
     }
     final List<String> contatos = <String>{...ids.cast<String>()}.toList();
     for (final String id in contatos) {
@@ -578,8 +602,8 @@ class SafetyService {
         throw SafetyError(400, 'contato $id nao e um contato aceito');
       }
     }
-    final SafetySessionRecord? s = await _store.createSession(
-        SafetySessionRecord(
+    final SafetySessionRecord? s =
+        await _store.createSession(SafetySessionRecord(
       id: _genId('ss'),
       ownerId: dona.id,
       activityGuid: guid.trim(),
@@ -747,7 +771,6 @@ class SafetyService {
       s
         ..etaMs = max(s.etaMs, _now()) + m.toInt() * 60 * 1000
         ..etaRecheckAfterMs = null;
-
     });
   }
 
@@ -799,8 +822,13 @@ class SafetyService {
 
   /// Notifica (na transacao [tx]) os contatos da sessao que ainda existem e
   /// estao aceitos.
-  Future<void> _avisarContatos(SafetyStore tx, SafetySessionRecord s,
-      String tipo, String titulo, String corpo, Map<String, dynamic> dados) async {
+  Future<void> _avisarContatos(
+      SafetyStore tx,
+      SafetySessionRecord s,
+      String tipo,
+      String titulo,
+      String corpo,
+      Map<String, dynamic> dados) async {
     for (final String id in s.contactIds) {
       final ContactRecord? c = await tx.findContact(id);
       if (c == null || c.ownerId != s.ownerId || !c.accepted) continue;
@@ -911,7 +939,6 @@ class SafetyService {
     _ultimoTickMs = _now();
   }
 
-
   /// 24 h depois do fim: a sessao (posicao e link) some e as notificacoes
   /// dela perdem lat, lon e shareUrl, numa transacao so.
   Future<void> _limparLgpd() async {
@@ -972,7 +999,6 @@ class SafetyService {
       await _avisarContatos(
         tx,
         s,
-
         'safety_alert',
         '${primeiroNome(nome)} nao respondeu',
         '$nome nao respondeu ao Rastro Seguro: '
@@ -1129,7 +1155,6 @@ class PublicSessionView {
   int? get lastPositionAgeMs => lastPosition == null
       ? null
       : max(0, nowMs - lastPosition!.ageReferenceMs);
-
 
   String? get mapUrl {
     final SafetyPosition? p = lastPosition;
