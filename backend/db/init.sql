@@ -82,3 +82,72 @@ CREATE TABLE IF NOT EXISTS password_resets (
   expires_at BIGINT NOT NULL,
   attempts   INTEGER NOT NULL DEFAULT 0
 );
+
+-- Rastro Seguro (F08). Mesmo DDL de safetySchemaSql em
+-- lib/src/safety/postgres_safety_store.dart (aplicado tambem ao conectar).
+-- Contatos de confianca: owner_id convidou contact_user_id.
+CREATE TABLE IF NOT EXISTS safety_contacts (
+  id              TEXT PRIMARY KEY,
+  owner_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  contact_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  status          TEXT NOT NULL CHECK (status IN ('pending', 'accepted')),
+  created_at      BIGINT NOT NULL,
+  accepted_at     BIGINT NULL,
+  UNIQUE (owner_id, contact_user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_safety_contacts_contact
+  ON safety_contacts (contact_user_id);
+
+-- Sessoes. Sem historico de trajeto: so a ultima posicao e desde quando as
+-- amostras vem paradas (still_since). Apagadas 24 h depois do fim.
+CREATE TABLE IF NOT EXISTS safety_sessions (
+  id                TEXT PRIMARY KEY,
+  owner_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  activity_guid     TEXT NOT NULL,
+  status            TEXT NOT NULL CHECK (status IN ('active', 'checking', 'alerted', 'ended')),
+  eta_ms            BIGINT NOT NULL,
+  started_at        BIGINT NOT NULL,
+  ended_at          BIGINT NULL,
+  end_reason        TEXT NULL,
+  last_signal_at    BIGINT NOT NULL,
+  last_lat          DOUBLE PRECISION NULL,
+  last_lon          DOUBLE PRECISION NULL,
+  last_accuracy_m   DOUBLE PRECISION NULL,
+  last_recorded_at  BIGINT NULL,
+  still_since       BIGINT NULL,
+  contact_ids       JSONB NOT NULL DEFAULT '[]'::jsonb,
+  check_reason      TEXT NULL,
+  check_started_at  BIGINT NULL,
+  check_deadline    BIGINT NULL,
+  alerted_at        BIGINT NULL,
+  eta_recheck_after BIGINT NULL,
+  share_token       TEXT NOT NULL UNIQUE,
+  share_expires_at  BIGINT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_safety_sessions_owner_open
+  ON safety_sessions (owner_id) WHERE status <> 'ended';
+CREATE INDEX IF NOT EXISTS idx_safety_sessions_ended
+  ON safety_sessions (ended_at) WHERE status = 'ended';
+
+-- Caixa de entrada de notificacoes.
+CREATE TABLE IF NOT EXISTS notifications (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type       TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT NOT NULL,
+  data       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at BIGINT NOT NULL,
+  read_at    BIGINT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+  ON notifications (user_id, created_at DESC, id DESC);
+
+-- Tokens de push (FCM). Um token pertence a uma conta por vez.
+CREATE TABLE IF NOT EXISTS push_tokens (
+  token      TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  platform   TEXT NOT NULL CHECK (platform IN ('android', 'ios')),
+  updated_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user ON push_tokens (user_id);

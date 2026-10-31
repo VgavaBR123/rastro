@@ -8,6 +8,7 @@ import 'package:postgres/postgres.dart';
 
 import 'activity_store.dart';
 import 'fit_decoder.dart';
+import 'safety/postgres_safety_store.dart' show safetySchemaSql;
 
 /// DDL idempotente aplicado ao conectar (o init.sql so roda em volume novo).
 /// Ordem importa: users antes da FK de uploads.user_id.
@@ -88,6 +89,8 @@ WHERE encode(fit, 'escape') ~ '^\{[0-9]{1,3}(,[0-9]{1,3})*\}$'
       'created_at BIGINT NOT NULL, '
       'expires_at BIGINT NOT NULL, '
       'attempts INTEGER NOT NULL DEFAULT 0)',
+  // Rastro Seguro (F08): contatos, sessoes, notificacoes e tokens de push.
+  ...safetySchemaSql,
 ];
 
 class PostgresActivityStore implements ActivityStore {
