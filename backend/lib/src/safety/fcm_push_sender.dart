@@ -17,13 +17,22 @@ import 'push_sender.dart';
 /// Escopo do OAuth2 para enviar mensagens pelo FCM.
 const String escopoFcm = 'https://www.googleapis.com/auth/firebase.messaging';
 
+/// Token de acesso OAuth2 e quando ele expira (UTC).
+class FcmAccessToken {
+  const FcmAccessToken(this.token, this.expiry);
+  final String token;
+  final DateTime expiry;
+}
+
 class FcmPushSender implements PushSender {
   FcmPushSender({
     required this.projectId,
-    required Future<String> Function() accessToken,
+    required Future<FcmAccessToken> Function() accessToken,
     required http.Client client,
+    DateTime Function()? agora,
   })  : _obterToken = accessToken,
-        _client = client;
+        _client = client,
+        _agora = agora ?? (() => DateTime.now().toUtc());
 
   /// A partir do JSON da conta de servico (o conteudo do arquivo).
   factory FcmPushSender.fromServiceAccountJson(Map<String, dynamic> json,
@@ -35,18 +44,14 @@ class FcmPushSender implements PushSender {
     final http.Client c = client ?? http.Client();
     final auth.ServiceAccountCredentials cred =
         auth.ServiceAccountCredentials.fromJson(json);
-    auth.AccessCredentials? atual;
     return FcmPushSender(
       projectId: projeto,
       client: c,
       accessToken: () async {
-        final DateTime limite =
-            DateTime.now().toUtc().add(const Duration(minutes: 1));
-        if (atual == null || atual!.accessToken.expiry.isBefore(limite)) {
-          atual = await auth.obtainAccessCredentialsViaServiceAccount(
-              cred, const [escopoFcm], c);
-        }
-        return atual!.accessToken.data;
+        final auth.AccessCredentials cr =
+            await auth.obtainAccessCredentialsViaServiceAccount(
+                cred, const [escopoFcm], c);
+        return FcmAccessToken(cr.accessToken.data, cr.accessToken.expiry);
       },
     );
   }
@@ -61,9 +66,13 @@ class FcmPushSender implements PushSender {
   }
 
   final String projectId;
-  final Future<String> Function() _obterToken;
+  final Future<FcmAccessToken> Function() _obterToken;
   final http.Client _client;
-  String? _tokenCache;
+  final DateTime Function() _agora;
+  FcmAccessToken? _cache;
+
+  /// Margem antes da expiracao em que o token ja e trocado.
+  static const Duration margemRenovacao = Duration(minutes: 1);
 
   Uri get _url => Uri.parse(
       'https://fcm.googleapis.com/v1/projects/$projectId/messages:send');
@@ -85,11 +94,21 @@ class FcmPushSender implements PushSender {
         },
       };
 
-  @override
-  Future<PushResult> send(PushMessage m) async {
-    try {
-      final String acesso = _tokenCache ??= await _obterToken();
-      final http.Response r = await _client.post(
+  /// Token de acesso em cache enquanto falta mais que [margemRenovacao]
+  /// para expirar; senao (ou com [renovar]) busca um novo.
+  Future<String> _tokenDeAcesso({bool renovar = false}) async {
+    final FcmAccessToken? c = _cache;
+    if (!renovar &&
+        c != null &&
+        _agora().add(margemRenovacao).isBefore(c.expiry)) {
+      return c.token;
+    }
+    final FcmAccessToken novo = await _obterToken();
+    _cache = novo;
+    return novo.token;
+  }
+
+  Future<http.Response> _post(String acesso, PushMessage m) => _client.post(
         _url,
         headers: {
           'authorization': 'Bearer $acesso',
@@ -97,11 +116,17 @@ class FcmPushSender implements PushSender {
         },
         body: jsonEncode(corpo(m)),
       );
-      if (r.statusCode >= 200 && r.statusCode < 300) return PushResult.sent;
-      if (r.statusCode == 401) _tokenCache = null; // renova no proximo
-      if (r.statusCode == 404 || _naoRegistrado(r.body)) {
-        return PushResult.invalidToken;
+
+  @override
+  Future<PushResult> send(PushMessage m) async {
+    try {
+      http.Response r = await _post(await _tokenDeAcesso(), m);
+      if (r.statusCode == 401) {
+        // Token revogado ou expirado antes da hora: renova e tenta uma vez.
+        r = await _post(await _tokenDeAcesso(renovar: true), m);
       }
+      if (r.statusCode >= 200 && r.statusCode < 300) return PushResult.sent;
+      if (tokenInvalido(r.body)) return PushResult.invalidToken;
       stderr.writeln('fcm: ${m.notificationId} falhou com ${r.statusCode}');
       return PushResult.failed;
     } catch (e) {
@@ -110,8 +135,10 @@ class FcmPushSender implements PushSender {
     }
   }
 
-  /// `errorCode: UNREGISTERED` nos detalhes do erro do FCM.
-  static bool _naoRegistrado(String corpo) {
+  /// O token do aparelho nao vale mais: `errorCode: UNREGISTERED` nos
+  /// detalhes, ou INVALID_ARGUMENT apontando o campo `message.token`. Um 404
+  /// ou 400 sem isso (payload, projeto) nao apaga o token.
+  static bool tokenInvalido(String corpo) {
     try {
       final Object? j = jsonDecode(corpo);
       if (j is! Map) return false;
@@ -119,8 +146,17 @@ class FcmPushSender implements PushSender {
       if (erro is! Map) return false;
       final Object? detalhes = erro['details'];
       if (detalhes is! List) return false;
-      return detalhes
-          .any((d) => d is Map && d['errorCode'] == 'UNREGISTERED');
+      for (final Object? d in detalhes) {
+        if (d is! Map) continue;
+        if (d['errorCode'] == 'UNREGISTERED') return true;
+        final Object? violacoes = d['fieldViolations'];
+        if (erro['status'] == 'INVALID_ARGUMENT' &&
+            violacoes is List &&
+            violacoes.any((v) => v is Map && v['field'] == 'message.token')) {
+          return true;
+        }
+      }
+      return false;
     } on FormatException {
       return false;
     }
