@@ -100,13 +100,16 @@ class _SafetyContactsScreenState extends ConsumerState<SafetyContactsScreen> {
     _snack(err ?? 'Agora voce e contato de confianca de ${contact.label}.');
   }
 
-  void _snack(String text) =>
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text)));
+  void _snack(String text) => ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(text)));
 
   @override
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final signedIn = ref.watch(authControllerProvider.select((s) => s.isSignedIn));
+    // A conta pode terminar de carregar depois da tela abrir.
+    ref.listen<bool>(authControllerProvider.select((s) => s.isSignedIn), (_, v) {
+      if (v) ref.read(contactsProvider.notifier).load();
+    });
     final s = ref.watch(contactsProvider);
     return Scaffold(
       appBar: AppBar(),
@@ -261,14 +264,22 @@ class _InviteCard extends StatelessWidget {
               const SizedBox(height: 8),
               Semantics(
                 liveRegion: true,
-                child: Text(error!, key: const Key('safety_invite_error'), style: AppText.body.copyWith(color: c.danger)),
+                child: Text(
+                  error!,
+                  key: const Key('safety_invite_error'),
+                  style: AppText.body.copyWith(color: c.danger),
+                ),
               ),
             ],
             if (done != null) ...[
               const SizedBox(height: 8),
               Semantics(
                 liveRegion: true,
-                child: Text(done!, key: const Key('safety_invite_done'), style: AppText.body.copyWith(color: c.dist.fg)),
+                child: Text(
+                  done!,
+                  key: const Key('safety_invite_done'),
+                  style: AppText.body.copyWith(color: c.dist.fg),
+                ),
               ),
             ],
             const SizedBox(height: 12),
@@ -318,12 +329,7 @@ class _ContactSection extends StatelessWidget {
               children: [
                 for (var i = 0; i < contacts.length; i++) ...[
                   if (i > 0) const SectionDivider(),
-                  _ContactTile(
-                    contact: contacts[i],
-                    busy: busy,
-                    onAccept: onAccept,
-                    onRemove: onRemove,
-                  ),
+                  _ContactTile(contact: contacts[i], busy: busy, onAccept: onAccept, onRemove: onRemove),
                 ],
               ],
             ),

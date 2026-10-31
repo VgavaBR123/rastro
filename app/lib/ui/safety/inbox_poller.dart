@@ -77,9 +77,9 @@ class _InboxPollerState extends ConsumerState<InboxPoller> {
   void _reconcile() {
     final repo = ref.read(recordingRepositoryProvider);
     unawaited(
-      ref.read(safetySessionProvider.notifier).reconcile(
-        interrupted: (guid) async => (await repo.interrupted()).any((i) => i.activity.guid == guid),
-      ),
+      ref
+          .read(safetySessionProvider.notifier)
+          .reconcile(interrupted: (guid) async => (await repo.interrupted()).any((i) => i.activity.guid == guid)),
     );
   }
 

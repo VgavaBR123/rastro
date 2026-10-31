@@ -32,8 +32,8 @@ class InboxBell extends ConsumerWidget {
     final label = unread == 0
         ? 'Notificacoes'
         : unread == 1
-            ? 'Notificacoes, 1 nao lida'
-            : 'Notificacoes, $unread nao lidas';
+        ? 'Notificacoes, 1 nao lida'
+        : 'Notificacoes, $unread nao lidas';
     return Semantics(
       button: true,
       label: label,
@@ -104,9 +104,8 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
     final url = n.shareUrl;
     final ok = url != null && await ref.read(urlOpenerProvider).open(url);
     if (!ok && mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(content: Text('Nao deu para abrir o link da localizacao.')),
-      );
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(const SnackBar(content: Text('Nao deu para abrir o link da localizacao.')));
     }
   }
 
@@ -121,6 +120,9 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final signedIn = ref.watch(authControllerProvider.select((s) => s.isSignedIn));
+    ref.listen<bool>(authControllerProvider.select((s) => s.isSignedIn), (_, v) {
+      if (v) ref.read(inboxProvider.notifier).refresh();
+    });
     final s = ref.watch(inboxProvider);
     return Scaffold(
       appBar: AppBar(),
@@ -139,10 +141,17 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
               if (s.error != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(s.error!, key: const Key('inbox_error'), style: AppText.body.copyWith(color: c.danger)),
+                  child: Text(
+                    s.error!,
+                    key: const Key('inbox_error'),
+                    style: AppText.body.copyWith(color: c.danger),
+                  ),
                 ),
               if (s.loading && s.items.isEmpty)
-                const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator())),
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               if (!s.loading && s.items.isEmpty)
                 Padding(
                   key: const Key('inbox_empty'),
@@ -154,11 +163,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
                   ),
                 ),
               for (final n in s.items) ...[
-                NotificationCard(
-                  notification: n,
-                  onOpen: () => _open(n),
-                  onLocation: () => _openLocation(n),
-                ),
+                NotificationCard(notification: n, onOpen: () => _open(n), onLocation: () => _openLocation(n)),
                 const SizedBox(height: 12),
               ],
             ],
@@ -198,7 +203,8 @@ class NotificationCard extends StatelessWidget {
       _ => n.title.isEmpty ? 'Notificacao' : n.title,
     };
     final detail = switch (n.kind) {
-      NotificationKind.safetyAlert => 'Motivo: ${checkReasonLabel(n.reason)}. Nao respondeu a checagem do Rastro Seguro.',
+      NotificationKind.safetyAlert =>
+        'Motivo: ${checkReasonLabel(n.reason)}. Nao respondeu a checagem do Rastro Seguro.',
       NotificationKind.safetySos => 'Mandou a posicao pelo Rastro Seguro.',
       _ => n.body,
     };

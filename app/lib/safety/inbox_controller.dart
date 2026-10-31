@@ -32,9 +32,7 @@ class InboxController extends StateNotifier<InboxState> {
   int _since = 0;
   bool _fetching = false;
 
-  InboxController(this._api, {required int Function() now, this.onNew})
-    : _now = now,
-      super(const InboxState());
+  InboxController(this._api, {required int Function() now, this.onNew}) : _now = now, super(const InboxState());
 
   Future<void> refresh() async {
     if (_fetching) return;
@@ -44,7 +42,10 @@ class InboxController extends StateNotifier<InboxState> {
       final list = await _api.notifications(since: _since);
       if (!mounted) return;
       final known = {for (final n in state.items) n.id};
-      final fresh = [for (final n in list) if (!known.contains(n.id)) n];
+      final fresh = [
+        for (final n in list)
+          if (!known.contains(n.id)) n,
+      ];
       final merged = [...fresh, ...state.items]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
       for (final n in list) {
         if (n.createdAt > _since) _since = n.createdAt;

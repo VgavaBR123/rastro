@@ -38,9 +38,11 @@ void main() {
     test('email sem conta, repetido, proprio email e limite viram mensagens claras', () async {
       await expectLater(
         api.invite('ninguem@x.com'),
-        throwsA(isA<SafetyException>()
-            .having((e) => e.kind, 'kind', SafetyErrorKind.notFound)
-            .having((e) => e.message, 'msg', contains('nao tem conta no Rastro'))),
+        throwsA(
+          isA<SafetyException>()
+              .having((e) => e.kind, 'kind', SafetyErrorKind.notFound)
+              .having((e) => e.message, 'msg', contains('nao tem conta no Rastro')),
+        ),
       );
       await api.invite('bia@x.com');
       await expectLater(
@@ -83,11 +85,7 @@ void main() {
     setUp(() => contactId = server.linkAccepted(ana, bia));
 
     test('cria com guid, eta e contatos; posicao, ok, extend, arrived e sos', () async {
-      final s = await api.createSession(
-        activityGuid: 'act_1',
-        etaMs: nowMs + 30 * 60000,
-        contactIds: [contactId],
-      );
+      final s = await api.createSession(activityGuid: 'act_1', etaMs: nowMs + 30 * 60000, contactIds: [contactId]);
       expect(s.status, SafetyStatus.active);
       expect(s.shareUrl, isNotNull);
       expect(server.requestsTo('POST', '/safety/sessions').single.body, {

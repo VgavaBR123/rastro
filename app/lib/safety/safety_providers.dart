@@ -28,24 +28,19 @@ import 'safety_models.dart';
 import 'safety_session_controller.dart';
 import 'url_opener.dart';
 
-final bool _underFlutterTest =
-    !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+final bool _underFlutterTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
-HeartbeatTicker _defaultTicker() =>
-    _underFlutterTest ? const NoHeartbeatTicker() : const PeriodicHeartbeatTicker();
+HeartbeatTicker _defaultTicker() => _underFlutterTest ? const NoHeartbeatTicker() : const PeriodicHeartbeatTicker();
 
 /// Relogio de parede (epoch ms): horario previsto, contagem e validacoes.
 final safetyClockProvider = Provider<int Function()>(
-  (_) => () => DateTime.now().millisecondsSinceEpoch,
+  (_) =>
+      () => DateTime.now().millisecondsSinceEpoch,
 );
 
 final safetyApiProvider = Provider<SafetyApi>((ref) {
   final store = ref.watch(sessionStoreProvider);
-  return SafetyApi(
-    ref.watch(dioProvider),
-    kSyncBaseUrl,
-    token: () async => (await store.read())?.token,
-  );
+  return SafetyApi(ref.watch(dioProvider), kSyncBaseUrl, token: () async => (await store.read())?.token);
 });
 
 final safetyPositionIntervalProvider = Provider<Duration>((_) => kSafetyPositionInterval);
@@ -69,26 +64,22 @@ final safetyPlanProvider = StateProvider<SafetyPlan?>((_) => null);
 
 /// Sessao do Rastro Seguro da gravacao. Encerra (arrived) quando a gravacao
 /// termina, por qualquer caminho (Salvar, Descartar, notificacao).
-final safetySessionProvider =
-    StateNotifierProvider<SafetySessionController, SafetyUiState>((ref) {
-      final recording = ref.read(recordingControllerProvider.notifier);
-      final c = SafetySessionController(
-        api: ref.watch(safetyApiProvider),
-        ticker: ref.watch(safetyTickerProvider),
-        interval: ref.watch(safetyPositionIntervalProvider),
-        now: ref.watch(safetyClockProvider),
-        lastSample: () => recording.lastSample,
-        recording: () => ref.read(recordingControllerProvider),
-        recordingGuid: () => recording.activityGuid,
-        narrator: ref.watch(narratorProvider),
-        haptics: ref.watch(safetyHapticsProvider),
-      );
-      ref.listen<RecordingUiState>(
-        recordingControllerProvider,
-        (_, next) => c.onRecording(next),
-      );
-      return c;
-    });
+final safetySessionProvider = StateNotifierProvider<SafetySessionController, SafetyUiState>((ref) {
+  final recording = ref.read(recordingControllerProvider.notifier);
+  final c = SafetySessionController(
+    api: ref.watch(safetyApiProvider),
+    ticker: ref.watch(safetyTickerProvider),
+    interval: ref.watch(safetyPositionIntervalProvider),
+    now: ref.watch(safetyClockProvider),
+    lastSample: () => recording.lastSample,
+    recording: () => ref.read(recordingControllerProvider),
+    recordingGuid: () => recording.activityGuid,
+    narrator: ref.watch(narratorProvider),
+    haptics: ref.watch(safetyHapticsProvider),
+  );
+  ref.listen<RecordingUiState>(recordingControllerProvider, (_, next) => c.onRecording(next));
+  return c;
+});
 
 final contactsProvider = StateNotifierProvider<ContactsController, ContactsState>(
   (ref) => ContactsController(ref.watch(safetyApiProvider)),

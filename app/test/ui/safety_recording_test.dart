@@ -101,8 +101,7 @@ void main() {
           settingsProvider.overrideWith((ref) => _FixedSettings(db, const AppSettings())),
           closingServiceProvider.overrideWith((ref) => _FakeClosing(ref.watch(recordingRepositoryProvider))),
           voiceAnnouncerProvider.overrideWithValue(voice),
-          if (withPlan)
-            safetyPlanProvider.overrideWith((ref) => SafetyPlan(contacts: [contact], minutes: 30)),
+          if (withPlan) safetyPlanProvider.overrideWith((ref) => SafetyPlan(contacts: [contact], minutes: 30)),
         ],
         child: MaterialApp(
           theme: theme ?? AppTheme.dark,
@@ -111,9 +110,8 @@ void main() {
               container = ProviderScope.containerOf(context);
               return Scaffold(
                 body: TextButton(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const RecordingScreen(activityType: ActivityType.run)),
-                  ),
+                  onPressed: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (_) => const RecordingScreen(activityType: ActivityType.run))),
                   child: const Text('abrir'),
                 ),
               );
@@ -168,10 +166,7 @@ void main() {
     // Narrador desligado nas configuracoes e mesmo assim falou.
     expect(voice.spoken, contains(kSafetyCheckPhrase));
     expect(h.haptics.alerts, 1);
-    expect(
-      tester.getSemantics(find.bySemanticsLabel(RegExp('^Esta tudo bem'))),
-      containsSemantics(isLiveRegion: true),
-    );
+    expect(tester.getSemantics(find.bySemanticsLabel(RegExp('^Esta tudo bem'))), isSemantics(isLiveRegion: true));
     final okSize = tester.getSize(find.byKey(const Key('safety_check_ok')));
     expect(okSize.height, greaterThanOrEqualTo(44));
 

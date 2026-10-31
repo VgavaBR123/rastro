@@ -2,7 +2,6 @@
 // contrato com duas contas (Ana e Bia), sessao logada em memoria e os
 // overrides de rede, relogio, ticks, vibracao e abridor de link.
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:strava_estudo_app/app/providers.dart';
 import 'package:strava_estudo_app/auth/auth_models.dart';

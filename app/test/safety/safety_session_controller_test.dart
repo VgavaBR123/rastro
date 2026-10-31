@@ -126,13 +126,21 @@ void main() {
   test('sem rede ou sem login no Iniciar: resultado explica e nao liga', () async {
     server.offline = true;
     expect(
-      await ctrl.begin(guid: 'act_1', plan: SafetyPlan(contacts: [contact], minutes: 30), startMs: nowMs),
+      await ctrl.begin(
+        guid: 'act_1',
+        plan: SafetyPlan(contacts: [contact], minutes: 30),
+        startMs: nowMs,
+      ),
       SafetyBeginResult.offline,
     );
     server.offline = false;
     server.tokens.clear();
     expect(
-      await ctrl.begin(guid: 'act_1', plan: SafetyPlan(contacts: [contact], minutes: 30), startMs: nowMs),
+      await ctrl.begin(
+        guid: 'act_1',
+        plan: SafetyPlan(contacts: [contact], minutes: 30),
+        startMs: nowMs,
+      ),
       SafetyBeginResult.signedOut,
     );
     expect(ctrl.state.active, isFalse);
@@ -278,8 +286,11 @@ void main() {
   });
 
   test('409 de sessao presa: encerra a antiga e cria de novo', () async {
-    final old = await SafetyApi(Dio()..httpClientAdapter = server, 'http://srv', token: () async => 'tok')
-        .createSession(activityGuid: 'act_0', etaMs: nowMs + 60 * min, contactIds: [contactId]);
+    final old = await SafetyApi(
+      Dio()..httpClientAdapter = server,
+      'http://srv',
+      token: () async => 'tok',
+    ).createSession(activityGuid: 'act_0', etaMs: nowMs + 60 * min, contactIds: [contactId]);
     await begin();
     expect(server.sessionById(old.id)!['status'], 'ended');
     expect(ctrl.state.session!.activityGuid, 'act_1');
@@ -288,8 +299,11 @@ void main() {
   group('recuperacao apos crash', () {
     late String id;
     setUp(() async {
-      final s = await SafetyApi(Dio()..httpClientAdapter = server, 'http://srv', token: () async => 'tok')
-          .createSession(activityGuid: 'act_1', etaMs: nowMs + 60 * min, contactIds: [contactId]);
+      final s = await SafetyApi(
+        Dio()..httpClientAdapter = server,
+        'http://srv',
+        token: () async => 'tok',
+      ).createSession(activityGuid: 'act_1', etaMs: nowMs + 60 * min, contactIds: [contactId]);
       id = s.id;
     });
 

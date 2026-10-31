@@ -106,15 +106,15 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
 
   Future<void> _pickTime() async {
     final now = DateTime.fromMillisecondsSinceEpoch(ref.read(safetyClockProvider)());
-    final initial = DateTime.fromMillisecondsSinceEpoch(_etaAt ?? now.add(const Duration(hours: 1)).millisecondsSinceEpoch);
+    final initial = DateTime.fromMillisecondsSinceEpoch(
+      _etaAt ?? now.add(const Duration(hours: 1)).millisecondsSinceEpoch,
+    );
     final t = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
       helpText: 'Horario previsto de chegada',
-      builder: (ctx, child) => MediaQuery(
-        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
-        child: child!,
-      ),
+      builder: (ctx, child) =>
+          MediaQuery(data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true), child: child!),
     );
     if (t == null || !mounted) return;
     var at = DateTime(now.year, now.month, now.day, t.hour, t.minute);
@@ -128,7 +128,10 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
   }
 
   void _confirm(List<TrustedContact> accepted) {
-    final contacts = [for (final c in accepted) if (_picked.contains(c.id)) c];
+    final contacts = [
+      for (final c in accepted)
+        if (_picked.contains(c.id)) c,
+    ];
     if (contacts.isEmpty) {
       setState(() => _error = 'Escolha pelo menos um contato.');
       return;
@@ -154,6 +157,9 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final signedIn = ref.watch(authControllerProvider.select((s) => s.isSignedIn));
+    ref.listen<bool>(authControllerProvider.select((s) => s.isSignedIn), (_, v) {
+      if (v) ref.read(contactsProvider.notifier).load();
+    });
     final s = ref.watch(contactsProvider);
     final accepted = s.accepted;
 
@@ -161,7 +167,8 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
     if (!signedIn) {
       body = _Explain(
         key: const Key('safety_setup_signed_out'),
-        text: 'O Rastro Seguro avisa outras contas do Rastro. Entre na sua conta para usar. '
+        text:
+            'O Rastro Seguro avisa outras contas do Rastro. Entre na sua conta para usar. '
             'Voce pode gravar normalmente sem ele.',
         action: 'Entrar',
         actionKey: const Key('safety_setup_sign_in'),
@@ -170,12 +177,16 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
           context.push(AppRoutes.auth);
         },
       );
-    } else if (s.lists == null && s.loading) {
-      body = const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()));
+    } else if (s.lists == null && s.error == null) {
+      body = const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
     } else if (s.lists == null && s.error != null) {
       body = _Explain(
         key: const Key('safety_setup_offline'),
-        text: 'Sem conexao com o servidor, o Rastro Seguro nao funciona agora. '
+        text:
+            'Sem conexao com o servidor, o Rastro Seguro nao funciona agora. '
             'Voce pode gravar normalmente sem ele.',
         action: 'Tentar de novo',
         actionKey: const Key('safety_setup_retry'),
@@ -184,7 +195,8 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
     } else if (accepted.isEmpty) {
       body = _Explain(
         key: const Key('safety_setup_no_contacts'),
-        text: 'Voce ainda nao tem contato de confianca aceito. Convide alguem em Configuracoes > Rastro Seguro. '
+        text:
+            'Voce ainda nao tem contato de confianca aceito. Convide alguem em Configuracoes > Rastro Seguro. '
             'Voce pode gravar normalmente sem ele.',
         action: 'Convidar contatos',
         actionKey: const Key('safety_setup_contacts'),
@@ -218,8 +230,10 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
             ),
           const SizedBox(height: 12),
           Text('Chegada prevista', style: AppText.bodyStrong.copyWith(color: c.text)),
-          Text('Se voce nao chegar ate la, o app pergunta se esta tudo bem antes de avisar.',
-              style: AppText.label.copyWith(color: c.textMuted)),
+          Text(
+            'Se voce nao chegar ate la, o app pergunta se esta tudo bem antes de avisar.',
+            style: AppText.label.copyWith(color: c.textMuted),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -251,7 +265,11 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
             const SizedBox(height: 8),
             Semantics(
               liveRegion: true,
-              child: Text(_error!, key: const Key('safety_plan_error'), style: AppText.body.copyWith(color: c.danger)),
+              child: Text(
+                _error!,
+                key: const Key('safety_plan_error'),
+                style: AppText.body.copyWith(color: c.danger),
+              ),
             ),
           ],
           const SizedBox(height: 16),
@@ -277,12 +295,7 @@ class _SafetyPlanSheetState extends ConsumerState<SafetyPlanSheet> {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          AppShape.gutter,
-          0,
-          AppShape.gutter,
-          16 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
+        padding: EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 16 + MediaQuery.viewInsetsOf(context).bottom),
         child: Column(
           key: const Key('safety_plan_sheet'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -303,7 +316,13 @@ class _Explain extends StatelessWidget {
   final String action;
   final Key actionKey;
   final VoidCallback onAction;
-  const _Explain({super.key, required this.text, required this.action, required this.actionKey, required this.onAction});
+  const _Explain({
+    super.key,
+    required this.text,
+    required this.action,
+    required this.actionKey,
+    required this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {

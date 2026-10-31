@@ -82,8 +82,7 @@ class SafetyPlan {
 }
 
 /// Horario valido para o contrato, a partir de [nowMs].
-bool safetyEtaValid(int etaMs, int nowMs) =>
-    etaMs >= nowMs + kSafetyMinEtaMs && etaMs <= nowMs + kSafetyMaxEtaMs;
+bool safetyEtaValid(int etaMs, int nowMs) => etaMs >= nowMs + kSafetyMinEtaMs && etaMs <= nowMs + kSafetyMaxEtaMs;
 
 enum SafetyBeginResult {
   started,
@@ -349,16 +348,16 @@ class SafetySessionController extends StateNotifier<SafetyUiState> {
 
   /// "Mandar minha posicao agora": manda a posicao atual e o SOS aos
   /// contatos. Nao encerra a sessao.
-  Future<bool> sos() => _action((id) async {
-    await _api.postPosition(id, _currentReport(forcePosition: true));
-    return _api.sos(id);
-  }, 'Sem rede: a posicao nao foi enviada. Tente de novo.', done: 'Posicao enviada aos seus contatos.');
+  Future<bool> sos() => _action(
+    (id) async {
+      await _api.postPosition(id, _currentReport(forcePosition: true));
+      return _api.sos(id);
+    },
+    'Sem rede: a posicao nao foi enviada. Tente de novo.',
+    done: 'Posicao enviada aos seus contatos.',
+  );
 
-  Future<bool> _action(
-    Future<SafetySession> Function(String id) call,
-    String offlineMessage, {
-    String? done,
-  }) async {
+  Future<bool> _action(Future<SafetySession> Function(String id) call, String offlineMessage, {String? done}) async {
     final id = sessionId;
     if (id == null || state.busy) return false;
     state = state.copyWith(busy: true, clearMessage: true);
@@ -372,10 +371,7 @@ class SafetySessionController extends StateNotifier<SafetyUiState> {
         _apply(s);
       } on SafetyException catch (e) {
         if (!mounted) return;
-        state = state.copyWith(
-          busy: false,
-          message: e.kind == SafetyErrorKind.network ? offlineMessage : e.message,
-        );
+        state = state.copyWith(busy: false, message: e.kind == SafetyErrorKind.network ? offlineMessage : e.message);
         _onError(e);
       }
     });

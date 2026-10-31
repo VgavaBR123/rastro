@@ -86,13 +86,7 @@ class FakeSafetyServer implements HttpClientAdapter {
 
   /// Contato ja aceito entre [owner] (quem convidou) e [other].
   String linkAccepted(FakeUser owner, FakeUser other) {
-    final c = {
-      'id': _id('ct'),
-      'ownerId': owner.id,
-      'otherId': other.id,
-      'status': 'accepted',
-      'createdAt': now(),
-    };
+    final c = {'id': _id('ct'), 'ownerId': owner.id, 'otherId': other.id, 'status': 'accepted', 'createdAt': now()};
     contacts.add(c);
     return c['id'] as String;
   }
@@ -122,12 +116,12 @@ class FakeSafetyServer implements HttpClientAdapter {
     for (final cid in (s['contactIds'] as List)) {
       final other = _otherSide(cid as String, owner.id);
       if (other != null) {
-        notify(other, 'safety_alert', title: '${owner.name} pode precisar de ajuda', data: {
-          'sessionId': sessionId,
-          'shareUrl': s['shareUrl'],
-          'reason': reason,
-          'ownerName': owner.name,
-        });
+        notify(
+          other,
+          'safety_alert',
+          title: '${owner.name} pode precisar de ajuda',
+          data: {'sessionId': sessionId, 'shareUrl': s['shareUrl'], 'reason': reason, 'ownerName': owner.name},
+        );
       }
     }
   }
@@ -174,13 +168,7 @@ class FakeSafetyServer implements HttpClientAdapter {
     final auth = options.headers['Authorization'] as String?;
     final token = auth?.startsWith('Bearer ') == true ? auth!.substring(7) : null;
     final path = options.uri.path;
-    final req = FakeRequest(
-      options.method,
-      path,
-      options.uri.queryParameters,
-      body,
-      token,
-    );
+    final req = FakeRequest(options.method, path, options.uri.queryParameters, body, token);
     requests.add(req);
     for (final e in overrides.entries) {
       if ('${options.method} $path'.startsWith(e.key)) return _json(e.value.$1, e.value.$2);
@@ -200,9 +188,10 @@ class FakeSafetyServer implements HttpClientAdapter {
       if (email == me.email) return (400, {'error': 'nao da para convidar o proprio email'});
       final other = _byEmail(email);
       if (other == null) return (404, {'error': 'sem conta no Rastro'});
-      final dup = contacts.any((c) =>
-          (c['ownerId'] == me.id && c['otherId'] == other.id) ||
-          (c['ownerId'] == other.id && c['otherId'] == me.id));
+      final dup = contacts.any(
+        (c) =>
+            (c['ownerId'] == me.id && c['otherId'] == other.id) || (c['ownerId'] == other.id && c['otherId'] == me.id),
+      );
       if (dup) return (409, {'error': 'convite ja existe'});
       final accepted = contacts.where((c) => c['ownerId'] == me.id && c['status'] == 'accepted').length;
       if (accepted >= 3) return (409, {'error': 'limite de 3 contatos aceitos'});
@@ -212,10 +201,19 @@ class FakeSafetyServer implements HttpClientAdapter {
       return (201, _contactJson(c, me.id));
     }
     if (path == '/safety/contacts' && method == 'GET') {
-      return (200, {
-        'outgoing': [for (final c in contacts) if (c['ownerId'] == me.id) _contactJson(c, me.id)],
-        'incoming': [for (final c in contacts) if (c['otherId'] == me.id) _contactJson(c, me.id)],
-      });
+      return (
+        200,
+        {
+          'outgoing': [
+            for (final c in contacts)
+              if (c['ownerId'] == me.id) _contactJson(c, me.id),
+          ],
+          'incoming': [
+            for (final c in contacts)
+              if (c['otherId'] == me.id) _contactJson(c, me.id),
+          ],
+        },
+      );
     }
     if (seg.length == 4 && seg[1] == 'contacts' && seg[3] == 'accept' && method == 'POST') {
       final c = contacts.where((c) => c['id'] == seg[2] && c['otherId'] == me.id).firstOrNull;
@@ -235,9 +233,13 @@ class FakeSafetyServer implements HttpClientAdapter {
       if (eta < now() + 5 * 60000 || eta > now() + 12 * 3600000) {
         return (400, {'error': 'etaMs fora do intervalo'});
       }
-      final okIds = ids.isNotEmpty &&
-          ids.every((id) => contacts.any((c) =>
-              c['id'] == id && c['status'] == 'accepted' && (c['ownerId'] == me.id || c['otherId'] == me.id)));
+      final okIds =
+          ids.isNotEmpty &&
+          ids.every(
+            (id) => contacts.any(
+              (c) => c['id'] == id && c['status'] == 'accepted' && (c['ownerId'] == me.id || c['otherId'] == me.id),
+            ),
+          );
       if (!okIds) return (400, {'error': 'contato invalido'});
       if (sessions.any((s) => s['ownerId'] == me.id && s['status'] != 'ended')) {
         return (409, {'error': 'ja ha sessao ativa'});
@@ -302,11 +304,12 @@ class FakeSafetyServer implements HttpClientAdapter {
           for (final cid in (s['contactIds'] as List)) {
             final other = _otherSide(cid as String, me.id);
             if (other != null) {
-              notify(other, 'safety_sos', title: '${me.name} pediu ajuda', data: {
-                'sessionId': s['id'],
-                'shareUrl': s['shareUrl'],
-                'ownerName': me.name,
-              });
+              notify(
+                other,
+                'safety_sos',
+                title: '${me.name} pediu ajuda',
+                data: {'sessionId': s['id'], 'shareUrl': s['shareUrl'], 'ownerName': me.name},
+              );
             }
           }
           return (200, _sessionJson(s));
@@ -318,7 +321,10 @@ class FakeSafetyServer implements HttpClientAdapter {
       final list = [
         for (final n in notifications)
           if (n['userId'] == me.id && (n['createdAt'] as int) > since)
-            {for (final e in n.entries) if (e.key != 'userId') e.key: e.value},
+            {
+              for (final e in n.entries)
+                if (e.key != 'userId') e.key: e.value,
+            },
       ]..sort((a, b) => (b['createdAt'] as int).compareTo(a['createdAt'] as int));
       return (200, {'notifications': list.take(50).toList()});
     }

@@ -44,14 +44,11 @@ class ContactLists {
   final List<TrustedContact> incoming;
   const ContactLists({this.outgoing = const [], this.incoming = const []});
 
-  factory ContactLists.fromJson(Map<String, dynamic> j) => ContactLists(
-    outgoing: _list(j['outgoing']),
-    incoming: _list(j['incoming']),
-  );
+  factory ContactLists.fromJson(Map<String, dynamic> j) =>
+      ContactLists(outgoing: _list(j['outgoing']), incoming: _list(j['incoming']));
 
-  static List<TrustedContact> _list(Object? v) => v is List
-      ? [for (final e in v) TrustedContact.fromJson(e as Map<String, dynamic>)]
-      : const [];
+  static List<TrustedContact> _list(Object? v) =>
+      v is List ? [for (final e in v) TrustedContact.fromJson(e as Map<String, dynamic>)] : const [];
 
   /// Contatos aceitos dos dois lados (quem pode ser avisado numa sessao).
   /// O contrato aceita `contactIds` de convites enviados ou recebidos.
@@ -100,12 +97,7 @@ class SafetyPosition {
   final double lon;
   final double? accuracyM;
   final int recordedAtMs;
-  const SafetyPosition({
-    required this.lat,
-    required this.lon,
-    this.accuracyM,
-    required this.recordedAtMs,
-  });
+  const SafetyPosition({required this.lat, required this.lon, this.accuracyM, required this.recordedAtMs});
 
   static SafetyPosition? fromJson(Object? v) {
     if (v is! Map) return null;
@@ -166,24 +158,14 @@ class SafetySession {
       if (j['contactIds'] case final List l)
         for (final e in l) e.toString(),
     ],
-    check: j['check'] is Map<String, dynamic>
-        ? SafetyCheck.fromJson(j['check'] as Map<String, dynamic>)
-        : null,
+    check: j['check'] is Map<String, dynamic> ? SafetyCheck.fromJson(j['check'] as Map<String, dynamic>) : null,
     alertedAt: (j['alertedAt'] as num?)?.toInt(),
     shareUrl: j['shareUrl'] as String?,
   );
 }
 
 /// Tipos de notificacao do contrato. [unknown] cobre tipos novos do backend.
-enum NotificationKind {
-  contactInvite,
-  contactAccepted,
-  safetyCheck,
-  safetyAlert,
-  safetySos,
-  safetyAllClear,
-  unknown,
-}
+enum NotificationKind { contactInvite, contactAccepted, safetyCheck, safetyAlert, safetySos, safetyAllClear, unknown }
 
 NotificationKind notificationKindOf(Object? v) => switch (v) {
   'contact_invite' => NotificationKind.contactInvite,
@@ -217,8 +199,7 @@ class AppNotification {
   bool get unread => readAt == null;
 
   /// Alerta de alguem que pode precisar de ajuda (destaque na caixa).
-  bool get isAlert =>
-      kind == NotificationKind.safetyAlert || kind == NotificationKind.safetySos;
+  bool get isAlert => kind == NotificationKind.safetyAlert || kind == NotificationKind.safetySos;
 
   String? get sessionId => data['sessionId'] as String?;
   String? get shareUrl => data['shareUrl'] as String?;

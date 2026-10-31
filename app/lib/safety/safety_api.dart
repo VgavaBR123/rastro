@@ -51,13 +51,10 @@ class PositionReport {
     required this.paused,
   });
 
-  const PositionReport.heartbeat({
-    required this.recordedAtMs,
-    required this.moving,
-    required this.paused,
-  }) : lat = null,
-       lon = null,
-       accuracyM = null;
+  const PositionReport.heartbeat({required this.recordedAtMs, required this.moving, required this.paused})
+    : lat = null,
+      lon = null,
+      accuracyM = null;
 
   bool get hasPosition => lat != null && lon != null;
 
@@ -118,8 +115,7 @@ class SafetyApi {
     ),
   );
 
-  Future<void> remove(String contactId) =>
-      _send('DELETE', '/safety/contacts/${Uri.encodeComponent(contactId)}');
+  Future<void> remove(String contactId) => _send('DELETE', '/safety/contacts/${Uri.encodeComponent(contactId)}');
 
   // --- Sessao ---
 
@@ -132,10 +128,7 @@ class SafetyApi {
       'POST',
       '/safety/sessions',
       data: {'activityGuid': activityGuid, 'etaMs': etaMs, 'contactIds': contactIds},
-      messages: const {
-        400: 'Horario de chegada ou contatos invalidos.',
-        409: 'Ja ha um Rastro Seguro ativo.',
-      },
+      messages: const {400: 'Horario de chegada ou contatos invalidos.', 409: 'Ja ha um Rastro Seguro ativo.'},
     ),
   );
 
@@ -159,8 +152,7 @@ class SafetyApi {
   Future<SafetySession> extend(String id, int minutes) async =>
       SafetySession.fromJson(await _send('POST', '${_s(id)}/extend', data: {'minutes': minutes}));
 
-  Future<SafetySession> arrived(String id) async =>
-      SafetySession.fromJson(await _send('POST', '${_s(id)}/arrived'));
+  Future<SafetySession> arrived(String id) async => SafetySession.fromJson(await _send('POST', '${_s(id)}/arrived'));
 
   Future<SafetySession> sos(String id) async => SafetySession.fromJson(await _send('POST', '${_s(id)}/sos'));
 
@@ -171,9 +163,7 @@ class SafetyApi {
   Future<List<AppNotification>> notifications({required int since}) async {
     final body = await _send('GET', '/notifications', query: {'since': '$since'});
     final list = body['notifications'];
-    return list is List
-        ? [for (final e in list) AppNotification.fromJson(e as Map<String, dynamic>)]
-        : const [];
+    return list is List ? [for (final e in list) AppNotification.fromJson(e as Map<String, dynamic>)] : const [];
   }
 
   Future<void> markRead(String id) => _send('POST', '/notifications/${Uri.encodeComponent(id)}/read');
@@ -181,8 +171,7 @@ class SafetyApi {
   Future<void> registerPushToken(String pushToken, String platform) =>
       _send('POST', '/push/tokens', data: {'token': pushToken, 'platform': platform});
 
-  Future<void> deletePushToken(String pushToken) =>
-      _send('DELETE', '/push/tokens/${Uri.encodeComponent(pushToken)}');
+  Future<void> deletePushToken(String pushToken) => _send('DELETE', '/push/tokens/${Uri.encodeComponent(pushToken)}');
 
   Future<Map<String, dynamic>> _send(
     String method,
