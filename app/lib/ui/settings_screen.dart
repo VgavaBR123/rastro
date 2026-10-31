@@ -78,7 +78,7 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Gravacao',
             child: Column(
               children: [
-                SwitchListTile(
+                SwitchListTile.adaptive(
                   key: const Key('autopause'),
                   title: const Text('Pausa automatica'),
                   subtitle: const Text('Pausa sozinho quando voce para'),
@@ -86,20 +86,24 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: ctrl.setAutoPauseEnabled,
                 ),
                 const SectionDivider(),
-                ListTile(
-                  key: const Key('weight'),
-                  title: const Text('Peso (para calorias)'),
-                  subtitle: Text(
-                    formatWeight(s.weightKg, metric: s.useMetric),
-                    key: const Key('weightValue'),
-                  ),
-                  trailing: Icon(Icons.edit_rounded, color: c.extra.fg),
-                  onTap: () => showDialog<void>(
-                    context: context,
-                    builder: (_) => WeightDialog(
-                      initialKg: s.weightKg,
-                      metric: s.useMetric,
-                      onSave: ctrl.setWeightKg,
+                // MergeSemantics: a linha e um botao proprio (rotulo + valor),
+                // sem se fundir com o resto da secao.
+                MergeSemantics(
+                  child: ListTile(
+                    key: const Key('weight'),
+                    title: const Text('Peso (para calorias)'),
+                    subtitle: Text(
+                      formatWeight(s.weightKg, metric: s.useMetric),
+                      key: const Key('weightValue'),
+                    ),
+                    trailing: Icon(Icons.edit_rounded, color: c.extra.fg),
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => WeightDialog(
+                        initialKg: s.weightKg,
+                        metric: s.useMetric,
+                        onSave: ctrl.setWeightKg,
+                      ),
                     ),
                   ),
                 ),
@@ -203,6 +207,7 @@ class _WeightDialogState extends State<WeightDialog> {
         autofocus: true,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
+          labelText: 'Peso',
           suffixText: _unit,
           helperText: 'Deixe vazio para apagar',
           errorText: _error,

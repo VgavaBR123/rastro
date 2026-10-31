@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/providers.dart';
+import 'components/adaptive_controls.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_typography.dart';
 
@@ -22,7 +23,7 @@ Future<bool> showChangePasswordDialog(BuildContext context) async =>
 
 /// Sair de todos os aparelhos (inclusive este), com confirmacao.
 Future<bool> showLogoutAllDialog(BuildContext context) async =>
-    await showDialog<bool>(
+    await showAdaptiveDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => const _LogoutAllDialog(),
@@ -204,7 +205,8 @@ class _LogoutAllDialogState extends ConsumerState<_LogoutAllDialog> {
   @override
   Widget build(BuildContext context) {
     final busy = ref.watch(authControllerProvider.select((s) => s.busy));
-    return AlertDialog(
+    // Adaptativo (so confirmacao, sem campos): no iOS e o alerta do sistema.
+    return AlertDialog.adaptive(
       title: const Text('Sair de todos os aparelhos?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -218,13 +220,14 @@ class _LogoutAllDialogState extends ConsumerState<_LogoutAllDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        AdaptiveDialogAction(
           key: const Key('logout_all_cancel'),
           onPressed: busy ? null : () => Navigator.of(context).pop(false),
           child: const Text('Cancelar'),
         ),
-        FilledButton(
+        AdaptiveDialogAction(
           key: const Key('logout_all_confirm'),
+          primary: true,
           onPressed: busy ? null : _confirm,
           child: _busyLabel(busy, 'Sair de todos'),
         ),

@@ -47,7 +47,8 @@ class ScreenTitle extends StatelessWidget {
 }
 
 /// Secao: titulo opcional (sectionTitle) e o conteudo num cartao surface com
-/// borda line e raio 22.
+/// borda line e raio 22. Para o leitor de tela o titulo e um cabecalho e o
+/// cartao um grupo separado: nada do conteudo se funde com o titulo.
 class SectionCard extends StatelessWidget {
   final String? title;
   final Widget child;
@@ -75,21 +76,28 @@ class SectionCard extends StatelessWidget {
           if (title != null)
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 10),
-              child: Text(
-                title!,
-                style: AppText.sectionTitle.copyWith(
-                  color: titleColor ?? c.text,
+              child: Semantics(
+                container: true,
+                header: true,
+                child: Text(
+                  title!,
+                  style: AppText.sectionTitle.copyWith(
+                    color: titleColor ?? c.text,
+                  ),
                 ),
               ),
             ),
-          Material(
-            color: c.surface,
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppShape.card),
-              side: BorderSide(color: c.line),
+          Semantics(
+            container: true,
+            child: Material(
+              color: c.surface,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppShape.card),
+                side: BorderSide(color: c.line),
+              ),
+              child: Padding(padding: padding, child: child),
             ),
-            child: Padding(padding: padding, child: child),
           ),
         ],
       ),
@@ -109,4 +117,3 @@ class SectionDivider extends StatelessWidget {
     color: AppColors.of(context).line,
   );
 }
-

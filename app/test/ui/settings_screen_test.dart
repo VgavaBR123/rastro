@@ -149,4 +149,52 @@ void main() {
 
     expect(find.text('Use um valor entre 45 e 881 lb'), findsOneWidget);
   });
+
+  // INI-07 / VOC-10 (teste no iPhone, 30/10/2026): a secao Gravacao inteira
+  // (titulo + Peso + valor) virava um unico botao de 200 pt.
+  testWidgets('secao: cabecalho proprio e cada linha um elemento', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await abrir(tester);
+
+    for (final titulo in ['Unidades', 'Gravacao']) {
+      expect(
+        tester.getSemantics(find.bySemanticsLabel(titulo)),
+        matchesSemantics(label: titulo, isHeader: true),
+      );
+    }
+
+    final pesoNo = tester.getSemantics(
+      find.bySemanticsLabel(RegExp(r'^Peso \(para calorias\)')),
+    );
+    expect(pesoNo.label, 'Peso (para calorias)\nNao informado');
+    expect(pesoNo.flagsCollection.isButton, isTrue);
+    expect(pesoNo.rect.height, lessThan(100));
+
+    final pausa = tester.getSemantics(
+      find.bySemanticsLabel(RegExp(r'^Pausa automatica')),
+    );
+    expect(pausa.label, isNot(contains('Gravacao')));
+    expect(pausa.label, isNot(contains('Peso')));
+    handle.dispose();
+  });
+
+  testWidgets('campo do dialogo de peso tem rotulo Peso', (tester) async {
+    final handle = tester.ensureSemantics();
+    await abrir(tester);
+    await tester.tap(find.byKey(const Key('weight')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSemantics(
+        find.descendant(
+          of: find.byKey(const Key('weightField')),
+          matching: find.byType(EditableText),
+        ),
+      ),
+      isSemantics(label: 'Peso', isTextField: true),
+    );
+    handle.dispose();
+  });
 }

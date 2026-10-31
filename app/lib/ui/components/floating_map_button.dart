@@ -1,5 +1,7 @@
 // Botao sobre o mapa (relatorio 11, FloatingMapButton): fundo navBg com
 // desfoque e borda navLine. Com [label], vira pilula com icone e texto.
+// Para o leitor de tela e um unico botao com rotulo unico (o texto da
+// pilula ou, sem ele, o tooltip), sem o tooltip repetido nem texto solto.
 library;
 
 import 'dart:ui' show ImageFilter;
@@ -31,33 +33,50 @@ class FloatingMapButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final shape = StadiumBorder(side: BorderSide(color: c.navLine));
-    return Tooltip(
-      message: tooltip,
-      child: ClipPath(
-        clipper: ShapeBorderClipper(shape: const StadiumBorder()),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Material(
-            color: c.navBg,
-            shape: shape,
-            child: InkWell(
-              onTap: onPressed,
-              customBorder: shape,
-              child: SizedBox(
-                height: 44,
-                width: label == null ? 44 : null,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 14),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, size: 20, color: iconColor ?? c.text),
-                      if (label != null) ...[
-                        const SizedBox(width: 8),
-                        Text(label!, style: AppText.label.copyWith(color: iconColor ?? c.text)),
+    final semanticLabel = label ?? tooltip;
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: onPressed != null,
+      label: semanticLabel,
+      tooltip: semanticLabel == tooltip ? null : tooltip,
+      onTap: onPressed,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: tooltip,
+        child: ClipPath(
+          clipper: ShapeBorderClipper(shape: const StadiumBorder()),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Material(
+              color: c.navBg,
+              shape: shape,
+              child: InkWell(
+                onTap: onPressed,
+                customBorder: shape,
+                child: SizedBox(
+                  height: 44,
+                  width: label == null ? 44 : null,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: label == null ? 0 : 14,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, size: 20, color: iconColor ?? c.text),
+                        if (label != null) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            label!,
+                            style: AppText.label.copyWith(
+                              color: iconColor ?? c.text,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
