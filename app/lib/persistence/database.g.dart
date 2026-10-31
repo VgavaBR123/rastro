@@ -5847,6 +5847,403 @@ class Plan5kSessionsCompanion extends UpdateCompanion<Plan5kSessionRow> {
   }
 }
 
+class $SafetyLocalSessionsTable extends SafetyLocalSessions
+    with TableInfo<$SafetyLocalSessionsTable, SafetyLocalSessionRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SafetyLocalSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _activityGuidMeta = const VerificationMeta(
+    'activityGuid',
+  );
+  @override
+  late final GeneratedColumn<String> activityGuid = GeneratedColumn<String>(
+    'activity_guid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerUserIdMeta = const VerificationMeta(
+    'ownerUserId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerUserId = GeneratedColumn<String>(
+    'owner_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMsMeta = const VerificationMeta(
+    'createdAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtMs = GeneratedColumn<int>(
+    'created_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pendingArrivalMeta = const VerificationMeta(
+    'pendingArrival',
+  );
+  @override
+  late final GeneratedColumn<bool> pendingArrival = GeneratedColumn<bool>(
+    'pending_arrival',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("pending_arrival" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    sessionId,
+    activityGuid,
+    ownerUserId,
+    createdAtMs,
+    pendingArrival,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'safety_local_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SafetyLocalSessionRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('activity_guid')) {
+      context.handle(
+        _activityGuidMeta,
+        activityGuid.isAcceptableOrUnknown(
+          data['activity_guid']!,
+          _activityGuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_activityGuidMeta);
+    }
+    if (data.containsKey('owner_user_id')) {
+      context.handle(
+        _ownerUserIdMeta,
+        ownerUserId.isAcceptableOrUnknown(
+          data['owner_user_id']!,
+          _ownerUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_ms')) {
+      context.handle(
+        _createdAtMsMeta,
+        createdAtMs.isAcceptableOrUnknown(
+          data['created_at_ms']!,
+          _createdAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMsMeta);
+    }
+    if (data.containsKey('pending_arrival')) {
+      context.handle(
+        _pendingArrivalMeta,
+        pendingArrival.isAcceptableOrUnknown(
+          data['pending_arrival']!,
+          _pendingArrivalMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sessionId};
+  @override
+  SafetyLocalSessionRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SafetyLocalSessionRow(
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      activityGuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}activity_guid'],
+      )!,
+      ownerUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_user_id'],
+      ),
+      createdAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_ms'],
+      )!,
+      pendingArrival: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}pending_arrival'],
+      )!,
+    );
+  }
+
+  @override
+  $SafetyLocalSessionsTable createAlias(String alias) {
+    return $SafetyLocalSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class SafetyLocalSessionRow extends DataClass
+    implements Insertable<SafetyLocalSessionRow> {
+  final String sessionId;
+  final String activityGuid;
+  final String? ownerUserId;
+  final int createdAtMs;
+  final bool pendingArrival;
+  const SafetyLocalSessionRow({
+    required this.sessionId,
+    required this.activityGuid,
+    this.ownerUserId,
+    required this.createdAtMs,
+    required this.pendingArrival,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['session_id'] = Variable<String>(sessionId);
+    map['activity_guid'] = Variable<String>(activityGuid);
+    if (!nullToAbsent || ownerUserId != null) {
+      map['owner_user_id'] = Variable<String>(ownerUserId);
+    }
+    map['created_at_ms'] = Variable<int>(createdAtMs);
+    map['pending_arrival'] = Variable<bool>(pendingArrival);
+    return map;
+  }
+
+  SafetyLocalSessionsCompanion toCompanion(bool nullToAbsent) {
+    return SafetyLocalSessionsCompanion(
+      sessionId: Value(sessionId),
+      activityGuid: Value(activityGuid),
+      ownerUserId: ownerUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerUserId),
+      createdAtMs: Value(createdAtMs),
+      pendingArrival: Value(pendingArrival),
+    );
+  }
+
+  factory SafetyLocalSessionRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SafetyLocalSessionRow(
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      activityGuid: serializer.fromJson<String>(json['activityGuid']),
+      ownerUserId: serializer.fromJson<String?>(json['ownerUserId']),
+      createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
+      pendingArrival: serializer.fromJson<bool>(json['pendingArrival']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sessionId': serializer.toJson<String>(sessionId),
+      'activityGuid': serializer.toJson<String>(activityGuid),
+      'ownerUserId': serializer.toJson<String?>(ownerUserId),
+      'createdAtMs': serializer.toJson<int>(createdAtMs),
+      'pendingArrival': serializer.toJson<bool>(pendingArrival),
+    };
+  }
+
+  SafetyLocalSessionRow copyWith({
+    String? sessionId,
+    String? activityGuid,
+    Value<String?> ownerUserId = const Value.absent(),
+    int? createdAtMs,
+    bool? pendingArrival,
+  }) => SafetyLocalSessionRow(
+    sessionId: sessionId ?? this.sessionId,
+    activityGuid: activityGuid ?? this.activityGuid,
+    ownerUserId: ownerUserId.present ? ownerUserId.value : this.ownerUserId,
+    createdAtMs: createdAtMs ?? this.createdAtMs,
+    pendingArrival: pendingArrival ?? this.pendingArrival,
+  );
+  SafetyLocalSessionRow copyWithCompanion(SafetyLocalSessionsCompanion data) {
+    return SafetyLocalSessionRow(
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      activityGuid: data.activityGuid.present
+          ? data.activityGuid.value
+          : this.activityGuid,
+      ownerUserId: data.ownerUserId.present
+          ? data.ownerUserId.value
+          : this.ownerUserId,
+      createdAtMs: data.createdAtMs.present
+          ? data.createdAtMs.value
+          : this.createdAtMs,
+      pendingArrival: data.pendingArrival.present
+          ? data.pendingArrival.value
+          : this.pendingArrival,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SafetyLocalSessionRow(')
+          ..write('sessionId: $sessionId, ')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('ownerUserId: $ownerUserId, ')
+          ..write('createdAtMs: $createdAtMs, ')
+          ..write('pendingArrival: $pendingArrival')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    sessionId,
+    activityGuid,
+    ownerUserId,
+    createdAtMs,
+    pendingArrival,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SafetyLocalSessionRow &&
+          other.sessionId == this.sessionId &&
+          other.activityGuid == this.activityGuid &&
+          other.ownerUserId == this.ownerUserId &&
+          other.createdAtMs == this.createdAtMs &&
+          other.pendingArrival == this.pendingArrival);
+}
+
+class SafetyLocalSessionsCompanion
+    extends UpdateCompanion<SafetyLocalSessionRow> {
+  final Value<String> sessionId;
+  final Value<String> activityGuid;
+  final Value<String?> ownerUserId;
+  final Value<int> createdAtMs;
+  final Value<bool> pendingArrival;
+  final Value<int> rowid;
+  const SafetyLocalSessionsCompanion({
+    this.sessionId = const Value.absent(),
+    this.activityGuid = const Value.absent(),
+    this.ownerUserId = const Value.absent(),
+    this.createdAtMs = const Value.absent(),
+    this.pendingArrival = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SafetyLocalSessionsCompanion.insert({
+    required String sessionId,
+    required String activityGuid,
+    this.ownerUserId = const Value.absent(),
+    required int createdAtMs,
+    this.pendingArrival = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : sessionId = Value(sessionId),
+       activityGuid = Value(activityGuid),
+       createdAtMs = Value(createdAtMs);
+  static Insertable<SafetyLocalSessionRow> custom({
+    Expression<String>? sessionId,
+    Expression<String>? activityGuid,
+    Expression<String>? ownerUserId,
+    Expression<int>? createdAtMs,
+    Expression<bool>? pendingArrival,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sessionId != null) 'session_id': sessionId,
+      if (activityGuid != null) 'activity_guid': activityGuid,
+      if (ownerUserId != null) 'owner_user_id': ownerUserId,
+      if (createdAtMs != null) 'created_at_ms': createdAtMs,
+      if (pendingArrival != null) 'pending_arrival': pendingArrival,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SafetyLocalSessionsCompanion copyWith({
+    Value<String>? sessionId,
+    Value<String>? activityGuid,
+    Value<String?>? ownerUserId,
+    Value<int>? createdAtMs,
+    Value<bool>? pendingArrival,
+    Value<int>? rowid,
+  }) {
+    return SafetyLocalSessionsCompanion(
+      sessionId: sessionId ?? this.sessionId,
+      activityGuid: activityGuid ?? this.activityGuid,
+      ownerUserId: ownerUserId ?? this.ownerUserId,
+      createdAtMs: createdAtMs ?? this.createdAtMs,
+      pendingArrival: pendingArrival ?? this.pendingArrival,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (activityGuid.present) {
+      map['activity_guid'] = Variable<String>(activityGuid.value);
+    }
+    if (ownerUserId.present) {
+      map['owner_user_id'] = Variable<String>(ownerUserId.value);
+    }
+    if (createdAtMs.present) {
+      map['created_at_ms'] = Variable<int>(createdAtMs.value);
+    }
+    if (pendingArrival.present) {
+      map['pending_arrival'] = Variable<bool>(pendingArrival.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SafetyLocalSessionsCompanion(')
+          ..write('sessionId: $sessionId, ')
+          ..write('activityGuid: $activityGuid, ')
+          ..write('ownerUserId: $ownerUserId, ')
+          ..write('createdAtMs: $createdAtMs, ')
+          ..write('pendingArrival: $pendingArrival, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RecordingDatabase extends GeneratedDatabase {
   _$RecordingDatabase(QueryExecutor e) : super(e);
   $RecordingDatabaseManager get managers => $RecordingDatabaseManager(this);
@@ -5863,6 +6260,8 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
       $DismissedZoneSuggestionsTable(this);
   late final $Plan5kStatesTable plan5kStates = $Plan5kStatesTable(this);
   late final $Plan5kSessionsTable plan5kSessions = $Plan5kSessionsTable(this);
+  late final $SafetyLocalSessionsTable safetyLocalSessions =
+      $SafetyLocalSessionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5878,6 +6277,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     dismissedZoneSuggestions,
     plan5kStates,
     plan5kSessions,
+    safetyLocalSessions,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -9457,6 +9857,241 @@ typedef $$Plan5kSessionsTableProcessedTableManager =
       Plan5kSessionRow,
       PrefetchHooks Function()
     >;
+typedef $$SafetyLocalSessionsTableCreateCompanionBuilder =
+    SafetyLocalSessionsCompanion Function({
+      required String sessionId,
+      required String activityGuid,
+      Value<String?> ownerUserId,
+      required int createdAtMs,
+      Value<bool> pendingArrival,
+      Value<int> rowid,
+    });
+typedef $$SafetyLocalSessionsTableUpdateCompanionBuilder =
+    SafetyLocalSessionsCompanion Function({
+      Value<String> sessionId,
+      Value<String> activityGuid,
+      Value<String?> ownerUserId,
+      Value<int> createdAtMs,
+      Value<bool> pendingArrival,
+      Value<int> rowid,
+    });
+
+class $$SafetyLocalSessionsTableFilterComposer
+    extends Composer<_$RecordingDatabase, $SafetyLocalSessionsTable> {
+  $$SafetyLocalSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activityGuid => $composableBuilder(
+    column: $table.activityGuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get pendingArrival => $composableBuilder(
+    column: $table.pendingArrival,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SafetyLocalSessionsTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $SafetyLocalSessionsTable> {
+  $$SafetyLocalSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get activityGuid => $composableBuilder(
+    column: $table.activityGuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get pendingArrival => $composableBuilder(
+    column: $table.pendingArrival,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SafetyLocalSessionsTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $SafetyLocalSessionsTable> {
+  $$SafetyLocalSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<String> get activityGuid => $composableBuilder(
+    column: $table.activityGuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ownerUserId => $composableBuilder(
+    column: $table.ownerUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtMs => $composableBuilder(
+    column: $table.createdAtMs,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get pendingArrival => $composableBuilder(
+    column: $table.pendingArrival,
+    builder: (column) => column,
+  );
+}
+
+class $$SafetyLocalSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $SafetyLocalSessionsTable,
+          SafetyLocalSessionRow,
+          $$SafetyLocalSessionsTableFilterComposer,
+          $$SafetyLocalSessionsTableOrderingComposer,
+          $$SafetyLocalSessionsTableAnnotationComposer,
+          $$SafetyLocalSessionsTableCreateCompanionBuilder,
+          $$SafetyLocalSessionsTableUpdateCompanionBuilder,
+          (
+            SafetyLocalSessionRow,
+            BaseReferences<
+              _$RecordingDatabase,
+              $SafetyLocalSessionsTable,
+              SafetyLocalSessionRow
+            >,
+          ),
+          SafetyLocalSessionRow,
+          PrefetchHooks Function()
+        > {
+  $$SafetyLocalSessionsTableTableManager(
+    _$RecordingDatabase db,
+    $SafetyLocalSessionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SafetyLocalSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SafetyLocalSessionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SafetyLocalSessionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> sessionId = const Value.absent(),
+                Value<String> activityGuid = const Value.absent(),
+                Value<String?> ownerUserId = const Value.absent(),
+                Value<int> createdAtMs = const Value.absent(),
+                Value<bool> pendingArrival = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SafetyLocalSessionsCompanion(
+                sessionId: sessionId,
+                activityGuid: activityGuid,
+                ownerUserId: ownerUserId,
+                createdAtMs: createdAtMs,
+                pendingArrival: pendingArrival,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sessionId,
+                required String activityGuid,
+                Value<String?> ownerUserId = const Value.absent(),
+                required int createdAtMs,
+                Value<bool> pendingArrival = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SafetyLocalSessionsCompanion.insert(
+                sessionId: sessionId,
+                activityGuid: activityGuid,
+                ownerUserId: ownerUserId,
+                createdAtMs: createdAtMs,
+                pendingArrival: pendingArrival,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SafetyLocalSessionsTable, SafetyLocalSessionRow>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$RecordingDatabase,
+                    $SafetyLocalSessionsTable,
+                    SafetyLocalSessionRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SafetyLocalSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $SafetyLocalSessionsTable,
+      SafetyLocalSessionRow,
+      $$SafetyLocalSessionsTableFilterComposer,
+      $$SafetyLocalSessionsTableOrderingComposer,
+      $$SafetyLocalSessionsTableAnnotationComposer,
+      $$SafetyLocalSessionsTableCreateCompanionBuilder,
+      $$SafetyLocalSessionsTableUpdateCompanionBuilder,
+      (
+        SafetyLocalSessionRow,
+        BaseReferences<
+          _$RecordingDatabase,
+          $SafetyLocalSessionsTable,
+          SafetyLocalSessionRow
+        >,
+      ),
+      SafetyLocalSessionRow,
+      PrefetchHooks Function()
+    >;
 
 class $RecordingDatabaseManager {
   final _$RecordingDatabase _db;
@@ -9483,4 +10118,6 @@ class $RecordingDatabaseManager {
       $$Plan5kStatesTableTableManager(_db, _db.plan5kStates);
   $$Plan5kSessionsTableTableManager get plan5kSessions =>
       $$Plan5kSessionsTableTableManager(_db, _db.plan5kSessions);
+  $$SafetyLocalSessionsTableTableManager get safetyLocalSessions =>
+      $$SafetyLocalSessionsTableTableManager(_db, _db.safetyLocalSessions);
 }

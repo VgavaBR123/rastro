@@ -254,6 +254,21 @@ class Plan5kSessions extends Table {
   IntColumn get endedAtMs => integer().nullable()();
 }
 
+/// Rastro Seguro (F08): sessoes criadas NESTE aparelho. A recuperacao so
+/// encerra sessao que esteja aqui (a mesma conta pode estar gravando em outro
+/// aparelho), e o "arrived" que nao saiu fica marcado ate chegar ao backend.
+@DataClassName('SafetyLocalSessionRow')
+class SafetyLocalSessions extends Table {
+  TextColumn get sessionId => text()();
+  TextColumn get activityGuid => text()();
+  TextColumn get ownerUserId => text().nullable()();
+  IntColumn get createdAtMs => integer()();
+  BoolColumn get pendingArrival => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {sessionId};
+}
+
 @DriftDatabase(
     tables: [
       Activities,
@@ -266,12 +281,13 @@ class Plan5kSessions extends Table {
       DismissedZoneSuggestions,
       Plan5kStates,
       Plan5kSessions,
+      SafetyLocalSessions,
     ])
 class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -330,6 +346,9 @@ class RecordingDatabase extends _$RecordingDatabase {
           }
           if (from < 13) {
             await m.addColumn(activities, activities.importSource);
+          }
+          if (from < 14) {
+            await m.createTable(safetyLocalSessions);
           }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga

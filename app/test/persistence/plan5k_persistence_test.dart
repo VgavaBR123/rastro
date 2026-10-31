@@ -64,7 +64,7 @@ void main() {
     });
     tearDown(() => db.close());
 
-    test('schema na versao 13', () => expect(db.schemaVersion, 13));
+    test('schema na versao 14', () => expect(db.schemaVersion, 14));
 
     test('plano nasce sem comecar; comecar, mudar e reiniciar', () async {
       expect((await repo.loadState()).started, isFalse);
@@ -171,7 +171,8 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 13) return;
+          if (v != 14) return;
+          raw.execute('DROP TABLE safety_local_sessions');
           raw.execute('ALTER TABLE activities DROP COLUMN import_source');
           raw.execute('DROP TABLE plan5k_states');
           raw.execute('DROP TABLE plan5k_sessions');

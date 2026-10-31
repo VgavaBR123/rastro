@@ -22,10 +22,10 @@ Future<void> seed(RecordingDatabase db, String guid, {String? importSource}) =>
     );
 
 void main() {
-  test('schema na versao 13', () async {
+  test('schema na versao 14', () async {
     final db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
-    expect(db.schemaVersion, 13);
+    expect(db.schemaVersion, 14);
   });
 
   test('atividade gravada no app nao tem origem; importada guarda o formato', () async {
@@ -53,7 +53,8 @@ void main() {
         file,
         setup: (raw) {
           final v = raw.select('PRAGMA user_version').first.values.first;
-          if (v != 13) return;
+          if (v != 14) return;
+          raw.execute('DROP TABLE safety_local_sessions');
           raw.execute('ALTER TABLE activities DROP COLUMN import_source');
           raw.execute('PRAGMA user_version = 12');
         },
