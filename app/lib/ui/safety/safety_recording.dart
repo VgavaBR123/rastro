@@ -53,7 +53,9 @@ class SafetyBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(safetySessionProvider);
     final session = s.session;
-    if (!s.active || session == null) return const SizedBox.shrink();
+    final notice = s.notice;
+    final noticeBox = notice == null ? null : _NoticeBox(notice: notice);
+    if (!s.active || session == null) return noticeBox ?? const SizedBox.shrink();
     final c = AppColors.of(context);
     final ctrl = ref.read(safetySessionProvider.notifier);
     final alerted = s.alerted;
@@ -94,7 +96,7 @@ class SafetyBanner extends ConsumerWidget {
     );
 
     final busy = s.busy;
-    return Padding(
+    final banner = Padding(
       padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 8),
       child: Semantics(
         container: true,
@@ -129,7 +131,14 @@ class SafetyBanner extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (s.message != null) ...[
+              if (s.sosPending) ...[
+                const SizedBox(height: 6),
+                Text(
+                  kSosPendingText,
+                  key: const Key('safety_sos_pending'),
+                  style: AppText.bodyStrong.copyWith(color: c.danger),
+                ),
+              ] else if (s.message != null) ...[
                 const SizedBox(height: 6),
                 Text(
                   s.message!,
@@ -162,7 +171,52 @@ class SafetyBanner extends ConsumerWidget {
                 variant: BigActionVariant.hold,
                 holdHint: 'Segure para avisar seus contatos',
                 height: 72,
-                onPressed: busy ? null : ctrl.sos,
+                onPressed: ctrl.sos,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (noticeBox == null) return banner;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [noticeBox, banner]);
+  }
+}
+
+/// Aviso que fica na gravacao ate a pessoa dispensar (Rastro Seguro
+/// encerrado pelo backend, sem contatos, entrar de novo).
+class _NoticeBox extends ConsumerWidget {
+  final SafetyNotice notice;
+  const _NoticeBox({required this.notice});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = AppColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 8),
+      child: Semantics(
+        container: true,
+        liveRegion: true,
+        child: Container(
+          key: const Key('safety_notice'),
+          padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+          decoration: BoxDecoration(
+            color: c.danger.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppShape.tile),
+            border: Border.all(color: c.danger, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.shield_outlined, color: c.danger),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(safetyNoticeText(notice), style: AppText.bodyStrong.copyWith(color: c.text)),
+              ),
+              TextButton(
+                key: const Key('safety_notice_dismiss'),
+                style: TextButton.styleFrom(minimumSize: const Size(44, 44), foregroundColor: c.text),
+                onPressed: () => ref.read(safetySessionProvider.notifier).dismissNotice(),
+                child: const Text('Entendi'),
               ),
             ],
           ),
@@ -175,7 +229,9 @@ class SafetyBanner extends ConsumerWidget {
 /// Aviso grande "Esta tudo bem?" por cima da gravacao enquanto ha checagem.
 /// Nao some com o bloqueio de tela: precisa ser respondido.
 class SafetyCheckOverlay extends ConsumerStatefulWidget {
-  const SafetyCheckOverlay({super.key});
+  /// Tela bloqueada: Estou bem e Estender tambem exigem segurar.
+  final bool locked;
+  const SafetyCheckOverlay({super.key, this.locked = false});
 
   @override
   ConsumerState<SafetyCheckOverlay> createState() => _SafetyCheckOverlayState();
@@ -227,7 +283,9 @@ class _SafetyCheckOverlayState extends ConsumerState<SafetyCheckOverlay> {
     }
     final c = AppColors.of(context);
     final ctrl = ref.read(safetySessionProvider.notifier);
-    final left = check.deadlineMs - ref.read(safetyClockProvider)();
+    // Prazo no relogio deste aparelho (duracao do servidor desde a chegada).
+    final left = (s.checkLocalDeadlineMs ?? check.deadlineMs) - ref.read(safetyClockProvider)();
+    final locked = widget.locked;
     final reason = switch (check.reason) {
       CheckReason.silence => 'O app ficou um tempo sem mandar sua posicao.',
       CheckReason.stopped => 'Voce nao se move ha um tempo e a gravacao nao esta pausada.',
@@ -287,6 +345,8 @@ class _SafetyCheckOverlayState extends ConsumerState<SafetyCheckOverlay> {
                     key: const Key('safety_check_ok'),
                     label: 'Estou bem',
                     icon: Icons.check_rounded,
+                    variant: locked ? BigActionVariant.hold : BigActionVariant.primary,
+                    holdHint: 'Segure (tela bloqueada)',
                     height: 80,
                     onPressed: s.busy ? null : ctrl.ok,
                   ),
@@ -295,11 +355,30 @@ class _SafetyCheckOverlayState extends ConsumerState<SafetyCheckOverlay> {
                     key: const Key('safety_check_extend'),
                     label: 'Estender 15 min',
                     icon: Icons.more_time_rounded,
-                    variant: BigActionVariant.role,
+                    variant: locked ? BigActionVariant.hold : BigActionVariant.role,
                     role: c.ciano,
-                    height: 64,
+                    holdHint: 'Segure (tela bloqueada)',
+                    height: 72,
                     onPressed: s.busy ? null : () => ctrl.extend(15),
                   ),
+                  const SizedBox(height: 12),
+                  BigActionButton(
+                    key: const Key('safety_check_help'),
+                    label: 'Preciso de ajuda',
+                    icon: Icons.sos_rounded,
+                    variant: BigActionVariant.hold,
+                    holdHint: 'Segure para avisar seus contatos',
+                    height: 72,
+                    onPressed: ctrl.sos,
+                  ),
+                  if (s.sosPending) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      kSosPendingText,
+                      textAlign: TextAlign.center,
+                      style: AppText.bodyStrong.copyWith(color: c.danger),
+                    ),
+                  ],
                 ],
               ),
             ),

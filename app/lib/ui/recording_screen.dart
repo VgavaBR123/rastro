@@ -24,6 +24,7 @@ import '../plan5k/guided_session.dart';
 import '../plan5k/plan_providers.dart';
 import '../privacy/privacy_providers.dart';
 import '../safety/safety_providers.dart';
+import '../safety/safety_session_controller.dart';
 import '../recording/domain/gap_monitor.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_health.dart';
@@ -94,6 +95,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   /// decisao do fim da semana no Concluir). Null = gravacao comum.
   SessionStatus? _planResult;
 
+  /// Rastro Seguro (F08): 409, ja ha sessao ativa em outro aparelho. Guarda a
+  /// escolha para o "Encerrar o outro e usar este".
+  SafetyPlan? _otherDevicePlan;
+
   @override
   void initState() {
     super.initState();
@@ -140,11 +145,56 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       plan: plan,
       startMs: ctrl.startTimestampMs ?? ref.read(safetyClockProvider)(),
     );
+    if (result == SafetyBeginResult.otherDevice) {
+      // Aviso fixo na gravacao, com a opcao explicita de assumir.
+      if (mounted) setState(() => _otherDevicePlan = plan);
+      return;
+    }
     final msg = safetyBeginMessage(result);
     if (msg == null || !mounted) return;
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       SnackBar(key: const Key('safety_begin_notice'), content: Text(msg)),
     );
+  }
+
+  /// 409: encerra o Rastro Seguro do outro aparelho (com confirmacao) e liga
+  /// o desta gravacao.
+  Future<void> _takeOver(SafetyPlan plan) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Encerrar o outro Rastro Seguro?'),
+        content: const Text(
+          'O acompanhamento ativo no outro aparelho termina e seus contatos passam a seguir esta gravacao.',
+        ),
+        actions: [
+          TextButton(
+            key: const Key('safety_take_over_cancel'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            key: const Key('safety_take_over_confirm'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Encerrar o outro'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _otherDevicePlan = null);
+    final ctrl = ref.read(recordingControllerProvider.notifier);
+    final guid = ctrl.activityGuid;
+    if (guid == null || !ref.read(recordingControllerProvider).isActive) return;
+    final result = await ref.read(safetySessionProvider.notifier).takeOver(
+      guid: guid,
+      plan: plan,
+      startMs: ctrl.startTimestampMs ?? ref.read(safetyClockProvider)(),
+    );
+    final msg = safetyBeginMessage(result);
+    if (msg != null && mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(msg)));
+    }
   }
 
   /// Plano 5 km (F06): liga a proxima sessao do plano a esta gravacao. Sem
@@ -413,6 +463,12 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         onLock: () => setState(() => _locked = true),
         onUnlock: () => setState(() => _locked = false),
         onDismissGap: ctrl.dismissGapNotice,
+        safetyExtra: _otherDevicePlan == null || !s.isActive
+            ? null
+            : _OtherDeviceNotice(
+                onTakeOver: () => _takeOver(_otherDevicePlan!),
+                onDismiss: () => setState(() => _otherDevicePlan = null),
+              ),
       );
     }
 
@@ -431,7 +487,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       },
       // Rastro Seguro (F08): o aviso "Esta tudo bem?" fica por cima de tudo.
       child: Scaffold(
-        body: Stack(fit: StackFit.expand, children: [body, const SafetyCheckOverlay()]),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [body, SafetyCheckOverlay(locked: _locked && s.isActive)],
+        ),
       ),
     );
   }
@@ -462,7 +521,11 @@ class _RecordingBody extends StatelessWidget {
   final VoidCallback onUnlock;
   final VoidCallback onDismissGap;
 
+  /// Rastro Seguro (F08): aviso extra acima da faixa (409 de outro aparelho).
+  final Widget? safetyExtra;
+
   const _RecordingBody({
+    this.safetyExtra,
     required this.type,
     required this.state,
     required this.route,
@@ -561,6 +624,7 @@ class _RecordingBody extends StatelessWidget {
               ),
             ),
           // Rastro Seguro (F08): faixa com Estender, Cheguei e SOS.
+          ?safetyExtra,
           SafetyBanner(locked: locked),
           if (s.error != null)
             Padding(
@@ -1068,6 +1132,59 @@ class _LockButton extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 409 no Iniciar: ja ha Rastro Seguro ativo em outro aparelho da conta. A
+/// gravacao segue sem; assumir exige confirmacao.
+class _OtherDeviceNotice extends StatelessWidget {
+  final VoidCallback onTakeOver;
+  final VoidCallback onDismiss;
+  const _OtherDeviceNotice({required this.onTakeOver, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = AppColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppShape.gutter, 0, AppShape.gutter, 8),
+      child: Container(
+        key: const Key('safety_other_device'),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: c.extra.tint,
+          borderRadius: BorderRadius.circular(AppShape.tile),
+          border: Border.all(color: c.extra.fill),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Ja ha um Rastro Seguro ativo em outro aparelho. Gravando sem Rastro Seguro.',
+              style: AppText.bodyStrong.copyWith(color: c.text),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  key: const Key('safety_take_over'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(44, 48), foregroundColor: c.text),
+                  onPressed: onTakeOver,
+                  child: const Text('Encerrar o outro e usar este'),
+                ),
+                TextButton(
+                  key: const Key('safety_other_device_dismiss'),
+                  style: TextButton.styleFrom(minimumSize: const Size(44, 48), foregroundColor: c.textMuted),
+                  onPressed: onDismiss,
+                  child: const Text('Entendi'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

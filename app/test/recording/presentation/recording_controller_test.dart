@@ -71,6 +71,19 @@ void main() {
     expect(pend.map((e) => e.guid), isNot(contains(guid)));
   });
 
+  test('Rastro Seguro: guarda so as amostras aceitas recentes, com a hora', () async {
+    await ctrl.start(ActivityType.run, autoPauseEnabled: false);
+    for (final s in sampleRoute()) {
+      source.add(s);
+    }
+    await pumpEventQueue(times: 50);
+    final all = ctrl.recentAccepted(sinceWallMs: 0);
+    expect(all, hasLength(sampleRouteGoodCount));
+    expect(ctrl.recentAccepted(sinceWallMs: all.last.wallClockMs), [all.last]);
+    expect(ctrl.lastSample, isNotNull);
+    await ctrl.stop();
+  });
+
   test('permissao negada nao inicia e seta erro', () async {
     source.permission = false;
     await ctrl.start(ActivityType.ride);

@@ -74,7 +74,13 @@ void main() {
 
   Map<String, dynamic> session() => h.server.sessions.single;
 
-  Future<void> pump(WidgetTester tester, {ThemeData? theme, bool withPlan = true, bool offline = false}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    ThemeData? theme,
+    bool withPlan = true,
+    bool offline = false,
+    bool otherDevice = false,
+  }) async {
     h = SafetyHarness();
     contactId = h.server.linkAccepted(h.ana, h.bia);
     db = RecordingDatabase(NativeDatabase.memory());
@@ -121,6 +127,24 @@ void main() {
       ),
     );
     h.server.offline = offline;
+    if (otherDevice) {
+      h.server.sessions.add({
+        'id': 'ss_outro',
+        'ownerId': h.ana.id,
+        'activityGuid': 'act_outro',
+        'status': 'active',
+        'etaMs': h.nowMs + 3600000,
+        'startedAt': h.nowMs,
+        'endedAt': null,
+        'lastSignalAt': h.nowMs,
+        'lastPosition': null,
+        'contactIds': [contactId],
+        'check': null,
+        'alertedAt': null,
+        'shareUrl': 'http://x/s/outro',
+        'positions': <Object?>[],
+      });
+    }
     await tester.tap(find.text('abrir'));
     await drain(tester);
   }
@@ -267,5 +291,81 @@ void main() {
     await pump(tester, withPlan: false);
     expect(h.server.requests.where((r) => !r.path.startsWith('/me')), isEmpty);
     expect(find.byKey(const Key('safety_banner')), findsNothing);
+  });
+
+  testWidgets('contagem usa a duracao do servidor contada no relogio local', (tester) async {
+    await pump(tester);
+    // Servidor 10 min adiantado: prazo dele e startedAt + 2 min.
+    h.server.now = () => h.nowMs + 600000;
+    h.server.startCheck(session()['id'] as String, deadlineMs: h.nowMs + 600000 + 120000);
+    await positionTick(tester);
+    expect(tester.widget<Text>(find.byKey(const Key('safety_check_countdown'))).data, '2:00');
+  });
+
+  testWidgets('aviso de checagem tem Preciso de ajuda (segurar) que manda o SOS', (tester) async {
+    await pump(tester);
+    h.server.startCheck(session()['id'] as String);
+    await positionTick(tester);
+    await tester.tap(find.byKey(const Key('safety_check_help')));
+    await drain(tester);
+    expect(h.server.requestsTo('POST', '/sos'), isEmpty);
+    await hold(tester, find.byKey(const Key('safety_check_help')));
+    await drain(tester);
+    expect(h.server.requestsTo('POST', '/sos'), hasLength(1));
+  });
+
+  testWidgets('tela bloqueada: Estou bem e Estender no aviso exigem segurar', (tester) async {
+    await pump(tester);
+    await tester.tap(find.byKey(const Key('recording_lock')));
+    await tester.pump();
+    h.server.startCheck(session()['id'] as String);
+    await positionTick(tester);
+    await tester.tap(find.byKey(const Key('safety_check_ok')));
+    await tester.tap(find.byKey(const Key('safety_check_extend')));
+    await drain(tester);
+    expect(h.server.requestsTo('POST', '/ok'), isEmpty);
+    expect(h.server.requestsTo('POST', '/extend'), isEmpty);
+    await hold(tester, find.byKey(const Key('safety_check_ok')));
+    await drain(tester);
+    expect(h.server.requestsTo('POST', '/ok'), hasLength(1));
+  });
+
+  testWidgets('backend encerrou: aviso persistente ate dispensar', (tester) async {
+    await pump(tester);
+    session()['status'] = 'ended';
+    await positionTick(tester);
+    expect(find.byKey(const Key('safety_banner')), findsNothing);
+    expect(find.byKey(const Key('safety_notice')), findsOneWidget);
+    expect(find.text('Rastro Seguro encerrado. Seus contatos nao estao mais acompanhando.'), findsOneWidget);
+    await tapVisible(tester, const Key('safety_notice_dismiss'));
+    await drain(tester);
+    expect(find.byKey(const Key('safety_notice')), findsNothing);
+  });
+
+  testWidgets('SOS sem rede mostra SOS pendente', (tester) async {
+    await pump(tester);
+    h.server.offline = true;
+    await hold(tester, find.byKey(const Key('safety_sos')));
+    await drain(tester);
+    expect(find.byKey(const Key('safety_sos_pending')), findsOneWidget);
+    h.server.offline = false;
+    await positionTick(tester);
+    expect(find.byKey(const Key('safety_sos_pending')), findsNothing);
+    expect(h.server.requestsTo('POST', '/sos'), hasLength(1));
+  });
+
+  testWidgets('409 de outro aparelho: avisa, nao encerra, e Encerrar o outro exige confirmar', (tester) async {
+    await pump(tester, otherDevice: true);
+    final other = h.server.sessions.first;
+    expect(find.byKey(const Key('safety_other_device')), findsOneWidget);
+    expect(other['status'], 'active');
+    expect(find.byKey(const Key('safety_banner')), findsNothing);
+    await tapVisible(tester, const Key('safety_take_over'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('safety_take_over_confirm')));
+    await drain(tester);
+    expect(other['status'], 'ended');
+    expect(find.byKey(const Key('safety_banner')), findsOneWidget);
+    expect(find.byKey(const Key('safety_other_device')), findsNothing);
   });
 }
