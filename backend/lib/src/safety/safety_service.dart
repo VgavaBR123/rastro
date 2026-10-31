@@ -745,7 +745,7 @@ class SafetyService {
     if (s.shareExpiresAtMs != null && agora >= s.shareExpiresAtMs!) return null;
     if (s.ended &&
         s.endedAtMs != null &&
-        agora >= s.endedAtMs! + config.purgeAfterMs) {
+        agora > s.endedAtMs! + config.purgeAfterMs) {
       return null;
     }
     final UserRecord? dona = await _users.findById(s.ownerId);
