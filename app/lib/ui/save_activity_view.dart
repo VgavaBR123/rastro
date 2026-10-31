@@ -16,6 +16,7 @@ import 'components/big_action_button.dart';
 import 'components/metric_tile.dart';
 import 'components/segmented_selector.dart';
 import 'components/sport_chip.dart';
+import 'components/visibility_badge.dart';
 import 'route_map.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
@@ -281,23 +282,23 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                   options: [
                     SegmentOption(
                       value: ActivityVisibility.onlyMe,
-                      label: 'So eu',
+                      label: visibilityLabel(ActivityVisibility.onlyMe),
                       role: c.subida,
-                      icon: Icons.lock_rounded,
+                      icon: visibilityIcon(ActivityVisibility.onlyMe),
                       key: const Key('visibility_only_me'),
                     ),
                     SegmentOption(
                       value: ActivityVisibility.followers,
-                      label: 'Seguidores',
+                      label: visibilityLabel(ActivityVisibility.followers),
                       role: c.pace,
-                      icon: Icons.group_rounded,
+                      icon: visibilityIcon(ActivityVisibility.followers),
                       key: const Key('visibility_followers'),
                     ),
                     SegmentOption(
                       value: ActivityVisibility.everyone,
-                      label: 'Todos',
+                      label: visibilityLabel(ActivityVisibility.everyone),
                       role: c.ciano,
-                      icon: Icons.public_rounded,
+                      icon: visibilityIcon(ActivityVisibility.everyone),
                       key: const Key('visibility_everyone'),
                     ),
                   ],
