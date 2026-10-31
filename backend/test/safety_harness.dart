@@ -1,6 +1,8 @@
 // Montagem comum dos testes do Rastro Seguro: API em memoria, relogio falso,
 // ids previsiveis e um PushSender que captura as mensagens.
+import 'dart:async';
 import 'dart:convert';
+
 
 import 'package:shelf/shelf.dart';
 import 'package:strava_estudo_backend/src/activity_store.dart';
@@ -21,12 +23,45 @@ class PushFalso implements PushSender {
   /// Tokens que o "provedor" diz que nao valem mais.
   final Set<String> invalidos = {};
 
+  /// Quantos envios seguidos devolvem `failed` (falha passageira).
+  int falhasPassageiras = 0;
+
+  /// Se definido, todo envio fica pendurado ate ele completar.
+  Completer<void>? travar;
+
   @override
   Future<PushResult> send(PushMessage m) async {
     enviadas.add(m);
+    if (travar != null) await travar!.future;
+    if (falhasPassageiras > 0) {
+      falhasPassageiras--;
+      return PushResult.failed;
+    }
     return invalidos.contains(m.token)
         ? PushResult.invalidToken
         : PushResult.sent;
+  }
+}
+
+/// Store em memoria que falha de proposito na N-esima gravacao da caixa de
+/// entrada (contada a partir de [falharNaGravacao]).
+class StoreFalhavel extends InMemorySafetyStore {
+  int? _faltam;
+
+  /// A [n]-esima chamada de addNotification daqui em diante lanca erro (uma
+  /// vez so).
+  void falharNaGravacao(int n) => _faltam = n;
+
+  @override
+  Future<void> addNotification(NotificationRecord n) async {
+    if (_faltam != null) {
+      _faltam = _faltam! - 1;
+      if (_faltam == 0) {
+        _faltam = null;
+        throw StateError('falha simulada no INSERT da caixa de entrada');
+      }
+    }
+    return super.addNotification(n);
   }
 }
 
@@ -71,7 +106,7 @@ class Harness {
     );
   }
 
-  final InMemorySafetyStore safety = InMemorySafetyStore();
+  final StoreFalhavel safety = StoreFalhavel();
   final InMemoryUserStore users = InMemoryUserStore();
   final PushFalso push = PushFalso();
   late final SafetyService service;

@@ -161,6 +161,68 @@ void suite(String nome, Future<SafetyStore> Function() criar,
       expect(await s.pushTokensOf(b), isEmpty);
     });
 
+    test('transacao: falha desfaz tudo; sucesso grava', () async {
+      final ss = _sessao('${a}_sstx', a);
+      await s.createSession(ss);
+      await expectLater(
+          s.transaction((tx) async {
+            ss.status = 'alerted';
+            await tx.saveSession(ss);
+            await tx.addNotification(NotificationRecord(
+                id: '${a}_nttx',
+                userId: b,
+                type: 'safety_alert',
+                title: 't',
+                body: 'b',
+                data: {},
+                createdAtMs: 1));
+            throw StateError('falha no meio');
+          }),
+          throwsStateError);
+      expect((await s.findSession(ss.id))!.status, 'active');
+      expect(await s.findNotification('${a}_nttx'), isNull);
+      await s.transaction((tx) async {
+        ss.status = 'alerted';
+        await tx.saveSession(ss);
+      });
+      expect((await s.findSession(ss.id))!.status, 'alerted');
+    });
+
+    test('outbox: vencidos em ordem, salva tentativas, apaga', () async {
+      await s.addNotification(NotificationRecord(
+          id: '${a}_ntob',
+          userId: a,
+          type: 't',
+          title: 't',
+          body: 'b',
+          data: {'k': 'v'},
+          createdAtMs: 1));
+      expect((await s.findNotification('${a}_ntob'))!.data, {'k': 'v'});
+      for (var i = 1; i <= 2; i++) {
+        await s.addPushOutbox(PushOutboxRecord(
+            id: '${a}_po$i',
+            notificationId: '${a}_ntob',
+            userId: a,
+            token: 'tk$i',
+            createdAtMs: i,
+            nextAttemptAtMs: i * 100));
+      }
+      List<String> ids(List<PushOutboxRecord> l) =>
+          [for (final o in l) if (o.id.startsWith(a)) o.id];
+      expect(ids(await s.duePushOutbox(150)), ['${a}_po1']);
+      expect(ids(await s.duePushOutbox(200)), ['${a}_po1', '${a}_po2']);
+      final o = (await s.duePushOutbox(150)).firstWhere((x) => x.id == '${a}_po1');
+      o
+        ..attempts = 3
+        ..nextAttemptAtMs = 1000;
+      await s.savePushOutbox(o);
+      expect(ids(await s.duePushOutbox(500)), ['${a}_po2']);
+      await s.deletePushOutbox('${a}_po2');
+      final l = await s.duePushOutbox(1000);
+      expect(ids(l), ['${a}_po1']);
+      expect(l.firstWhere((x) => x.id == '${a}_po1').attempts, 3);
+    });
+
     test('deleteAllForUser apaga contatos dos dois lados e o resto', () async {
       await s.createContact(ContactRecord(
           id: '${a}_x1',

@@ -151,3 +151,17 @@ CREATE TABLE IF NOT EXISTS push_tokens (
   updated_at BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_push_tokens_user ON push_tokens (user_id);
+
+-- Outbox de push (F08): um envio pendente por (notificacao, token), gravado
+-- na mesma transacao da notificacao e reenviado pelo vigia ate 5 tentativas.
+CREATE TABLE IF NOT EXISTS push_outbox (
+  id              TEXT PRIMARY KEY,
+  notification_id TEXT NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+  user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token           TEXT NOT NULL,
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at BIGINT NOT NULL,
+  created_at      BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_push_outbox_next ON push_outbox (next_attempt_at);
+

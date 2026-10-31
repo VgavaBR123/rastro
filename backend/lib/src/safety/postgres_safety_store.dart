@@ -69,11 +69,40 @@ const List<String> safetySchemaSql = <String>[
       "platform TEXT NOT NULL CHECK (platform IN ('android', 'ios')), "
       'updated_at BIGINT NOT NULL)',
   'CREATE INDEX IF NOT EXISTS idx_push_tokens_user ON push_tokens (user_id)',
+  // Outbox de push: um envio pendente por (notificacao, token). Gravada na
+  // mesma transacao da notificacao; o push sai depois do commit.
+  'CREATE TABLE IF NOT EXISTS push_outbox ('
+      'id TEXT PRIMARY KEY, '
+      'notification_id TEXT NOT NULL REFERENCES notifications(id) ON DELETE CASCADE, '
+      'user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, '
+      'token TEXT NOT NULL, '
+      'attempts INTEGER NOT NULL DEFAULT 0, '
+      'next_attempt_at BIGINT NOT NULL, '
+      'created_at BIGINT NOT NULL)',
+  'CREATE INDEX IF NOT EXISTS idx_push_outbox_next ON push_outbox (next_attempt_at)',
 ];
 
 class PostgresSafetyStore implements SafetyStore {
-  PostgresSafetyStore(this._conn);
-  final Connection _conn;
+  /// [db] e a conexao (ou o pool): precisa ser Session e SessionExecutor.
+  PostgresSafetyStore(Session db)
+      : _conn = db,
+        _executor = db as SessionExecutor;
+
+  PostgresSafetyStore._emTransacao(TxSession tx)
+      : _conn = tx,
+        _executor = null;
+
+  final Session _conn;
+
+  /// Null dentro de uma transacao (ja esta numa).
+  final SessionExecutor? _executor;
+
+  @override
+  Future<T> transaction<T>(Future<T> Function(SafetyStore tx) f) {
+    final SessionExecutor? ex = _executor;
+    if (ex == null) return f(this);
+    return ex.runTx((tx) => f(PostgresSafetyStore._emTransacao(tx)));
+  }
 
   static const String _colsContato =
       'id, owner_id, contact_user_id, status, created_at, accepted_at';
@@ -316,34 +345,100 @@ class PostgresSafetyStore implements SafetyStore {
     );
   }
 
+  static const String _colsNota =
+      'id, user_id, type, title, body, data, created_at, read_at';
+
+  NotificationRecord _nota(Map<String, dynamic> m) {
+    final Object? d = m['data'];
+    final Object? dados = d is String ? jsonDecode(d) : d;
+    return NotificationRecord(
+      id: m['id'] as String,
+      userId: m['user_id'] as String,
+      type: m['type'] as String,
+      title: m['title'] as String,
+      body: m['body'] as String,
+      data: Map<String, dynamic>.from(dados as Map? ?? const {}),
+      createdAtMs: m['created_at'] as int,
+      readAtMs: m['read_at'] as int?,
+    );
+  }
+
+  @override
+  Future<NotificationRecord?> findNotification(String id) async {
+    final r = await _q(
+        'SELECT $_colsNota FROM notifications WHERE id = @id', {'id': id});
+    return r.isEmpty ? null : _nota(r.first.toColumnMap());
+  }
+
   @override
   Future<List<NotificationRecord>> notificationsOf(String userId,
       {int? sinceMs, required int limit}) async {
     final r = await _q(
-      'SELECT id, user_id, type, title, body, data, created_at, read_at '
-      'FROM notifications WHERE user_id = @u '
+      'SELECT $_colsNota FROM notifications WHERE user_id = @u '
       'AND (@since::bigint IS NULL OR created_at > @since::bigint) '
       'ORDER BY created_at DESC, id DESC LIMIT @limit',
       {'u': userId, 'since': sinceMs, 'limit': limit},
+    );
+    return [for (final row in r) _nota(row.toColumnMap())];
+  }
+
+  // ---------------------------------------------------------- outbox de push
+
+  @override
+  Future<void> addPushOutbox(PushOutboxRecord o) async {
+    await _q(
+      'INSERT INTO push_outbox (id, notification_id, user_id, token, attempts, '
+      'next_attempt_at, created_at) VALUES (@id, @n, @u, @t, @a, @next, @c)',
+      {
+        'id': o.id,
+        'n': o.notificationId,
+        'u': o.userId,
+        't': o.token,
+        'a': o.attempts,
+        'next': o.nextAttemptAtMs,
+        'c': o.createdAtMs,
+      },
+    );
+  }
+
+  @override
+  Future<List<PushOutboxRecord>> duePushOutbox(int nowMs,
+      {int limit = 100}) async {
+    final r = await _q(
+      'SELECT id, notification_id, user_id, token, attempts, next_attempt_at, '
+      'created_at FROM push_outbox WHERE next_attempt_at <= @now '
+      'ORDER BY created_at, id LIMIT @limit',
+      {'now': nowMs, 'limit': limit},
     );
     return [
       for (final row in r)
         () {
           final m = row.toColumnMap();
-          final Object? d = m['data'];
-          final Object? dados = d is String ? jsonDecode(d) : d;
-          return NotificationRecord(
+          return PushOutboxRecord(
             id: m['id'] as String,
+            notificationId: m['notification_id'] as String,
             userId: m['user_id'] as String,
-            type: m['type'] as String,
-            title: m['title'] as String,
-            body: m['body'] as String,
-            data: Map<String, dynamic>.from(dados as Map? ?? const {}),
+            token: m['token'] as String,
+            attempts: m['attempts'] as int,
+            nextAttemptAtMs: m['next_attempt_at'] as int,
             createdAtMs: m['created_at'] as int,
-            readAtMs: m['read_at'] as int?,
           );
         }()
     ];
+  }
+
+  @override
+  Future<void> savePushOutbox(PushOutboxRecord o) async {
+    await _q(
+      'UPDATE push_outbox SET attempts = @a, next_attempt_at = @next '
+      'WHERE id = @id',
+      {'id': o.id, 'a': o.attempts, 'next': o.nextAttemptAtMs},
+    );
+  }
+
+  @override
+  Future<void> deletePushOutbox(String id) async {
+    await _q('DELETE FROM push_outbox WHERE id = @id', {'id': id});
   }
 
   @override
@@ -406,15 +501,17 @@ class PostgresSafetyStore implements SafetyStore {
   Future<void> deleteAllForUser(String userId) async {
     // A FK em cascata ja apaga ao excluir o usuario; isto deixa explicito e
     // cobre a ordem em que o DELETE /me chama os stores.
-    await _conn.runTx((tx) async {
+    await transaction((tx) async {
       for (final String sql in [
         'DELETE FROM safety_contacts WHERE owner_id = @u OR contact_user_id = @u',
         'DELETE FROM safety_sessions WHERE owner_id = @u',
+        'DELETE FROM push_outbox WHERE user_id = @u',
         'DELETE FROM notifications WHERE user_id = @u',
         'DELETE FROM push_tokens WHERE user_id = @u',
       ]) {
-        await tx.execute(Sql.named(sql), parameters: {'u': userId});
+        await (tx as PostgresSafetyStore)._q(sql, {'u': userId});
       }
     });
+
   }
 }

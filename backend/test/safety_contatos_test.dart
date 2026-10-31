@@ -248,6 +248,8 @@ void main() {
       }
       await h.json('POST', '/safety/contacts',
           body: {'email': bia.email}, token: ana.token, esperado: 201);
+      // O push sai depois do commit, sem a rota esperar.
+      await h.service.aguardarPush();
       final m = h.push.enviadas.single;
       expect(m.token, 'tok-bia');
       expect(m.type, 'contact_invite');
@@ -271,6 +273,7 @@ void main() {
       h.push.invalidos.add('tok-velho');
       await h.json('POST', '/safety/contacts',
           body: {'email': bia.email}, token: ana.token, esperado: 201);
+      await h.service.aguardarPush();
       expect(h.safety.hasPushToken('tok-velho'), isFalse);
       // A caixa de entrada recebeu mesmo assim.
       expect((await h.caixa(bia)).length, 1);

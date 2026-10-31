@@ -199,6 +199,39 @@ class NotificationRecord {
       };
 }
 
+/// Um envio de push pendente: uma notificacao para um token. Criado na mesma
+/// transacao da notificacao; o servico envia depois do commit e reenvia nos
+/// ticks seguintes ate dar certo ou acabarem as tentativas.
+class PushOutboxRecord {
+  PushOutboxRecord({
+    required this.id,
+    required this.notificationId,
+    required this.userId,
+    required this.token,
+    required this.createdAtMs,
+    required this.nextAttemptAtMs,
+    this.attempts = 0,
+  });
+
+  final String id;
+  final String notificationId;
+  final String userId;
+  final String token;
+  final int createdAtMs;
+  int nextAttemptAtMs;
+  int attempts;
+
+  PushOutboxRecord copy() => PushOutboxRecord(
+        id: id,
+        notificationId: notificationId,
+        userId: userId,
+        token: token,
+        createdAtMs: createdAtMs,
+        nextAttemptAtMs: nextAttemptAtMs,
+        attempts: attempts,
+      );
+}
+
 class PushTokenRecord {
   const PushTokenRecord({
     required this.token,
@@ -216,6 +249,10 @@ class PushTokenRecord {
 }
 
 abstract class SafetyStore {
+  /// Roda [f] numa transacao: ou tudo que [f] gravou fica, ou nada (se [f]
+  /// lancar). Dentro de uma transacao, chamar de novo so roda [f].
+  Future<T> transaction<T>(Future<T> Function(SafetyStore tx) f);
+
   // Contatos.
 
   /// Null se ja existe convite de [ContactRecord.ownerId] para
@@ -247,6 +284,7 @@ abstract class SafetyStore {
   // Notificacoes.
 
   Future<void> addNotification(NotificationRecord n);
+  Future<NotificationRecord?> findNotification(String id);
 
   /// Do usuario, criadas depois de [sinceMs], mais novas primeiro.
   Future<List<NotificationRecord>> notificationsOf(String userId,
@@ -268,6 +306,15 @@ abstract class SafetyStore {
   Future<void> deletePushTokenAnyOwner(String token);
   Future<List<PushTokenRecord>> pushTokensOf(String userId);
 
+  // Outbox de push.
+
+  Future<void> addPushOutbox(PushOutboxRecord r);
+
+  /// Pendentes com nextAttemptAtMs <= [nowMs], os mais antigos primeiro.
+  Future<List<PushOutboxRecord>> duePushOutbox(int nowMs, {int limit = 100});
+  Future<void> savePushOutbox(PushOutboxRecord r);
+  Future<void> deletePushOutbox(String id);
+
   /// Exclusao de conta: tudo que pertence a [userId] (no Postgres a FK em
   /// cascata ja faz isso; aqui cobre o store em memoria).
   Future<void> deleteAllForUser(String userId);
@@ -278,6 +325,49 @@ class InMemorySafetyStore implements SafetyStore {
   final Map<String, SafetySessionRecord> _sessions = {};
   final Map<String, NotificationRecord> _notifications = {};
   final Map<String, PushTokenRecord> _tokens = {};
+  final Map<String, PushOutboxRecord> _outbox = {};
+  bool _emTransacao = false;
+
+  /// Pendentes na outbox (para os testes).
+  int get outboxCount => _outbox.length;
+
+  /// Transacao do store em memoria: fotografa tudo e restaura se [f] lancar.
+  /// Escritas de fora feitas durante [f] tambem seriam desfeitas; serve para
+  /// os testes e USE_INMEMORY=1, nao para concorrencia de verdade.
+  @override
+  Future<T> transaction<T>(Future<T> Function(SafetyStore tx) f) async {
+    if (_emTransacao) return f(this);
+    final contatos = {for (final e in _contacts.entries) e.key: e.value.copy()};
+    final sessoes = {for (final e in _sessions.entries) e.key: e.value.copy()};
+    final notas = {
+      for (final e in _notifications.entries) e.key: e.value.copy()
+    };
+    final tokens = Map<String, PushTokenRecord>.of(_tokens);
+    final outbox = {for (final e in _outbox.entries) e.key: e.value.copy()};
+    _emTransacao = true;
+    try {
+      return await f(this);
+    } catch (_) {
+      _contacts
+        ..clear()
+        ..addAll(contatos);
+      _sessions
+        ..clear()
+        ..addAll(sessoes);
+      _notifications
+        ..clear()
+        ..addAll(notas);
+      _tokens
+        ..clear()
+        ..addAll(tokens);
+      _outbox
+        ..clear()
+        ..addAll(outbox);
+      rethrow;
+    } finally {
+      _emTransacao = false;
+    }
+  }
 
   /// Para os testes.
   int get sessionCount => _sessions.length;
@@ -370,6 +460,38 @@ class InMemorySafetyStore implements SafetyStore {
   }
 
   @override
+  Future<NotificationRecord?> findNotification(String id) async =>
+      _notifications[id]?.copy();
+
+  @override
+  Future<void> addPushOutbox(PushOutboxRecord r) async {
+    _outbox[r.id] = r.copy();
+  }
+
+  @override
+  Future<List<PushOutboxRecord>> duePushOutbox(int nowMs,
+      {int limit = 100}) async {
+    final List<PushOutboxRecord> l = [
+      for (final r in _outbox.values)
+        if (r.nextAttemptAtMs <= nowMs) r.copy()
+    ]..sort((a, b) {
+        final int c = a.createdAtMs.compareTo(b.createdAtMs);
+        return c != 0 ? c : a.id.compareTo(b.id);
+      });
+    return l.take(limit).toList();
+  }
+
+  @override
+  Future<void> savePushOutbox(PushOutboxRecord r) async {
+    if (_outbox.containsKey(r.id)) _outbox[r.id] = r.copy();
+  }
+
+  @override
+  Future<void> deletePushOutbox(String id) async {
+    _outbox.remove(id);
+  }
+
+  @override
   Future<List<NotificationRecord>> notificationsOf(String userId,
       {int? sinceMs, required int limit}) async {
     final List<NotificationRecord> lista = [
@@ -420,5 +542,7 @@ class InMemorySafetyStore implements SafetyStore {
     _sessions.removeWhere((_, s) => s.ownerId == userId);
     _notifications.removeWhere((_, n) => n.userId == userId);
     _tokens.removeWhere((_, t) => t.userId == userId);
+    _outbox.removeWhere((_, r) => r.userId == userId);
+
   }
 }

@@ -5,6 +5,8 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show stderr;
+
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -162,6 +164,11 @@ Future<Response> _protegida(
     return await h(u);
   } on SafetyError catch (e) {
     return _erro(e.status, e.message);
+  } catch (e) {
+    // Falha de banco no meio da transacao: nada foi gravado, o app tenta de
+    // novo. O detalhe vai so para o log.
+    stderr.writeln('rastro seguro: ${req.method} ${req.url.path}: $e');
+    return _erro(500, 'erro interno');
   }
 }
 

@@ -43,6 +43,8 @@ class SafetyConfig {
     this.arrivedLinkMs = 15 * 60 * 1000,
     this.maxAcceptedContacts = 3,
     this.invitesPerHour = 20,
+    this.pushMaxAttempts = 5,
+    this.pushRetryBaseMs = 15000,
   });
 
   /// Le as variaveis do contrato; ausentes ou invalidas ficam no padrao.
@@ -87,6 +89,13 @@ class SafetyConfig {
   /// Convites (com sucesso ou nao) por conta por hora. Barra quem usaria o
   /// 404 "sem conta no Rastro" para descobrir quais emails tem conta.
   final int invitesPerHour;
+
+  /// Tentativas de cada push da outbox antes de desistir (a caixa de entrada
+  /// ja tem a notificacao).
+  final int pushMaxAttempts;
+
+  /// Espera antes da 2a tentativa; dobra a cada falha (base, 2x, 4x...).
+  final int pushRetryBaseMs;
 }
 
 /// Formato do token do link: 32 bytes em base64url sem padding = 43 chars.
@@ -180,10 +189,13 @@ class SafetyService {
 
   // ------------------------------------------------------------ notificacoes
 
-  /// Grava na caixa de entrada e manda para os aparelhos de [userId]. Falha
-  /// de push nunca derruba a operacao (a caixa ja recebeu).
-  Future<void> _notificar(String userId, String tipo, String titulo,
-      String corpo, Map<String, dynamic> dados) async {
+  /// Grava a notificacao na caixa de entrada de [userId] e um envio pendente
+  /// na outbox para cada aparelho dele, tudo dentro da transacao [tx]. A
+  /// caixa de entrada e a fonte de verdade; o push sai depois do commit
+  /// (_dispararPush / drenarPush).
+  Future<void> _notificar(SafetyStore tx, String userId, String tipo,
+      String titulo, String corpo, Map<String, dynamic> dados) async {
+    final int agora = _now();
     final NotificationRecord n = NotificationRecord(
       id: _genId('nt'),
       userId: userId,
@@ -191,28 +203,98 @@ class SafetyService {
       title: titulo,
       body: corpo,
       data: dados,
-      createdAtMs: _now(),
+      createdAtMs: agora,
     );
-    await _store.addNotification(n);
-    final List<PushTokenRecord> tokens = await _store.pushTokensOf(userId);
-    for (final PushTokenRecord t in tokens) {
+    await tx.addNotification(n);
+    for (final PushTokenRecord t in await tx.pushTokensOf(userId)) {
+      await tx.addPushOutbox(PushOutboxRecord(
+        id: _genId('po'),
+        notificationId: n.id,
+        userId: userId,
+        token: t.token,
+        createdAtMs: agora,
+        nextAttemptAtMs: agora,
+      ));
+    }
+  }
+
+  Future<void>? _drenagem;
+  bool _drenarDeNovo = false;
+
+  /// Depois de um commit com notificacao: envia sem a rota esperar.
+  void _dispararPush() {
+    unawaited(drenarPush().catchError((Object e) {
+      stderr.writeln('outbox de push falhou: $e');
+    }));
+  }
+
+  /// Termina quando a drenagem em curso (se houver) acabar. Para os testes.
+  Future<void> aguardarPush() => _drenagem ?? Future<void>.value();
+
+  /// Envia o que esta vencido na outbox. Uma drenagem por vez: quem chama
+  /// durante uma em curso pede outra passada e espera a mesma.
+  Future<void> drenarPush() {
+    if (_drenagem != null) {
+      _drenarDeNovo = true;
+      return _drenagem!;
+    }
+    final Future<void> d = () async {
+      do {
+        _drenarDeNovo = false;
+        await _drenarUmaVez();
+      } while (_drenarDeNovo);
+    }();
+    _drenagem = d.whenComplete(() => _drenagem = null);
+    return _drenagem!;
+  }
+
+  Future<void> _drenarUmaVez() async {
+    for (final PushOutboxRecord o in await _store.duePushOutbox(_now())) {
+      final NotificationRecord? n = await _store.findNotification(o.notificationId);
+      final List<PushTokenRecord> tokens = await _store.pushTokensOf(o.userId);
+      PushTokenRecord? t;
+      for (final x in tokens) {
+        if (x.token == o.token) t = x;
+      }
+      // Notificacao apagada ou token que saiu da conta: nada a enviar.
+      if (n == null || t == null) {
+        await _store.deletePushOutbox(o.id);
+        continue;
+      }
+      PushResult r;
       try {
-        final PushResult r = await _push
+        r = await _push
             .send(PushMessage(
               token: t.token,
               platform: t.platform,
               notificationId: n.id,
-              type: tipo,
-              title: titulo,
-              body: corpo,
-              data: dados,
+              type: n.type,
+              title: n.title,
+              body: n.body,
+              data: n.data,
             ))
             .timeout(const Duration(seconds: 10));
-        if (r == PushResult.invalidToken) {
-          await _store.deletePushTokenAnyOwner(t.token);
-        }
       } catch (e) {
-        stderr.writeln('falha no push ${n.id}: $e');
+        stderr.writeln('push ${n.id}: $e');
+        r = PushResult.failed;
+      }
+      switch (r) {
+        case PushResult.sent:
+          await _store.deletePushOutbox(o.id);
+        case PushResult.invalidToken:
+          await _store.deletePushOutbox(o.id);
+          await _store.deletePushTokenAnyOwner(t.token);
+        case PushResult.failed:
+          o.attempts++;
+          if (o.attempts >= config.pushMaxAttempts) {
+            stderr.writeln('push ${n.id}: desistiu depois de '
+                '${o.attempts} tentativas (fica so na caixa de entrada)');
+            await _store.deletePushOutbox(o.id);
+          } else {
+            o.nextAttemptAtMs =
+                _now() + config.pushRetryBaseMs * (1 << (o.attempts - 1));
+            await _store.savePushOutbox(o);
+          }
       }
     }
   }
@@ -277,21 +359,26 @@ class SafetyService {
       throw SafetyError(
           409, 'limite de ${config.maxAcceptedContacts} contatos aceitos');
     }
-    final ContactRecord? c = await _store.createContact(ContactRecord(
-      id: _genId('ct'),
-      ownerId: dona.id,
-      contactUserId: convidado.id,
-      status: 'pending',
-      createdAtMs: _now(),
-    ));
-    if (c == null) throw const SafetyError(409, 'convite ja existe');
-    await _notificar(
-      convidado.id,
-      'contact_invite',
-      'Convite para o Rastro Seguro',
-      '${dona.displayName} quer ter voce como contato de confianca.',
-      {'contactId': c.id, 'ownerName': dona.displayName},
-    );
+    final ContactRecord c = await _store.transaction((tx) async {
+      final ContactRecord? c = await tx.createContact(ContactRecord(
+        id: _genId('ct'),
+        ownerId: dona.id,
+        contactUserId: convidado.id,
+        status: 'pending',
+        createdAtMs: _now(),
+      ));
+      if (c == null) throw const SafetyError(409, 'convite ja existe');
+      await _notificar(
+        tx,
+        convidado.id,
+        'contact_invite',
+        'Convite para o Rastro Seguro',
+        '${dona.displayName} quer ter voce como contato de confianca.',
+        {'contactId': c.id, 'ownerName': dona.displayName},
+      );
+      return c;
+    });
+    _dispararPush();
     return (await _contatoJson(c, dona.id))!;
   }
 
@@ -320,14 +407,18 @@ class SafetyService {
       c
         ..status = 'accepted'
         ..acceptedAtMs = _now();
-      await _store.saveContact(c);
-      await _notificar(
-        c.ownerId,
-        'contact_accepted',
-        'Contato de confianca aceito',
-        '${u.displayName} aceitou ser seu contato de confianca.',
-        {'contactId': c.id, 'contactName': u.displayName},
-      );
+      await _store.transaction((tx) async {
+        await tx.saveContact(c);
+        await _notificar(
+          tx,
+          c.ownerId,
+          'contact_accepted',
+          'Contato de confianca aceito',
+          '${u.displayName} aceitou ser seu contato de confianca.',
+          {'contactId': c.id, 'contactName': u.displayName},
+        );
+      });
+      _dispararPush();
     }
     final Map<String, dynamic>? j = await _contatoJson(c, u.id);
     if (j == null) throw const SafetyError(404, 'nao encontrado');
@@ -448,23 +539,29 @@ class SafetyService {
     return sessionJson(s);
   }
 
-  /// Carrega a sessao da dona sob trava, aplica [f] e salva.
+  /// Carrega a sessao da dona sob trava e, numa transacao, aplica [f] e
+  /// salva: a mudanca da sessao e as notificacoes que [f] gravar ficam juntas
+  /// ou nao ficam. O push sai depois do commit, sem a rota esperar.
   Future<Map<String, dynamic>> _alterar(UserRecord u, String id,
-      Future<void> Function(SafetySessionRecord s) f) async {
+      Future<void> Function(SafetySessionRecord s, SafetyStore tx) f) async {
     // Checa a dona antes de pegar a trava (id alheio nao enfileira nada).
     final SafetySessionRecord? previa = await _store.findSession(id);
     if (previa == null || previa.ownerId != u.id) {
       throw const SafetyError(404, 'nao encontrado');
     }
-    return _comTrava(id, () async {
-      final SafetySessionRecord? s = await _store.findSession(id);
-      if (s == null || s.ownerId != u.id) {
-        throw const SafetyError(404, 'nao encontrado');
-      }
-      await f(s);
-      await _store.saveSession(s);
-      return sessionJson(s);
+    final Map<String, dynamic> r = await _comTrava(id, () {
+      return _store.transaction((tx) async {
+        final SafetySessionRecord? s = await tx.findSession(id);
+        if (s == null || s.ownerId != u.id) {
+          throw const SafetyError(404, 'nao encontrado');
+        }
+        await f(s, tx);
+        await tx.saveSession(s);
+        return sessionJson(s);
+      });
     });
+    _dispararPush();
+    return r;
   }
 
   void _exigirAberta(SafetySessionRecord s) {
@@ -499,7 +596,7 @@ class SafetyService {
         (paused != null && paused is! bool)) {
       throw const SafetyError(400, 'moving e paused precisam ser booleanos');
     }
-    return _alterar(u, id, (s) async {
+    return _alterar(u, id, (s, tx) async {
       _exigirAberta(s);
       final int agora = _now();
       s.lastSignalAtMs = agora;
@@ -526,7 +623,8 @@ class SafetyService {
 
   /// A dona respondeu (ok/extend): volta a `active`, zera a checagem e o
   /// sinal de vida; se ja tinha alertado, avisa os contatos que esta bem.
-  Future<void> _respondeu(SafetySessionRecord s, UserRecord dona) async {
+  Future<void> _respondeu(
+      SafetySessionRecord s, UserRecord dona, SafetyStore tx) async {
     final bool tinhaAlertado = s.status == 'alerted';
     final int agora = _now();
     s
@@ -537,6 +635,7 @@ class SafetyService {
       ..clearCheck();
     if (tinhaAlertado) {
       await _avisarContatos(
+        tx,
         s,
         'safety_all_clear',
         '${primeiroNome(dona.displayName)} esta bem',
@@ -547,9 +646,9 @@ class SafetyService {
   }
 
   Future<Map<String, dynamic>> ok(UserRecord u, String id) =>
-      _alterar(u, id, (s) async {
+      _alterar(u, id, (s, tx) async {
         _exigirAberta(s);
-        await _respondeu(s, u);
+        await _respondeu(s, u, tx);
         // Com o horario ja vencido, nao pergunta de novo no tick seguinte:
         // so depois de um intervalo de silencio (ou ela usa extend).
         final int agora = _now();
@@ -562,9 +661,9 @@ class SafetyService {
     if (m is! num || m != m.roundToDouble() || m < 5 || m > 120) {
       throw const SafetyError(400, 'minutes precisa ser inteiro de 5 a 120');
     }
-    return _alterar(u, id, (s) async {
+    return _alterar(u, id, (s, tx) async {
       _exigirAberta(s);
-      await _respondeu(s, u);
+      await _respondeu(s, u, tx);
       // Com o eta ja vencido, os minutos contam de agora (senao "mais 15
       // min" uma hora depois do eta continuaria no passado).
       s
@@ -575,7 +674,7 @@ class SafetyService {
   }
 
   Future<Map<String, dynamic>> arrived(UserRecord u, String id) =>
-      _alterar(u, id, (s) async {
+      _alterar(u, id, (s, tx) async {
         if (s.ended) return; // idempotente: reenvio do app nao muda nada
         final bool tinhaAlertado = s.status == 'alerted';
         final int agora = _now();
@@ -588,6 +687,7 @@ class SafetyService {
           ..clearCheck();
         if (tinhaAlertado) {
           await _avisarContatos(
+            tx,
             s,
             'safety_all_clear',
             '${primeiroNome(u.displayName)} chegou',
@@ -598,11 +698,12 @@ class SafetyService {
       });
 
   Future<Map<String, dynamic>> sos(UserRecord u, String id) =>
-      _alterar(u, id, (s) async {
+      _alterar(u, id, (s, tx) async {
         _exigirAberta(s);
         s.lastSignalAtMs = _now();
         final SafetyPosition? p = s.lastPosition;
         await _avisarContatos(
+          tx,
           s,
           'safety_sos',
           '${primeiroNome(u.displayName)} pediu ajuda',
@@ -618,13 +719,14 @@ class SafetyService {
         );
       });
 
-  /// Notifica os contatos da sessao que ainda existem e estao aceitos.
-  Future<void> _avisarContatos(SafetySessionRecord s, String tipo,
-      String titulo, String corpo, Map<String, dynamic> dados) async {
+  /// Notifica (na transacao [tx]) os contatos da sessao que ainda existem e
+  /// estao aceitos.
+  Future<void> _avisarContatos(SafetyStore tx, SafetySessionRecord s,
+      String tipo, String titulo, String corpo, Map<String, dynamic> dados) async {
     for (final String id in s.contactIds) {
-      final ContactRecord? c = await _store.findContact(id);
+      final ContactRecord? c = await tx.findContact(id);
       if (c == null || c.ownerId != s.ownerId || !c.accepted) continue;
-      await _notificar(c.contactUserId, tipo, titulo, corpo, dados);
+      await _notificar(tx, c.contactUserId, tipo, titulo, corpo, dados);
     }
   }
 
@@ -657,16 +759,20 @@ class SafetyService {
   Future<void> tick() async {
     for (final SafetySessionRecord previa in await _store.openSessions()) {
       try {
-        await _comTrava(previa.id, () => _vigiar(previa.id));
+        // Cada sessao numa transacao: a mudanca de status e as notificacoes
+        // ficam juntas ou nao ficam (o proximo tick tenta de novo).
+        await _comTrava(
+            previa.id, () => _store.transaction((tx) => _vigiar(previa.id, tx)));
       } catch (e) {
         stderr.writeln('vigia: sessao ${previa.id}: $e');
       }
     }
     await _store.deleteSessionsEndedBefore(_now() - config.purgeAfterMs);
+    await drenarPush();
   }
 
-  Future<void> _vigiar(String id) async {
-    final SafetySessionRecord? s = await _store.findSession(id);
+  Future<void> _vigiar(String id, SafetyStore tx) async {
+    final SafetySessionRecord? s = await tx.findSession(id);
     if (s == null || s.ended) return;
     final int agora = _now();
 
@@ -677,7 +783,7 @@ class SafetyService {
         ..endedAtMs = agora;
       // Link segue valendo ate a limpeza (24 h): se ela nao respondeu, os
       // contatos ainda precisam dele.
-      await _store.saveSession(s);
+      await tx.saveSession(s);
       return;
     }
 
@@ -689,9 +795,10 @@ class SafetyService {
         ..checkReason = motivo
         ..checkStartedAtMs = agora
         ..checkDeadlineMs = agora + config.checkMs;
-      await _store.saveSession(s);
+      await tx.saveSession(s);
       final int minutos = (config.checkMs / 60000).ceil();
       await _notificar(
+        tx,
         s.ownerId,
         'safety_check',
         'Esta tudo bem?',
@@ -710,11 +817,13 @@ class SafetyService {
       s
         ..status = 'alerted'
         ..alertedAtMs = agora;
-      await _store.saveSession(s);
+      await tx.saveSession(s);
       final UserRecord? dona = await _users.findById(s.ownerId);
       final String nome = dona?.displayName ?? 'Sua contato';
       await _avisarContatos(
+        tx,
         s,
+
         'safety_alert',
         '${primeiroNome(nome)} nao respondeu',
         '$nome nao respondeu ao Rastro Seguro: '
