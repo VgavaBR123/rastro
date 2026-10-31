@@ -78,7 +78,7 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Gravacao',
             child: Column(
               children: [
-                SwitchListTile(
+                SwitchListTile.adaptive(
                   key: const Key('autopause'),
                   title: const Text('Pausa automatica'),
                   subtitle: const Text('Pausa sozinho quando voce para'),

@@ -13,6 +13,7 @@ import '../persistence/database.dart';
 import '../sync/background/background_sync_provider.dart';
 import '../sync/sync_controller.dart' show kSignInToSyncMessage;
 import 'components/activity_card.dart';
+import 'components/adaptive_controls.dart';
 import 'components/app_nav_bar.dart';
 import 'share_activity.dart';
 import 'theme/app_colors.dart';
@@ -145,9 +146,10 @@ class _ActivityTile extends ConsumerWidget {
   /// widget test (tap no menu, tap no item) e nao depende de gesto/velocidade.
   Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    final confirmed = await showDialog<bool>(
+    // Adaptativo: no iOS e o alerta do sistema (INI-16).
+    final confirmed = await showAdaptiveDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => AlertDialog.adaptive(
         title: const Text('Excluir atividade?'),
         content: Text(
           activity.remoteId != null
@@ -156,16 +158,14 @@ class _ActivityTile extends ConsumerWidget {
               : 'Esta acao nao pode ser desfeita.',
         ),
         actions: [
-          TextButton(
+          AdaptiveDialogAction(
             key: const Key('cancel-delete'),
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Cancelar'),
           ),
-          TextButton(
+          AdaptiveDialogAction(
             key: const Key('confirm-delete'),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.of(dialogContext).danger,
-            ),
+            destructive: true,
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Excluir'),
           ),

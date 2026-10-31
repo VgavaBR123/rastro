@@ -15,6 +15,7 @@ import '../core/format/measures.dart';
 import '../persistence/database.dart';
 import '../recording/domain/geo.dart';
 import '../recording/domain/recording_models.dart';
+import 'components/adaptive_controls.dart';
 import 'components/floating_map_button.dart';
 import 'components/metric_tile.dart';
 import 'components/sport_chip.dart';
@@ -177,7 +178,7 @@ class ActivityDetailScreen extends ConsumerWidget {
                   children: [
                     FloatingMapButton(
                       key: const Key('detailBack'),
-                      icon: Icons.arrow_back,
+                      icon: adaptiveBackIcon(context),
                       tooltip: 'Voltar',
                       onPressed: () => Navigator.of(context).maybePop(),
                     ),
