@@ -6244,6 +6244,217 @@ class SafetyLocalSessionsCompanion
   }
 }
 
+class $SafetyMetaTable extends SafetyMeta
+    with TableInfo<$SafetyMetaTable, SafetyMetaRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SafetyMetaTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intValueMeta = const VerificationMeta(
+    'intValue',
+  );
+  @override
+  late final GeneratedColumn<int> intValue = GeneratedColumn<int>(
+    'int_value',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, intValue];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'safety_meta';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SafetyMetaRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('int_value')) {
+      context.handle(
+        _intValueMeta,
+        intValue.isAcceptableOrUnknown(data['int_value']!, _intValueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_intValueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  SafetyMetaRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SafetyMetaRow(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      intValue: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}int_value'],
+      )!,
+    );
+  }
+
+  @override
+  $SafetyMetaTable createAlias(String alias) {
+    return $SafetyMetaTable(attachedDatabase, alias);
+  }
+}
+
+class SafetyMetaRow extends DataClass implements Insertable<SafetyMetaRow> {
+  /// Ex.: 'alerts_seen_ms' (ate onde os alertas viraram notificacao local).
+  final String key;
+  final int intValue;
+  const SafetyMetaRow({required this.key, required this.intValue});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['int_value'] = Variable<int>(intValue);
+    return map;
+  }
+
+  SafetyMetaCompanion toCompanion(bool nullToAbsent) {
+    return SafetyMetaCompanion(key: Value(key), intValue: Value(intValue));
+  }
+
+  factory SafetyMetaRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SafetyMetaRow(
+      key: serializer.fromJson<String>(json['key']),
+      intValue: serializer.fromJson<int>(json['intValue']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'intValue': serializer.toJson<int>(intValue),
+    };
+  }
+
+  SafetyMetaRow copyWith({String? key, int? intValue}) =>
+      SafetyMetaRow(key: key ?? this.key, intValue: intValue ?? this.intValue);
+  SafetyMetaRow copyWithCompanion(SafetyMetaCompanion data) {
+    return SafetyMetaRow(
+      key: data.key.present ? data.key.value : this.key,
+      intValue: data.intValue.present ? data.intValue.value : this.intValue,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SafetyMetaRow(')
+          ..write('key: $key, ')
+          ..write('intValue: $intValue')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, intValue);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SafetyMetaRow &&
+          other.key == this.key &&
+          other.intValue == this.intValue);
+}
+
+class SafetyMetaCompanion extends UpdateCompanion<SafetyMetaRow> {
+  final Value<String> key;
+  final Value<int> intValue;
+  final Value<int> rowid;
+  const SafetyMetaCompanion({
+    this.key = const Value.absent(),
+    this.intValue = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SafetyMetaCompanion.insert({
+    required String key,
+    required int intValue,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       intValue = Value(intValue);
+  static Insertable<SafetyMetaRow> custom({
+    Expression<String>? key,
+    Expression<int>? intValue,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (intValue != null) 'int_value': intValue,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SafetyMetaCompanion copyWith({
+    Value<String>? key,
+    Value<int>? intValue,
+    Value<int>? rowid,
+  }) {
+    return SafetyMetaCompanion(
+      key: key ?? this.key,
+      intValue: intValue ?? this.intValue,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (intValue.present) {
+      map['int_value'] = Variable<int>(intValue.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SafetyMetaCompanion(')
+          ..write('key: $key, ')
+          ..write('intValue: $intValue, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$RecordingDatabase extends GeneratedDatabase {
   _$RecordingDatabase(QueryExecutor e) : super(e);
   $RecordingDatabaseManager get managers => $RecordingDatabaseManager(this);
@@ -6262,6 +6473,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
   late final $Plan5kSessionsTable plan5kSessions = $Plan5kSessionsTable(this);
   late final $SafetyLocalSessionsTable safetyLocalSessions =
       $SafetyLocalSessionsTable(this);
+  late final $SafetyMetaTable safetyMeta = $SafetyMetaTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6278,6 +6490,7 @@ abstract class _$RecordingDatabase extends GeneratedDatabase {
     plan5kStates,
     plan5kSessions,
     safetyLocalSessions,
+    safetyMeta,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -10092,6 +10305,155 @@ typedef $$SafetyLocalSessionsTableProcessedTableManager =
       SafetyLocalSessionRow,
       PrefetchHooks Function()
     >;
+typedef $$SafetyMetaTableCreateCompanionBuilder = SafetyMetaCompanion Function({
+  required String key,
+  required int intValue,
+  Value<int> rowid,
+});
+typedef $$SafetyMetaTableUpdateCompanionBuilder = SafetyMetaCompanion Function({
+  Value<String> key,
+  Value<int> intValue,
+  Value<int> rowid,
+});
+
+class $$SafetyMetaTableFilterComposer
+    extends Composer<_$RecordingDatabase, $SafetyMetaTable> {
+  $$SafetyMetaTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get intValue => $composableBuilder(
+    column: $table.intValue,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SafetyMetaTableOrderingComposer
+    extends Composer<_$RecordingDatabase, $SafetyMetaTable> {
+  $$SafetyMetaTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get intValue => $composableBuilder(
+    column: $table.intValue,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SafetyMetaTableAnnotationComposer
+    extends Composer<_$RecordingDatabase, $SafetyMetaTable> {
+  $$SafetyMetaTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<int> get intValue =>
+      $composableBuilder(column: $table.intValue, builder: (column) => column);
+}
+
+class $$SafetyMetaTableTableManager
+    extends
+        RootTableManager<
+          _$RecordingDatabase,
+          $SafetyMetaTable,
+          SafetyMetaRow,
+          $$SafetyMetaTableFilterComposer,
+          $$SafetyMetaTableOrderingComposer,
+          $$SafetyMetaTableAnnotationComposer,
+          $$SafetyMetaTableCreateCompanionBuilder,
+          $$SafetyMetaTableUpdateCompanionBuilder,
+          (
+            SafetyMetaRow,
+            BaseReferences<
+              _$RecordingDatabase,
+              $SafetyMetaTable,
+              SafetyMetaRow
+            >,
+          ),
+          SafetyMetaRow,
+          PrefetchHooks Function()
+        > {
+  $$SafetyMetaTableTableManager(_$RecordingDatabase db, $SafetyMetaTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SafetyMetaTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SafetyMetaTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SafetyMetaTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<int> intValue = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) => SafetyMetaCompanion(key: key, intValue: intValue, rowid: rowid),
+          createCompanionCallback:
+              ({
+                required String key,
+                required int intValue,
+                Value<int> rowid = const Value.absent(),
+              }) => SafetyMetaCompanion.insert(
+                key: key,
+                intValue: intValue,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SafetyMetaTable, SafetyMetaRow>(table),
+                  BaseReferences<
+                    _$RecordingDatabase,
+                    $SafetyMetaTable,
+                    SafetyMetaRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SafetyMetaTableProcessedTableManager =
+    ProcessedTableManager<
+      _$RecordingDatabase,
+      $SafetyMetaTable,
+      SafetyMetaRow,
+      $$SafetyMetaTableFilterComposer,
+      $$SafetyMetaTableOrderingComposer,
+      $$SafetyMetaTableAnnotationComposer,
+      $$SafetyMetaTableCreateCompanionBuilder,
+      $$SafetyMetaTableUpdateCompanionBuilder,
+      (
+        SafetyMetaRow,
+        BaseReferences<_$RecordingDatabase, $SafetyMetaTable, SafetyMetaRow>,
+      ),
+      SafetyMetaRow,
+      PrefetchHooks Function()
+    >;
 
 class $RecordingDatabaseManager {
   final _$RecordingDatabase _db;
@@ -10120,4 +10482,6 @@ class $RecordingDatabaseManager {
       $$Plan5kSessionsTableTableManager(_db, _db.plan5kSessions);
   $$SafetyLocalSessionsTableTableManager get safetyLocalSessions =>
       $$SafetyLocalSessionsTableTableManager(_db, _db.safetyLocalSessions);
+  $$SafetyMetaTableTableManager get safetyMeta =>
+      $$SafetyMetaTableTableManager(_db, _db.safetyMeta);
 }

@@ -257,6 +257,16 @@ class Plan5kSessions extends Table {
 /// Rastro Seguro (F08): sessoes criadas NESTE aparelho. A recuperacao so
 /// encerra sessao que esteja aqui (a mesma conta pode estar gravando em outro
 /// aparelho), e o "arrived" que nao saiu fica marcado ate chegar ao backend.
+@DataClassName('SafetyMetaRow')
+class SafetyMeta extends Table {
+  /// Ex.: 'alerts_seen_ms' (ate onde os alertas viraram notificacao local).
+  TextColumn get key => text()();
+  IntColumn get intValue => integer()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
 @DataClassName('SafetyLocalSessionRow')
 class SafetyLocalSessions extends Table {
   TextColumn get sessionId => text()();
@@ -282,6 +292,7 @@ class SafetyLocalSessions extends Table {
       Plan5kStates,
       Plan5kSessions,
       SafetyLocalSessions,
+      SafetyMeta,
     ])
 class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
@@ -349,6 +360,7 @@ class RecordingDatabase extends _$RecordingDatabase {
           }
           if (from < 14) {
             await m.createTable(safetyLocalSessions);
+            await m.createTable(safetyMeta);
           }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga

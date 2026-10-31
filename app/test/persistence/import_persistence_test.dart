@@ -55,6 +55,7 @@ void main() {
           final v = raw.select('PRAGMA user_version').first.values.first;
           if (v != 14) return;
           raw.execute('DROP TABLE safety_local_sessions');
+          raw.execute('DROP TABLE safety_meta');
           raw.execute('ALTER TABLE activities DROP COLUMN import_source');
           raw.execute('PRAGMA user_version = 12');
         },

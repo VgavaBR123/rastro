@@ -34,6 +34,12 @@ void main() {
       expect(await store.pendingArrivals(), isEmpty);
     });
 
+    test('cursor dos alertas ja notificados', () async {
+      expect(await store.alertsSeenMs(), 0);
+      await store.setAlertsSeenMs(500);
+      expect(await store.alertsSeenMs(), 500);
+    });
+
     test('pendentes de uma conta so', () async {
       await store.created(sessionId: 'a', activityGuid: 'g1', ownerUserId: 'u1', nowMs: 1);
       await store.created(sessionId: 'b', activityGuid: 'g2', ownerUserId: 'u2', nowMs: 2);
@@ -68,6 +74,7 @@ void main() {
           final v = raw.select('PRAGMA user_version').first.values.first;
           if (v != 14) return;
           raw.execute('DROP TABLE safety_local_sessions');
+          raw.execute('DROP TABLE safety_meta');
           raw.execute('PRAGMA user_version = 13');
         },
       ),

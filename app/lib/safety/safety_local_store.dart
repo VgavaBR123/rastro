@@ -45,4 +45,13 @@ class SafetyLocalStore {
   /// Sessao encerrada no backend (ou que nao existe mais): sai do registro.
   Future<void> ended(String sessionId) =>
       (_db.delete(_db.safetyLocalSessions)..where((t) => t.sessionId.equals(sessionId))).go();
+
+  /// Ate onde os alertas ja viraram notificacao local (createdAt, epoch ms).
+  Future<int> alertsSeenMs() async =>
+      (await (_db.select(_db.safetyMeta)..where((t) => t.key.equals(_kAlertsSeen))).getSingleOrNull())?.intValue ?? 0;
+
+  Future<void> setAlertsSeenMs(int ms) =>
+      _db.into(_db.safetyMeta).insertOnConflictUpdate(SafetyMetaCompanion.insert(key: _kAlertsSeen, intValue: ms));
+
+  static const String _kAlertsSeen = 'alerts_seen_ms';
 }
