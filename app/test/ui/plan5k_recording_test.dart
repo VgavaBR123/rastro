@@ -98,6 +98,7 @@ void main() {
     WidgetTester tester, {
     ThemeData? theme,
     Future<void> Function(PlanRepository repo)? seed,
+    bool started = true,
   }) async {
     db = RecordingDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -106,7 +107,7 @@ void main() {
     nowMs = 0;
     final planRepo = PlanRepository(db);
     await tester.runAsync(() async {
-      await planRepo.saveState(const PlanState(started: true));
+      if (started) await planRepo.saveState(const PlanState(started: true));
       await seed?.call(planRepo);
     });
     tester.view.physicalSize = const Size(420, 1800);
@@ -243,5 +244,12 @@ void main() {
     expect(find.byKey(const Key('plan_repeat_dialog')), findsNothing);
     final state = await tester.runAsync(() => PlanRepository(db).loadState());
     expect(state!.currentWeek, 2);
+  });
+
+  testWidgets('sem sessao do plano disponivel: avisa e grava uma corrida comum', (tester) async {
+    await pump(tester, started: false);
+    expect(find.text('Sem sessao do plano agora. Gravando uma corrida comum.'), findsOneWidget);
+    expect(find.byKey(const Key('plan_block_card')), findsNothing);
+    expect(find.byKey(const Key('duration')), findsOneWidget);
   });
 }

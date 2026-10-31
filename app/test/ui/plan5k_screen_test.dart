@@ -15,6 +15,7 @@ import 'package:strava_estudo_app/plan5k/plan_repository.dart';
 import 'package:strava_estudo_app/recording/domain/geo.dart';
 import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/recording/source/current_position.dart';
+import 'package:strava_estudo_app/ui/plan5k/plan_actions.dart';
 import 'package:strava_estudo_app/ui/plan5k/plan_screen.dart';
 import 'package:strava_estudo_app/ui/record_setup_screen.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
@@ -54,6 +55,17 @@ void main() {
       initialLocation: initial,
       routes: [
         GoRoute(path: '/record', builder: (_, _) => const RecordSetupScreen()),
+        GoRoute(
+          path: '/start',
+          builder: (_, _) => Scaffold(
+            body: Consumer(
+              builder: (context, ref, _) => TextButton(
+                onPressed: () => startPlanSession(context, ref),
+                child: const Text('iniciar sessao'),
+              ),
+            ),
+          ),
+        ),
         GoRoute(
           path: AppRoutes.plan5k,
           builder: (_, _) => const PlanScreen(),
@@ -220,5 +232,13 @@ void main() {
       expect(find.text('gravando plano'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+  });
+
+  testWidgets('iniciar sessao sem sessao disponivel: avisa e nao abre a gravacao', (tester) async {
+    await pump(tester, initial: '/start');
+    await tester.tap(find.text('iniciar sessao'));
+    await drain(tester);
+    expect(find.text('gravando plano'), findsNothing);
+    expect(find.text('Sem sessao do plano agora.'), findsOneWidget);
   });
 }

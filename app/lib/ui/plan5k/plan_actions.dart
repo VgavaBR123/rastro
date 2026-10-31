@@ -21,6 +21,17 @@ Future<void> startPlanSession(BuildContext context, WidgetRef ref) async {
     final go = await context.push<bool>(AppRoutes.reliabilityBeforeRecording);
     if (go != true || !context.mounted) return;
   }
+  // A sessao pode ter deixado de existir (semana esperando decisao, plano
+  // reiniciado em outra tela): confere antes de abrir a gravacao.
+  final progress = await ref.read(planServiceProvider).progress();
+  if (!context.mounted) return;
+  if (progress.next == null) {
+    ref.invalidate(planProgressProvider);
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('Sem sessao do plano agora.')),
+    );
+    return;
+  }
   await context.push(AppRoutes.planSession);
   ref.invalidate(planProgressProvider);
 }

@@ -131,7 +131,16 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         .read(planServiceProvider)
         .progress(activeGuid: ctrl.activityGuid);
     final next = progress.next;
-    if (next == null || !mounted) return;
+    if (!mounted) return;
+    if (next == null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          key: Key('plan_no_session_notice'),
+          content: Text('Sem sessao do plano agora. Gravando uma corrida comum.'),
+        ),
+      );
+      return;
+    }
     await ref.read(guidedSessionProvider.notifier).begin(next, round: progress.round);
   }
 
