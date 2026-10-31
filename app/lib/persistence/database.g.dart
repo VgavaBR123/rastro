@@ -281,6 +281,17 @@ class $ActivitiesTable extends Activities
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _importSourceMeta = const VerificationMeta(
+    'importSource',
+  );
+  @override
+  late final GeneratedColumn<String> importSource = GeneratedColumn<String>(
+    'import_source',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     guid,
@@ -307,6 +318,7 @@ class $ActivitiesTable extends Activities
     discardedPointCount,
     rpe,
     mood,
+    importSource,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -495,6 +507,15 @@ class $ActivitiesTable extends Activities
         mood.isAcceptableOrUnknown(data['mood']!, _moodMeta),
       );
     }
+    if (data.containsKey('import_source')) {
+      context.handle(
+        _importSourceMeta,
+        importSource.isAcceptableOrUnknown(
+          data['import_source']!,
+          _importSourceMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -604,6 +625,10 @@ class $ActivitiesTable extends Activities
         DriftSqlType.string,
         data['${effectivePrefix}mood'],
       ),
+      importSource: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}import_source'],
+      ),
     );
   }
 
@@ -681,6 +706,10 @@ class Activity extends DataClass implements Insertable<Activity> {
   /// Fechamento gentil (F04): humor ('great' | 'good' | 'ok' | 'tired' |
   /// 'awful', ver Mood). Null = nao informado.
   final String? mood;
+
+  /// Seus dados (F07): formato do arquivo de onde a atividade foi importada
+  /// ('fit' | 'gpx' | 'tcx', ver ImportFormat). Null = gravada no app.
+  final String? importSource;
   const Activity({
     required this.guid,
     required this.activityType,
@@ -706,6 +735,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     required this.discardedPointCount,
     this.rpe,
     this.mood,
+    this.importSource,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -764,6 +794,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     if (!nullToAbsent || mood != null) {
       map['mood'] = Variable<String>(mood);
     }
+    if (!nullToAbsent || importSource != null) {
+      map['import_source'] = Variable<String>(importSource);
+    }
     return map;
   }
 
@@ -811,6 +844,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       discardedPointCount: Value(discardedPointCount),
       rpe: rpe == null && nullToAbsent ? const Value.absent() : Value(rpe),
       mood: mood == null && nullToAbsent ? const Value.absent() : Value(mood),
+      importSource: importSource == null && nullToAbsent
+          ? const Value.absent()
+          : Value(importSource),
     );
   }
 
@@ -850,6 +886,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       ),
       rpe: serializer.fromJson<int?>(json['rpe']),
       mood: serializer.fromJson<String?>(json['mood']),
+      importSource: serializer.fromJson<String?>(json['importSource']),
     );
   }
   @override
@@ -884,6 +921,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       'discardedPointCount': serializer.toJson<int>(discardedPointCount),
       'rpe': serializer.toJson<int?>(rpe),
       'mood': serializer.toJson<String?>(mood),
+      'importSource': serializer.toJson<String?>(importSource),
     };
   }
 
@@ -912,6 +950,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     int? discardedPointCount,
     Value<int?> rpe = const Value.absent(),
     Value<String?> mood = const Value.absent(),
+    Value<String?> importSource = const Value.absent(),
   }) => Activity(
     guid: guid ?? this.guid,
     activityType: activityType ?? this.activityType,
@@ -945,6 +984,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     discardedPointCount: discardedPointCount ?? this.discardedPointCount,
     rpe: rpe.present ? rpe.value : this.rpe,
     mood: mood.present ? mood.value : this.mood,
+    importSource: importSource.present ? importSource.value : this.importSource,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
     return Activity(
@@ -1004,6 +1044,9 @@ class Activity extends DataClass implements Insertable<Activity> {
           : this.discardedPointCount,
       rpe: data.rpe.present ? data.rpe.value : this.rpe,
       mood: data.mood.present ? data.mood.value : this.mood,
+      importSource: data.importSource.present
+          ? data.importSource.value
+          : this.importSource,
     );
   }
 
@@ -1033,7 +1076,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('heartbeatPaused: $heartbeatPaused, ')
           ..write('discardedPointCount: $discardedPointCount, ')
           ..write('rpe: $rpe, ')
-          ..write('mood: $mood')
+          ..write('mood: $mood, ')
+          ..write('importSource: $importSource')
           ..write(')'))
         .toString();
   }
@@ -1064,6 +1108,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     discardedPointCount,
     rpe,
     mood,
+    importSource,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1092,7 +1137,8 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.heartbeatPaused == this.heartbeatPaused &&
           other.discardedPointCount == this.discardedPointCount &&
           other.rpe == this.rpe &&
-          other.mood == this.mood);
+          other.mood == this.mood &&
+          other.importSource == this.importSource);
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
@@ -1120,6 +1166,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<int> discardedPointCount;
   final Value<int?> rpe;
   final Value<String?> mood;
+  final Value<String?> importSource;
   final Value<int> rowid;
   const ActivitiesCompanion({
     this.guid = const Value.absent(),
@@ -1146,6 +1193,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.discardedPointCount = const Value.absent(),
     this.rpe = const Value.absent(),
     this.mood = const Value.absent(),
+    this.importSource = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ActivitiesCompanion.insert({
@@ -1173,6 +1221,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.discardedPointCount = const Value.absent(),
     this.rpe = const Value.absent(),
     this.mood = const Value.absent(),
+    this.importSource = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : guid = Value(guid),
        activityType = Value(activityType),
@@ -1203,6 +1252,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<int>? discardedPointCount,
     Expression<int>? rpe,
     Expression<String>? mood,
+    Expression<String>? importSource,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1231,6 +1281,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
         'discarded_point_count': discardedPointCount,
       if (rpe != null) 'rpe': rpe,
       if (mood != null) 'mood': mood,
+      if (importSource != null) 'import_source': importSource,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1260,6 +1311,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<int>? discardedPointCount,
     Value<int?>? rpe,
     Value<String?>? mood,
+    Value<String?>? importSource,
     Value<int>? rowid,
   }) {
     return ActivitiesCompanion(
@@ -1287,6 +1339,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       discardedPointCount: discardedPointCount ?? this.discardedPointCount,
       rpe: rpe ?? this.rpe,
       mood: mood ?? this.mood,
+      importSource: importSource ?? this.importSource,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1370,6 +1423,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (mood.present) {
       map['mood'] = Variable<String>(mood.value);
     }
+    if (importSource.present) {
+      map['import_source'] = Variable<String>(importSource.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1403,6 +1459,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('discardedPointCount: $discardedPointCount, ')
           ..write('rpe: $rpe, ')
           ..write('mood: $mood, ')
+          ..write('importSource: $importSource, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5461,6 +5518,9 @@ class Plan5kSessionRow extends DataClass
 
   /// 'inProgress' | 'done' | 'partial' (SessionStatus).
   final String status;
+
+  /// Tempo de plano necessario para a sessao contar como concluida (ate o
+  /// desaquecimento; ver PlanSession.requiredMs).
   final int plannedMs;
 
   /// Tempo de plano andado (salvo durante a sessao e no fim).
@@ -5870,6 +5930,7 @@ typedef $$ActivitiesTableCreateCompanionBuilder = ActivitiesCompanion Function({
   Value<int> discardedPointCount,
   Value<int?> rpe,
   Value<String?> mood,
+  Value<String?> importSource,
   Value<int> rowid,
 });
 typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
@@ -5897,6 +5958,7 @@ typedef $$ActivitiesTableUpdateCompanionBuilder = ActivitiesCompanion Function({
   Value<int> discardedPointCount,
   Value<int?> rpe,
   Value<String?> mood,
+  Value<String?> importSource,
   Value<int> rowid,
 });
 
@@ -6087,6 +6149,11 @@ class $$ActivitiesTableFilterComposer
 
   ColumnFilters<String> get mood => $composableBuilder(
     column: $table.mood,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get importSource => $composableBuilder(
+    column: $table.importSource,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6294,6 +6361,11 @@ class $$ActivitiesTableOrderingComposer
     column: $table.mood,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get importSource => $composableBuilder(
+    column: $table.importSource,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ActivitiesTableAnnotationComposer
@@ -6409,6 +6481,11 @@ class $$ActivitiesTableAnnotationComposer
 
   GeneratedColumn<String> get mood =>
       $composableBuilder(column: $table.mood, builder: (column) => column);
+
+  GeneratedColumn<String> get importSource => $composableBuilder(
+    column: $table.importSource,
+    builder: (column) => column,
+  );
 
   Expression<T> waypointsRefs<T extends Object>(
     Expression<T> Function($$WaypointsTableAnnotationComposer a) f,
@@ -6542,6 +6619,7 @@ class $$ActivitiesTableTableManager
                 Value<int> discardedPointCount = const Value.absent(),
                 Value<int?> rpe = const Value.absent(),
                 Value<String?> mood = const Value.absent(),
+                Value<String?> importSource = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion(
                 guid: guid,
@@ -6568,6 +6646,7 @@ class $$ActivitiesTableTableManager
                 discardedPointCount: discardedPointCount,
                 rpe: rpe,
                 mood: mood,
+                importSource: importSource,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6596,6 +6675,7 @@ class $$ActivitiesTableTableManager
                 Value<int> discardedPointCount = const Value.absent(),
                 Value<int?> rpe = const Value.absent(),
                 Value<String?> mood = const Value.absent(),
+                Value<String?> importSource = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ActivitiesCompanion.insert(
                 guid: guid,
@@ -6622,6 +6702,7 @@ class $$ActivitiesTableTableManager
                 discardedPointCount: discardedPointCount,
                 rpe: rpe,
                 mood: mood,
+                importSource: importSource,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -87,6 +87,10 @@ class Activities extends Table {
   /// 'awful', ver Mood). Null = nao informado.
   TextColumn get mood => text().nullable()();
 
+  /// Seus dados (F07): formato do arquivo de onde a atividade foi importada
+  /// ('fit' | 'gpx' | 'tcx', ver ImportFormat). Null = gravada no app.
+  TextColumn get importSource => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {guid};
 }
@@ -267,7 +271,7 @@ class RecordingDatabase extends _$RecordingDatabase {
   RecordingDatabase([QueryExecutor? executor]) : super(executor ?? _open());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -323,6 +327,9 @@ class RecordingDatabase extends _$RecordingDatabase {
             await m.addColumn(settingsRows, settingsRows.plan5kVoice);
             await m.createTable(plan5kStates);
             await m.createTable(plan5kSessions);
+          }
+          if (from < 13) {
+            await m.addColumn(activities, activities.importSource);
           }
         },
         // O SQLite abre cada conexao com `foreign_keys = OFF` e o Drift nao liga
