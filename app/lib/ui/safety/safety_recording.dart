@@ -161,7 +161,7 @@ class SafetyBanner extends ConsumerWidget {
                 icon: Icons.sos_rounded,
                 variant: BigActionVariant.hold,
                 holdHint: 'Segure para avisar seus contatos',
-                height: 64,
+                height: 72,
                 onPressed: busy ? null : ctrl.sos,
               ),
             ],
@@ -208,7 +208,7 @@ class _SafetyCheckOverlayState extends ConsumerState<SafetyCheckOverlay> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(safetySessionProvider);
-    final check = s.check;
+    final check = s.alerted ? null : s.check; // alertado: a faixa assume
     if (check == null) {
       _announced = null;
       return const SizedBox.shrink();
