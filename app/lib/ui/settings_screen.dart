@@ -1,6 +1,6 @@
 // Tela de configuracoes: unidades (metrico ou imperial), pausa automatica,
-// peso (para calorias), Modo Gentil (F04) e privacidade (F02), em secoes de
-// cartao.
+// peso (para calorias), Modo Gentil (F04), privacidade (F02) e Seus dados
+// (F07), em secoes de cartao.
 library;
 
 import 'package:flutter/material.dart';
@@ -182,6 +182,20 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: ctrl.setHideOnServer,
                 ),
               ],
+            ),
+          ),
+          SectionCard(
+            title: 'Seus dados',
+            child: ListTile(
+              key: const Key('your_data'),
+              minTileHeight: 56,
+              leading: Icon(Icons.import_export_rounded, color: c.ciano.fg),
+              title: const Text('Importar e exportar'),
+              subtitle: const Text(
+                'Traga atividades em FIT, GPX, TCX ou ZIP e leve tudo em GPX',
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: c.textMuted),
+              onTap: () => context.push(AppRoutes.yourData),
             ),
           ),
         ],

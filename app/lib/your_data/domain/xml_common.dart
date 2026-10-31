@@ -36,7 +36,7 @@ String? childText(XmlElement e, String name) {
 
 /// Descendentes com nome local [name], em ordem de documento.
 Iterable<XmlElement> descendantsNamed(XmlNode e, String name) =>
-    e.findAllElements(name, namespace: '*');
+    e.findAllElements(name, namespaceUri: '*');
 
 double? parseDouble(String? s) {
   if (s == null) return null;

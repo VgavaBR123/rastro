@@ -30,6 +30,7 @@ import '../ui/recording_screen.dart';
 import '../ui/settings_screen.dart';
 import '../ui/stats_screen.dart';
 import '../ui/theme/app_theme.dart';
+import '../ui/your_data/your_data_screen.dart';
 import 'providers.dart';
 
 /// Destinos do app. Caminhos so sao escritos aqui.
@@ -57,6 +58,9 @@ abstract final class AppRoutes {
 
   /// Novo local protegido no mapa. O centro inicial (GeoPoint) vai em `extra`.
   static const String privacyAddZone = '/privacy/add';
+
+  /// Seus dados (F07): importar e exportar, pelas Configuracoes.
+  static const String yourData = '/your-data';
 
   /// Narrador por voz (F03), pelas Configuracoes.
   static const String narrator = '/narrator';
@@ -151,6 +155,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
       reliabilityRoute(),
       ...privacyRoutes(),
       narratorRoute(),
+      yourDataRoute(),
       ...chapterRoutes(),
       plan5kRoute(),
       GoRoute(
@@ -205,6 +210,12 @@ GoRoute plan5kRoute() => GoRoute(
       builder: (_, _) => const RecordingScreen(activityType: ActivityType.run, guided: true),
     ),
   ],
+);
+
+/// Seus dados (F07), por cima do shell.
+GoRoute yourDataRoute() => GoRoute(
+  path: AppRoutes.yourData,
+  builder: (_, _) => const YourDataScreen(),
 );
 
 /// Configuracoes do Narrador por voz (F03), por cima do shell.

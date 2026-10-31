@@ -31,6 +31,8 @@ import 'splits_section.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_typography.dart';
+import 'your_data/export_activity_gpx.dart';
+import '../your_data/domain/import_models.dart';
 
 /// Altura do mapa no topo do detalhe.
 const double kDetailMapHeight = 280;
@@ -108,13 +110,23 @@ class ActivityDetailScreen extends ConsumerWidget {
                     ),
                   ],
                   const SizedBox(height: 10),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SportChip.custom(
-                      key: const Key('detailSync'),
-                      label: syncStateLabel(activity.syncState),
-                      role: syncRole(c, activity.syncState),
-                    ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      SportChip.custom(
+                        key: const Key('detailSync'),
+                        label: syncStateLabel(activity.syncState),
+                        role: syncRole(c, activity.syncState),
+                      ),
+                      // Seus dados (F07): de onde veio a importada.
+                      if (ImportFormat.fromDb(activity.importSource) case final f?)
+                        SportChip.custom(
+                          key: const Key('detailImportSource'),
+                          label: 'Importada de ${f.label}',
+                          role: c.ciano,
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   _metricGrid(_tiles(c, profile, metric, gentle: gentle)),
@@ -211,6 +223,15 @@ class ActivityDetailScreen extends ConsumerWidget {
                       label: 'Compartilhar',
                       onPressed: () => shareActivity(context, activity),
                     ),
+                    const SizedBox(width: 8),
+                    Builder(
+                      builder: (buttonContext) => FloatingMapButton(
+                        key: const Key('detailMenu'),
+                        icon: Icons.more_horiz_rounded,
+                        tooltip: 'Mais acoes',
+                        onPressed: () => _openMenu(buttonContext, ref),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -219,6 +240,29 @@ class ActivityDetailScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// Menu "Mais acoes" ancorado no botao: Exportar GPX (F07).
+  Future<void> _openMenu(BuildContext buttonContext, WidgetRef ref) async {
+    final box = buttonContext.findRenderObject()! as RenderBox;
+    final overlay =
+        Navigator.of(buttonContext).overlay!.context.findRenderObject()! as RenderBox;
+    final topLeft = box.localToGlobal(Offset(0, box.size.height), ancestor: overlay);
+    final bottomRight = box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay);
+    final choice = await showMenu<String>(
+      context: buttonContext,
+      position: RelativeRect.fromRect(Rect.fromPoints(topLeft, bottomRight), Offset.zero & overlay.size),
+      items: const [
+        PopupMenuItem(
+          key: Key('detailExportGpx'),
+          value: 'gpx',
+          child: Text('Exportar GPX'),
+        ),
+      ],
+    );
+    if (choice == 'gpx' && buttonContext.mounted) {
+      await exportActivityGpx(buttonContext, ref, activity);
+    }
   }
 
   /// Metricas da grade, na ordem: distancia, tempo, pace (ou velocidade no
