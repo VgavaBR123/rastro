@@ -10,6 +10,7 @@ feature fecha (commit por feature), para que uma queda de energia nao leve o his
 |---|---|---|---|
 | F04 Fechamento gentil | `c3c0b27` + `93394c1` | 782 / 131 | 2 cenarios novos passam; fluxo antigo de sync passa |
 | F05 Capitulos mensais com marcos | `8e52f54`..`e4c0d36` + `1f03635`..`b1e41af` | 878 / 131 | 2 cenarios novos passam; F04 e sync passam de novo |
+| F06 Plano Do Zero aos 5 km | `195aa74`..`023a8e9` + `8493499`..`1c5df4d` | 982 / 131 | 1 cenario longo passa (parcial, concluidas, voltas, segundo plano, repetir semana); F04, F05 e sync passam de novo |
 
 ## Como foi testado
 
@@ -76,3 +77,44 @@ A sequencia bate com o calendario: semanas de 31/08, 07/09 e 14/09 ativas (a de 
 - A virada da meia-noite e a volta do segundo plano (F05-REV-01) so foram provadas em `flutter test`, com relogio
   falso. No emulador exigiria mudar a data do sistema.
 - Leitor de tela (TalkBack): as paginas tem rotulo de semantica conferido em teste de widget, nao com TalkBack.
+
+## F06 Plano Do Zero aos 5 km
+
+Arquivo novo: `app/integration_test/plano_5k_test.dart`. Sem backend. Tabela curta (30 sessoes de 17 s:
+aquecimento 3 s, corre 4, caminha 3, corre 4, desaquece 3) com o relogio e o tick REAIS do aparelho, para provar
+que o plano anda sozinho. A posicao da tela Gravar e falsa (ver F06-E2E-03).
+
+| Cenario | Resultado | Evidencia |
+|---|---|---|
+| Comecar o plano: o Gravar da proxima sessao fica dentro da tela | Passou (depois da correcao) | Antes de `1c5df4d` o botao ficava fora da tela (F06-E2E-01). |
+| Encerrar aos 5 s (no 2o bloco) | Parcial; a proxima continua sendo a semana 1, sessao 1 | `partial 5577 ms`. |
+| Encerrar no meio do desaquecimento | Concluida (regra nova: corridas terminadas = concluida) | `done 16906 ms, 4 voltas`. |
+| Sessao inteira | Concluida, uma volta por bloco, todos os blocos na tela | `done 20704 ms, 5 voltas`; blocos: aquecer, correr, caminhar, correr, desacelerar, concluido. |
+| App em segundo plano por ~9 s no meio da sessao (HOME e volta por `adb`) | O plano seguiu andando sem GPS e fechou a volta do bloco que terminou fora da tela | `done 27592 ms, 5 voltas`; o 2o "Correr" nao foi visto na tela porque aconteceu em segundo plano. |
+| Semana 1 com um RPE 9: fim da 3a sessao | Sugeriu repetir (padrao); repetir volta para a semana 1 | Estado: `currentWeek: 1, repeats: {"1":1}`. |
+| Regressao: capitulos, fechamento gentil e sync | Passou | Servidor `rpe=7 mood=tired`; Perfil 1 e depois 0. |
+
+O segundo plano e disparado de fora: o teste imprime `[e2e-f06] SEGUNDO_PLANO` e um script no PC, lendo a
+saida do `flutter test`, manda `adb shell input keyevent 3` e traz o app de volta com `monkey` 8 s depois.
+
+### Achados
+
+| Id | Gravidade | O que | Situacao |
+|---|---|---|---|
+| F06-REV-01 | Alta | A voz dizia "Sessao concluida" no inicio do desaquecimento, mas a regra de 90% fazia quem encerrava ali ficar com sessao parcial (repetida). | Corrigido em `8493499`. Decisao de produto: a sessao conta como concluida quando as corridas terminam; o desaquecimento e recomendado. Frase nova: "Corridas de hoje concluidas. Caminhe 5 minutos para desacelerar." |
+| F06-REV-02 | Media | Encerrar pela notificacao: a reconciliacao regravava como parcial uma sessao concluida. | Corrigido em `0c48498`. |
+| F06-REV-03 | Media | O relogio do plano (Stopwatch) para com a CPU suspensa: tela desligada e GPS mudo congelariam o plano. | Corrigido em `a0b497d`: `SystemClock.elapsedRealtime` no Android e `CLOCK_MONOTONIC` no iOS por canal nativo, com reserva no relogio de parede. **Nao verificado com a CPU suspensa de verdade.** |
+| F06-REV-04 | Media | Com o Narrador geral ligado, os splits falavam pace durante a sessao guiada. | Corrigido em `72e7a26`; a troca de bloco agora interrompe a fala do Narrador. |
+| F06-REV-05 a 10 | Baixa | Instante lido fora do evento, ticks andando durante o Encerrar, voltas de 0 s em salto grande, excecao que segurava o fechamento por 5 s, volta duplicada apos crash, rota guiada sem sessao gravando em silencio. | Corrigidos em `a0b497d` e `14bc315`. |
+| F06-E2E-01 | Baixa | Depois de "Comecar o plano" a lista ficava rolada para baixo e o Gravar da 1a sessao ficava fora da tela. | Corrigido em `1c5df4d`; o E2E confere o botao dentro da tela. |
+| F06-E2E-02 | So teste | `debugPrint` do teste de integracao nao vai para o logcat; o gatilho do segundo plano le a saida do `flutter test`. | Ok. |
+| F06-E2E-03 | So ambiente | A tela Gravar pede a permissao de localizacao ao abrir; no emulador ela nunca foi concedida e o dialogo do sistema ficava atras do app. Ao voltar do segundo plano ele ficava por cima e o Flutter parava de desenhar, travando o teste. | O teste usa uma posicao falsa. No uso real a gravacao exige a permissao concedida. |
+
+### Nao verificado no aparelho
+
+- Plano com a CPU suspensa (tela desligada por varios minutos, Doze). O canal nativo compila no Android; no iOS
+  o Swift so sera compilado pelo CI do `.ipa`.
+- Vibracao com a tela desligada: o `HapticFeedback` do Flutter depende da tela ligada; provavelmente nao vibra.
+- Voz real (TTS) e TalkBack: no teste a voz e Noop.
+- Fora do escopo da F06, confirmado pelo agente: o tempo em movimento da gravacao comum nao anda sem ponto de
+  GPS (GRA-01 do teste no iPhone). O plano tem relogio proprio; a gravacao comum continua com o problema.

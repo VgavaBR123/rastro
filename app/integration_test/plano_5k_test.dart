@@ -162,20 +162,16 @@ void main() {
     await abrirPlano();
     expect(find.byKey(const Key('plan_health_notice')), findsOneWidget);
     await tocar(const Key('plan_begin'));
-    // A proxima sessao aparece no topo da lista (fora da tela se ela estava
-    // rolada ate o Comecar).
-    final topo = find.byKey(const Key('plan_start_next'));
-    if (topo.evaluate().isEmpty) {
-      await tester.scrollUntilVisible(
-        topo,
-        -300,
-        scrollable: find
-            .descendant(of: find.byKey(const Key('plan_list')), matching: find.byType(Scrollable))
-            .first,
-      );
-      debugPrint('[e2e-f06] PLAN-UX: proxima sessao fora da tela depois de Comecar');
-    }
-    await tocar(const Key('plan_start_next'));
+    // A lista volta ao topo: o Gravar da proxima sessao fica dentro da tela
+    // sem rolar (achado do E2E, corrigido em 1c5df4d).
+    final gravar = find.byKey(const Key('plan_start_next'));
+    await esperar(gravar);
+    expect(gravar, findsOneWidget);
+    final tela = tester.view.physicalSize / tester.view.devicePixelRatio;
+    expect(tester.getRect(gravar).bottom, lessThan(tela.height),
+        reason: 'Gravar fora da tela depois de Comecar o plano');
+    await tester.tap(gravar);
+    await tester.pumpAndSettle();
     await esperar(find.byKey(const Key('plan_block_card')));
     expect(find.byKey(const Key('plan_block_card')), findsOneWidget);
 
@@ -187,12 +183,18 @@ void main() {
     expect(parcial.status, 'partial');
     expect((parcial.week, parcial.number), (1, 1));
 
-    // 2) Tres sessoes inteiras; a 2a com RPE 9. A 3a passa pelo segundo plano.
-    for (final (n, rpe, bg) in [(1, null, null), (2, 9, null), (3, 5, 6)]) {
+    // 2) Tres sessoes concluidas; a 2a com RPE 9. A 1a encerra no meio do
+    //    desaquecimento (aos ~16 s de 17): conta como concluida, porque as
+    //    corridas acabaram. A 3a passa pelo segundo plano.
+    for (final (n, rpe, bg, segundos) in [
+      (1, null, null, 16),
+      (2, 9, null, 20),
+      (3, 5, 6, 20),
+    ]) {
       await abrirPlano();
       await tocar(const Key('plan_start_next'));
       await esperar(find.byKey(const Key('plan_block_card')));
-      final blocos = await correr(20, segundoPlanoEm: bg);
+      final blocos = await correr(segundos, segundoPlanoEm: bg);
       debugPrint('[e2e-f06] sessao 1.$n blocos: $blocos');
       await encerrar(rpe: rpe);
       final row = await ultimaSessao();
@@ -200,7 +202,7 @@ void main() {
       debugPrint('[e2e-f06] sessao 1.$n: ${row.status} ${row.movingMs} ms, '
           '${voltas.length} voltas');
       expect((row.week, row.number), (1, n));
-      expect(row.status, 'done', reason: 'sessao 1.$n cobriu os 17 s');
+      expect(row.status, 'done', reason: 'sessao 1.$n chegou ao desaquecimento');
       expect(voltas.length, greaterThanOrEqualTo(4),
           reason: 'cada troca de bloco fecha uma volta');
       if (bg == null) {
