@@ -188,6 +188,15 @@ void main() {
     expect(await db.waypointsForActivity('imp-bad'), isEmpty);
   });
 
+  test('fila que quebra no meio: o que entrou fica e o erro aparece', () async {
+    final feed = _BrokenFeed(ok(act('imp-a')));
+    final s = await service.run(feed);
+    expect(s.imported, 1);
+    expect(s.errors.single.reason, contains('interrompida'));
+    expect(feed.closed, isTrue);
+    expect(await db.finishedActivitiesAscending(), hasLength(1));
+  });
+
   test('resumo em texto', () {
     const s = ImportSummary(
       total: 20,
@@ -201,4 +210,24 @@ void main() {
     const one = ImportSummary(total: 1, imported: 0, duplicates: 0, ignored: {'ioga': 1}, errors: [], cancelled: false);
     expect(one.ignoredLines, ['1 de ioga ignorada']);
   });
+}
+
+class _BrokenFeed implements ImportFeed {
+  final ImportStep first;
+  bool sent = false;
+  bool closed = false;
+  _BrokenFeed(this.first);
+  @override
+  int get total => 3;
+  @override
+  Future<ImportStep?> next() async {
+    if (!sent) {
+      sent = true;
+      return first;
+    }
+    throw StateError('isolate caiu');
+  }
+
+  @override
+  Future<void> close() async => closed = true;
 }

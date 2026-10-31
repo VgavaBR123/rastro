@@ -19,6 +19,7 @@ import 'package:strava_estudo_app/recording/domain/recording_models.dart';
 import 'package:strava_estudo_app/sync/background/background_sync_provider.dart';
 import 'package:strava_estudo_app/sync/background/background_sync_scheduler.dart';
 import 'package:strava_estudo_app/ui/activity_detail_screen.dart';
+import 'package:strava_estudo_app/ui/recording_health_section.dart';
 import 'package:strava_estudo_app/ui/settings_screen.dart';
 import 'package:strava_estudo_app/ui/theme/app_theme.dart';
 import 'package:strava_estudo_app/ui/your_data/your_data_screen.dart';
@@ -278,6 +279,8 @@ void main() {
       await open(tester, a);
       expect(find.text('Importada de GPX'), findsOneWidget);
       expect(find.byKey(const Key('detailImportSource')), findsOneWidget);
+      expect(find.byType(RecordingHealthSection), findsNothing,
+          reason: 'importada nao tem saude da gravacao');
     });
 
     testWidgets('sem origem nao mostra o selo', (tester) async {

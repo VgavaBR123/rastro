@@ -158,7 +158,9 @@ class ActivityDetailScreen extends ConsumerWidget {
                     _card(ElevationSection(profile: profile, metric: metric)),
                   if (laps.isNotEmpty)
                     _card(LapsSection(laps: laps, metric: metric, gentle: gentle)),
-                  if (health != null)
+                  // Importada (F07): o arquivo nao tem a saude da gravacao (a
+                  // precisao dos pontos e atribuida na importacao).
+                  if (health != null && activity.importSource == null)
                     _card(
                       RecordingHealthSection(health: health, metric: metric),
                     ),

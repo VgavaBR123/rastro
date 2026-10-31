@@ -318,30 +318,53 @@ class IsolateImportFeed implements ImportFeed {
   @override
   final int total;
   bool _closed = false;
+  bool _done = false;
 
   IsolateImportFeed._(this._isolate, this._port, this._replies, this._commands, this.total);
 
   static Future<IsolateImportFeed> open(List<String> paths) async {
     final port = ReceivePort();
-    final isolate = await Isolate.spawn(_worker, (port.sendPort, paths));
+    // Erro nao tratado ou saida do isolate chegam pela mesma porta: quem
+    // espera uma resposta nunca fica pendurado.
+    final isolate = await Isolate.spawn(
+      _worker,
+      (port.sendPort, paths),
+      onError: port.sendPort,
+      onExit: port.sendPort,
+    );
     final replies = StreamIterator<Object?>(port);
     Future<Object?> reply() async {
       if (!await replies.moveNext()) throw StateError('isolate da importacao parou');
       return replies.current;
     }
 
-    final commands = await reply() as SendPort;
-    final total = await reply() as int;
+    final commands = await reply();
+    final total = await reply();
+    if (commands is! SendPort || total is! int) {
+      isolate.kill(priority: Isolate.immediate);
+      await replies.cancel();
+      port.close();
+      throw StateError('isolate da importacao falhou ao abrir os arquivos');
+    }
     return IsolateImportFeed._(isolate, port, replies, commands, total);
   }
 
   @override
   Future<ImportStep?> next() async {
-    if (_closed) return null;
+    if (_closed || _done) return null;
     _commands.send('next');
     if (!await _replies.moveNext()) return null;
     if (_closed) return null;
-    return _replies.current as ImportStep?;
+    final r = _replies.current;
+    if (r is ImportStep) return r;
+    if (r == null) {
+      // Fim da fila (ou o isolate saiu): nada mais vem.
+      _done = true;
+      return null;
+    }
+    // Erro nao tratado no isolate ([erro, pilha]).
+    await close();
+    throw StateError('isolate da importacao falhou: $r');
   }
 
   @override

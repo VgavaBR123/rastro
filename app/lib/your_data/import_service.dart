@@ -91,7 +91,14 @@ class ImportService {
           cancelled = true;
           break;
         }
-        final step = await feed.next();
+        ImportStep? step;
+        try {
+          step = await feed.next();
+        } on Object {
+          // A fila quebrou (isolate caiu): o que entrou fica, o resto para.
+          errors.add(const ImportFailure('importacao', 'leitura interrompida por um erro'));
+          break;
+        }
         if (step == null) break;
         switch (step) {
           case ImportStepActivity(:final source, :final activity):
