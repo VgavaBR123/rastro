@@ -93,7 +93,7 @@ void main() {
       expect((await repo.sessionForGuid('act_1'))!.movingMs, 420);
     });
 
-    test('sessao em andamento cuja atividade ja terminou vira parcial ou concluida', () async {
+    test('sessao em andamento sem gravacao aberta: fecha pela atividade ou some', () async {
       await seed(db, 'fim'); // finalizada (ex.: "Salvar e encerrar" da recuperacao)
       await repo.beginSession(week: 1, number: 1, round: 0, plannedMs: 1000, guid: 'fim', nowMs: 1);
       await repo.saveProgress('fim', movingMs: 300);
@@ -109,7 +109,8 @@ void main() {
       await repo.reconcile(activeGuid: null, nowMs: 50);
       final byGuid = {for (final r in await repo.results()) r.activityGuid: r.status};
       expect(byGuid['fim'], SessionStatus.partial);
-      expect(byGuid['sumiu'], SessionStatus.done);
+      // Atividade em andamento que sumiu = descartada na recuperacao: nao conta.
+      expect(byGuid.containsKey('sumiu'), isFalse);
       // Gravacao interrompida ainda recuperavel: fica em andamento.
       expect(byGuid['aberta'], SessionStatus.inProgress);
     });

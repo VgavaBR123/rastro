@@ -20,6 +20,7 @@ import '../ui/history_screen.dart';
 import '../ui/home_screen.dart';
 import '../ui/narrator_settings_screen.dart';
 import '../ui/password_reset_screen.dart';
+import '../ui/plan5k/plan_screen.dart';
 import '../ui/privacy/add_zone_screen.dart';
 import '../ui/privacy/privacy_zones_screen.dart';
 import '../ui/profile_screen.dart';
@@ -60,6 +61,12 @@ abstract final class AppRoutes {
   /// Narrador por voz (F03), pelas Configuracoes.
   static const String narrator = '/narrator';
   static const String auth = '/auth';
+
+  /// Plano Do Zero aos 5 km (F06), por cima do shell.
+  static const String plan5k = '/plan5k';
+
+  /// Gravacao guiada da proxima sessao do plano (sempre corrida).
+  static const String planSession = '/plan5k/session';
 
   /// Capitulo do mes (F05), por cima do shell.
   static String monthChapter(MonthKey month) => '/chapter/month/${month.code}';
@@ -145,6 +152,7 @@ GoRouter buildAppRouter({String initialLocation = AppRoutes.home}) {
       ...privacyRoutes(),
       narratorRoute(),
       ...chapterRoutes(),
+      plan5kRoute(),
       GoRoute(
         path: AppRoutes.auth,
         builder: (_, _) => const AuthScreen(),
@@ -186,6 +194,18 @@ List<GoRoute> chapterRoutes() => [
     ),
   ),
 ];
+
+/// Plano 5 km (F06): a tela do plano e a gravacao guiada, por cima do shell.
+GoRoute plan5kRoute() => GoRoute(
+  path: AppRoutes.plan5k,
+  builder: (_, _) => const PlanScreen(),
+  routes: [
+    GoRoute(
+      path: 'session',
+      builder: (_, _) => const RecordingScreen(activityType: ActivityType.run, guided: true),
+    ),
+  ],
+);
 
 /// Configuracoes do Narrador por voz (F03), por cima do shell.
 GoRoute narratorRoute() => GoRoute(

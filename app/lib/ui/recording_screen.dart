@@ -19,6 +19,9 @@ import '../closing/closing_service.dart';
 import '../core/format/measures.dart';
 import '../narrator/narrator_providers.dart';
 import '../persistence/recording_repository.dart';
+import '../plan5k/domain/plan_progress.dart';
+import '../plan5k/guided_session.dart';
+import '../plan5k/plan_providers.dart';
 import '../privacy/privacy_providers.dart';
 import '../recording/domain/gap_monitor.dart';
 import '../recording/domain/geo.dart';
@@ -32,6 +35,8 @@ import 'components/floating_map_button.dart';
 import 'components/metric_tile.dart';
 import 'components/notice_banner.dart';
 import 'components/sport_chip.dart';
+import 'plan5k/guided_block_card.dart';
+import 'plan5k/plan_actions.dart';
 import 'route_map.dart';
 import 'save_activity_view.dart';
 import 'theme/app_colors.dart';
@@ -45,10 +50,14 @@ class RecordingScreen extends ConsumerStatefulWidget {
   /// uma nova.
   final InterruptedActivity? resumeFrom;
 
+  /// Plano 5 km (F06): grava a proxima sessao do plano como corrida guiada.
+  final bool guided;
+
   const RecordingScreen({
     super.key,
     required this.activityType,
     this.resumeFrom,
+    this.guided = false,
   });
 
   @override
@@ -79,6 +88,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   /// Bloqueio contra toques ligado.
   bool _locked = false;
 
+  /// Plano 5 km (F06): resultado da sessao guiada desta gravacao (para a
+  /// decisao do fim da semana no Concluir). Null = gravacao comum.
+  SessionStatus? _planResult;
+
   @override
   void initState() {
     super.initState();
@@ -92,14 +105,34 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       // Narrador por voz (F03): passa a ouvir a gravacao antes dela comecar.
       ref.read(recordingNarrationProvider);
       final ctrl = ref.read(recordingControllerProvider.notifier);
+      final guided = ref.read(guidedSessionProvider.notifier);
+      // Cartao de uma sessao guiada anterior nao aparece nesta gravacao.
+      guided.clear();
       final resumeFrom = widget.resumeFrom;
       if (resumeFrom != null) {
-        ctrl.resumeInterrupted(resumeFrom);
+        await ctrl.resumeInterrupted(resumeFrom);
+        // Se era uma sessao guiada em andamento, o plano continua do ponto.
+        if (mounted) await guided.resume(resumeFrom.activity.guid);
         return;
       }
       final autoPause = ref.read(settingsProvider).autoPauseEnabled;
-      ctrl.start(widget.activityType, autoPauseEnabled: autoPause);
+      await ctrl.start(widget.activityType, autoPauseEnabled: autoPause);
+      if (widget.guided && mounted) await _beginGuided();
     });
+  }
+
+  /// Plano 5 km (F06): liga a proxima sessao do plano a esta gravacao. Sem
+  /// sessao a fazer (plano nao comecado ou semana esperando a decisao), a
+  /// gravacao segue como corrida comum.
+  Future<void> _beginGuided() async {
+    final ctrl = ref.read(recordingControllerProvider.notifier);
+    if (!ref.read(recordingControllerProvider).isActive) return;
+    final progress = await ref
+        .read(planServiceProvider)
+        .progress(activeGuid: ctrl.activityGuid);
+    final next = progress.next;
+    if (next == null || !mounted) return;
+    await ref.read(guidedSessionProvider.notifier).begin(next, round: progress.round);
   }
 
   @override
@@ -122,6 +155,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     if (sync) ref.read(backgroundSyncSchedulerProvider).scheduleSoon();
     ref.invalidate(recentActivitiesProvider);
     ref.invalidate(pendingCountProvider);
+    ref.invalidate(planProgressProvider);
+    ref.read(guidedSessionProvider.notifier).clear();
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -175,6 +210,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     final wasActive = ref.read(recordingControllerProvider).isActive;
     final guid = ctrl.activityGuid;
     final timerMs = ref.read(recordingControllerProvider).timerMs;
+    final guided = ref.read(guidedSessionProvider.notifier);
+    final wasGuided = guided.isRunning;
     // Detalhes antes do stop: o stop poe a atividade na fila de upload, e um
     // sync ja em andamento subiria sem RPE, humor e corte das pontas (o
     // servidor e idempotente por guid e nao atualiza depois). Se gravar os
@@ -199,9 +236,43 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     ref.read(backgroundSyncSchedulerProvider).scheduleSoon();
     ref.invalidate(recentActivitiesProvider);
     ref.invalidate(pendingCountProvider);
-    final phrases = guid == null ? const <String>[] : await _phrasesFor(guid);
+    final planPhrase = wasGuided ? await _planPhrase(guided) : null;
+    final phrases = [
+      ?planPhrase,
+      ...(guid == null ? const <String>[] : await _phrasesFor(guid)),
+    ];
     if (!mounted) return;
     setState(() => _closing = (phrases: phrases, draft: draft, timerMs: timerMs));
+  }
+
+  /// Plano 5 km (F06): frase do resultado da sessao no fechamento.
+  Future<String?> _planPhrase(GuidedSessionController guided) async {
+    final session = ref.read(guidedSessionProvider)?.session;
+    final status = await guided.whenFinished.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => null,
+    );
+    _planResult = status;
+    return switch (status) {
+      SessionStatus.done when session != null =>
+        'Sessao ${session.number} da semana ${session.week} do plano concluida.',
+      SessionStatus.partial => 'Sessao parcial salva. Ela fica para a proxima vez.',
+      _ => null,
+    };
+  }
+
+  /// Concluir do fechamento: com uma sessao do plano concluida, decide o fim
+  /// da semana (pode perguntar se repete) antes de fechar.
+  Future<void> _onClosingDone() async {
+    if (_planResult == SessionStatus.done) {
+      _planResult = null;
+      try {
+        await resolvePlanWeek(context, ref);
+      } catch (e) {
+        debugPrint('Decisao da semana do plano indisponivel: $e');
+      }
+    }
+    if (!_closed) _close(sync: false);
   }
 
   /// Frases do fechamento (F04). Sao um extra: se a consulta falhar, o
@@ -227,6 +298,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     final guid = ctrl.activityGuid;
     // Atividade apagada: o Narrador nao fala o resumo do fim.
     ref.read(recordingNarrationProvider).suppressNextFinish();
+    // Plano 5 km (F06): sessao descartada nao conta.
+    ref.read(guidedSessionProvider.notifier).abandon();
     await ctrl.stop();
     if (wasActive && guid != null) await repo.deleteActivity(guid);
     if (!mounted) return;
@@ -250,6 +323,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
     final ctrl = ref.read(recordingControllerProvider.notifier);
     final metric = ref.watch(settingsProvider).useMetric;
     final gentle = ref.watch(settingsProvider).gentleMode;
+    final guidedState = ref.watch(guidedSessionProvider);
     final closing = _closing;
 
     final Widget body;
@@ -260,7 +334,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         rpe: closing.draft.rpe,
         mood: closing.draft.mood,
         timerMs: closing.timerMs,
-        onDone: () => _close(sync: false),
+        onDone: _onClosingDone,
       );
     } else if (_saving) {
       body = SaveActivityView(
@@ -286,6 +360,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
         route: ctrl.route,
         metric: metric,
         gentle: gentle,
+        guided: guidedState,
         pages: _pages,
         page: _page,
         onPageChanged: (i) => setState(() => _page = i),
@@ -328,6 +403,9 @@ class _RecordingBody extends StatelessWidget {
 
   /// Modo Gentil (F04): sem pace na tela.
   final bool gentle;
+
+  /// Plano 5 km (F06): sessao guiada desta gravacao, ou null.
+  final GuidedUiState? guided;
   final PageController pages;
   final int page;
   final ValueChanged<int> onPageChanged;
@@ -348,6 +426,7 @@ class _RecordingBody extends StatelessWidget {
     required this.route,
     required this.metric,
     required this.gentle,
+    this.guided,
     required this.pages,
     required this.page,
     required this.onPageChanged,
@@ -459,7 +538,7 @@ class _RecordingBody extends StatelessWidget {
                 controller: pages,
                 onPageChanged: onPageChanged,
                 children: [
-                  _MetricsPage(state: s, metric: metric, gentle: gentle),
+                  _MetricsPage(state: s, metric: metric, gentle: gentle, guided: guided),
                   _MapPage(type: type, state: s, route: route, metric: metric),
                 ],
               ),
@@ -519,7 +598,15 @@ class _MetricsPage extends StatelessWidget {
   /// Modo Gentil (F04): sem o pace medio e, no split, o tempo no lugar do
   /// pace.
   final bool gentle;
-  const _MetricsPage({required this.state, required this.metric, required this.gentle});
+
+  /// Plano 5 km (F06): cartao do bloco no topo.
+  final GuidedUiState? guided;
+  const _MetricsPage({
+    required this.state,
+    required this.metric,
+    required this.gentle,
+    this.guided,
+  });
 
   /// Tempo do split corrente (pace x distancia); "--:--" sem pace.
   static String _splitTime(LiveSplit split) {
@@ -544,6 +631,10 @@ class _MetricsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (guided case final g?) ...[
+              GuidedBlockCard(guided: g, paused: s.isPaused),
+              const SizedBox(height: 12),
+            ],
             // Tempo, pace medio e distancia empilhados, todos grandes e com o
             // mesmo peso, separados por linhas.
             _BigMetric(

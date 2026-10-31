@@ -91,10 +91,11 @@ class PlanRepository {
     for (final r in await _db.plan5kSessionsWithActivity()) _result(r.row, r.activity),
   ];
 
-  /// Fecha as sessoes que ficaram "em andamento" sem gravacao aberta (ex.:
-  /// app morto e a recuperacao escolheu "Salvar e encerrar", ou a atividade
-  /// foi apagada). A gravacao [activeGuid] e as interrompidas ainda nao
-  /// finalizadas (recuperaveis) ficam como estao.
+  /// Fecha as sessoes que ficaram "em andamento" sem gravacao aberta: app
+  /// morto e a recuperacao escolheu "Salvar e encerrar" (vira concluida ou
+  /// parcial pelo tempo) ou "Descartar" (a atividade sumiu: a sessao some
+  /// tambem, como no descarte normal). A gravacao [activeGuid] e as
+  /// interrompidas ainda nao finalizadas (recuperaveis) ficam como estao.
   Future<void> reconcile({required String? activeGuid, required int nowMs}) async {
     for (final r in await _db.plan5kSessionsWithActivity()) {
       final row = r.row;
@@ -102,8 +103,12 @@ class PlanRepository {
       if (guid == null || guid == activeGuid) continue;
       if (row.status != SessionStatus.inProgress.dbValue) continue;
       final a = r.activity;
-      if (a != null && !a.isFinished) continue;
-      final moving = a != null && a.timerTimeMs > row.movingMs ? a.timerTimeMs : row.movingMs;
+      if (a == null) {
+        await discardSession(guid);
+        continue;
+      }
+      if (!a.isFinished) continue;
+      final moving = a.timerTimeMs > row.movingMs ? a.timerTimeMs : row.movingMs;
       await finishSession(
         guid,
         movingMs: moving,
