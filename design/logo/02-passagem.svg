@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Rastro — Passagem">
+  <title>Rastro — Passagem</title>
+  <rect width="1024" height="1024" fill="#0B0D12"/>
+  <path d="M 280 232 L 658 232 C 746 232 792 292 792 376 L 792 650 C 792 738 732 792 644 792 L 366 792 C 278 792 232 736 232 650 L 232 302 C 232 260 250 232 280 232 Z" fill="#C6F432"/>
+  <path d="M 336 824 L 336 642 C 336 548 384 492 478 492 L 554 492 C 634 492 686 440 686 354 L 686 204" fill="none" stroke="#0B0D12" stroke-width="96" stroke-linecap="round"/>
+  <circle cx="544" cy="680" r="48" fill="#0B0D12"/>
+</svg>

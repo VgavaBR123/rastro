@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="480" viewBox="0 0 1220 480" role="img" aria-label="Rastro — assinatura Dobra">
+  <title>Rastro — assinatura Dobra</title>
+  <rect width="1220" height="480" fill="#0B0D12"/>
+<g transform="translate(28 24) scale(0.42)">  <path d="M 286 738 L 286 426 C 286 324 352 270 450 270 L 608 270 C 700 270 744 322 744 390 C 744 466 692 510 608 510 L 486 510 C 438 510 424 554 458 588 L 606 736" fill="none" stroke="#C6F432" stroke-width="100" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="744" cy="736" r="50" fill="#C6F432"/></g>
+<g fill="none" stroke="#F4F6FA" stroke-width="23" stroke-linecap="round" stroke-linejoin="round">
+<path d="M 496 312 L 496 150 L 551 150 C 608 150 608 230 551 230 L 496 230 M 550 230 L 602 312"/>
+<path d="M 710 213 C 646 185 625 222 625 260 C 625 305 654 329 710 298 M 710 210 L 710 312"/>
+<path d="M 823 214 C 762 190 735 228 775 250 L 799 261 C 843 283 811 330 752 305"/>
+<path d="M 875 171 L 875 282 C 875 307 888 319 912 307 M 848 213 L 913 213"/>
+<path d="M 953 312 L 953 213 M 953 245 C 962 220 982 207 1005 213"/>
+<path d="M 1080 208 C 1015 208 1015 314 1080 314 C 1145 314 1145 208 1080 208 Z"/>
+</g>
+</svg>

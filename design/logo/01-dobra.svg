@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Rastro — Dobra">
+  <title>Rastro — Dobra</title>
+  <rect width="1024" height="1024" fill="#0B0D12"/>
+  <path d="M 286 738 L 286 426 C 286 324 352 270 450 270 L 608 270 C 700 270 744 322 744 390 C 744 466 692 510 608 510 L 486 510 C 438 510 424 554 458 588 L 606 736" fill="none" stroke="#C6F432" stroke-width="100" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="744" cy="736" r="50" fill="#C6F432"/>
+</svg>
