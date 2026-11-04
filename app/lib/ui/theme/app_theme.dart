@@ -28,7 +28,7 @@ abstract final class AppTheme {
       brightness: brightness,
       primary: c.primary,
       onPrimary: c.onPrimary,
-      primaryContainer: c.dist.tint,
+      primaryContainer: c.ciano.tint,
       onPrimaryContainer: c.primaryText,
       secondary: c.ciano.fill,
       onSecondary: c.onFill,
@@ -207,7 +207,7 @@ abstract final class AppTheme {
         style: SegmentedButton.styleFrom(
           backgroundColor: c.surface,
           foregroundColor: c.textMuted,
-          selectedBackgroundColor: c.dist.tint,
+          selectedBackgroundColor: c.ciano.tint,
           selectedForegroundColor: c.primaryText,
           side: BorderSide(color: c.line),
           minimumSize: const Size(44, 44),

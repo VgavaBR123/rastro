@@ -46,11 +46,11 @@ void main() {
     });
   });
 
-  test('splitRankRole: rápida = dist, lenta = tempo, demais = pace', () {
+  test('splitRankRole: rápida = lima, lenta = âmbar, demais = neutro', () {
     for (final c in [AppColors.dark, AppColors.light]) {
-      expect(splitRankRole(c, SplitRank.fastest), c.dist);
-      expect(splitRankRole(c, SplitRank.slowest), c.tempo);
-      expect(splitRankRole(c, SplitRank.normal), c.pace);
+      expect(splitRankRole(c, SplitRank.fastest), c.ciano);
+      expect(splitRankRole(c, SplitRank.slowest), c.extra);
+      expect(splitRankRole(c, SplitRank.normal), c.neutro);
     }
   });
 
@@ -108,9 +108,9 @@ void main() {
       expect(tamanho('a').$2, 14);
       expect(tamanho('b'), (200.0, 14.0));
       final deco = barra('a').decoration! as BoxDecoration;
-      expect(deco.color, colors.tempo.fill);
+      expect(deco.color, colors.extra.fill);
       expect(deco.borderRadius, BorderRadius.circular(7));
-      expect((barra('b').decoration! as BoxDecoration).color, colors.dist.fill);
+      expect((barra('b').decoration! as BoxDecoration).color, colors.ciano.fill);
 
       expect(find.text('Mais rápida'), findsOneWidget);
       expect(find.text('Mais lenta'), findsOneWidget);

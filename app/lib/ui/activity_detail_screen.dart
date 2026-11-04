@@ -35,10 +35,10 @@ const double kDetailMapHeight = 280;
 
 /// Cor do chip de sincronizacao por estado.
 RoleColors syncRole(AppColors c, SyncState s) => switch (s) {
-  SyncState.synced => c.dist,
+  SyncState.synced || SyncState.recording => c.ciano,
   SyncState.pending => c.extra,
-  SyncState.uploading => c.pace,
-  SyncState.recording || SyncState.failed => c.tempo,
+  SyncState.uploading => c.neutro,
+  SyncState.failed => c.perigo,
 };
 
 class ActivityDetailScreen extends ConsumerWidget {
@@ -249,9 +249,9 @@ class ActivityDetailScreen extends ConsumerWidget {
         const Key('detailAscent'),
       ),
       if (_calories(activity) case final kcal?)
-        _Tile('Calorias', kcal, c.extra, const Key('detailCalories')),
+        _Tile('Calorias', kcal, c.dist, const Key('detailCalories')),
       if (_batteryUsage(activity) case final bateria?)
-        _Tile('Bateria', bateria, c.ciano, const Key('detailBattery')),
+        _Tile('Bateria', bateria, c.dist, const Key('detailBattery')),
     ];
   }
 

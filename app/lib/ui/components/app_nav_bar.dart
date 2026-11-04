@@ -1,5 +1,5 @@
 // Navegacao principal (relatorio 11, AppNavBar): capsula flutuante com quatro
-// abas e, ao lado, o botao Gravar com anel multicolorido.
+// abas e, ao lado, o botao Gravar com anel lima.
 //
 // No iPhone com iOS 26 ou mais novo a barra e a nativa (Liquid Glass, pacote
 // native_glass_navbar): as abas viram itens do UITabBar com SF Symbols e o
@@ -45,7 +45,7 @@ final List<NavTab> kNavTabs = [
   NavTab(
     label: 'Início',
     icon: Icons.home_rounded,
-    role: (c) => c.dist,
+    role: (c) => c.ciano,
     key: const Key('nav_home'),
     symbol: 'house',
     selectedSymbol: 'house.fill',
@@ -53,21 +53,21 @@ final List<NavTab> kNavTabs = [
   NavTab(
     label: 'Histórico',
     icon: Icons.history_rounded,
-    role: (c) => c.pace,
+    role: (c) => c.ciano,
     key: const Key('nav_history'),
     symbol: 'clock.arrow.circlepath',
   ),
   NavTab(
     label: 'Estatísticas',
     icon: Icons.insights_rounded,
-    role: (c) => c.subida,
+    role: (c) => c.ciano,
     key: const Key('nav_stats'),
     symbol: 'chart.xyaxis.line',
   ),
   NavTab(
     label: 'Você',
     icon: Icons.person_rounded,
-    role: (c) => c.extra,
+    role: (c) => c.ciano,
     key: const Key('nav_profile'),
     symbol: 'person',
     selectedSymbol: 'person.fill',
@@ -328,7 +328,7 @@ class _TabItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(tab.icon, size: 22, color: role.fg),
+              Icon(tab.icon, size: 22, color: active ? role.fg : c.text),
               const SizedBox(height: 2),
               Text(
                 tab.label,

@@ -252,8 +252,8 @@ void main() {
       expect(tinta('detailTime'), colors.tempo.tint);
       expect(tinta('detailPace'), colors.pace.tint);
       expect(tinta('detailAscent'), colors.subida.tint);
-      expect(tinta('detailCalories'), colors.extra.tint);
-      expect(tinta('detailBattery'), colors.ciano.tint);
+      expect(tinta('detailCalories'), colors.dist.tint);
+      expect(tinta('detailBattery'), colors.dist.tint);
       expect(naLinha('detailDistance', '1,50 km'), findsOneWidget);
       expect(naLinha('detailAscent', '50 m'), findsOneWidget);
       final y = tester.getTopLeft(find.byKey(const Key('detailDistance'))).dy;

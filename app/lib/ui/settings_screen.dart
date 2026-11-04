@@ -97,7 +97,7 @@ class SettingsScreen extends ConsumerWidget {
                       formatWeight(s.weightKg, metric: s.useMetric),
                       key: const Key('weightValue'),
                     ),
-                    trailing: Icon(Icons.edit_rounded, color: c.extra.fg),
+                    trailing: Icon(Icons.edit_rounded, color: c.text),
                     onTap: () => showDialog<void>(
                       context: context,
                       builder: (_) => WeightDialog(

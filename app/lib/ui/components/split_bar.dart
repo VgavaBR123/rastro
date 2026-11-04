@@ -1,6 +1,6 @@
 // Barra de parcial (relatorio 11, SplitBar): altura 14, raio 7, largura
-// proporcional a velocidade entre 55% e 100%. A mais rapida fica em dist, a
-// mais lenta em tempo e as demais em pace. O calculo e funcao pura.
+// proporcional a velocidade entre 55% e 100%. A mais rapida fica em lima, a
+// mais lenta em ambar e as demais em neutro. O calculo e funcao pura.
 library;
 
 import 'package:flutter/material.dart';
@@ -73,9 +73,9 @@ List<SplitBarSpec> splitBarSpecs(List<double> speeds) {
 
 /// Cor de cada papel no tema atual.
 RoleColors splitRankRole(AppColors c, SplitRank rank) => switch (rank) {
-  SplitRank.fastest => c.dist,
-  SplitRank.slowest => c.tempo,
-  SplitRank.normal => c.pace,
+  SplitRank.fastest => c.ciano,
+  SplitRank.slowest => c.extra,
+  SplitRank.normal => c.neutro,
 };
 
 /// A barra em si: ocupa [SplitBarSpec.fraction] da largura recebida.

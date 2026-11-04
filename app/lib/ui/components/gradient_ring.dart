@@ -1,5 +1,5 @@
-// Anel multicolorido (botao Gravar e avatar do perfil): gradiente de varredura
-// comecando em 200 graus, na ordem de `AppColors.ringColors`.
+// Anel do botao Gravar e do avatar do perfil: gradiente de varredura comecando
+// em 200 graus, nas cores de `AppColors.ringColors` (hoje so lima).
 library;
 
 import 'dart:math' as math;

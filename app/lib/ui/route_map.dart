@@ -153,7 +153,7 @@ class RouteMap extends StatelessWidget {
               mode: mode,
               styleUrl: effectiveMapStyle(ref.watch(mapStyleChoiceProvider), brightness).url,
               color: lineColor,
-              dotColor: c.ciano.fill,
+              dotColor: c.text,
               dotRing: c.surface,
               userLocation: userLocation,
               recenterRequest: recenterRequest,

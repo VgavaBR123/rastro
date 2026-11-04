@@ -106,7 +106,7 @@ class RoutePreview extends StatelessWidget {
           color ?? c.primary,
           halo: halo,
           // Com 1 ponto so a partida aparece, mesmo sem showStart.
-          start: showStart || route.length == 1 ? c.ciano.fill : null,
+          start: showStart || route.length == 1 ? c.text : null,
           startRing: c.surface,
         ),
         child: route.isEmpty

@@ -179,7 +179,7 @@ class _SignedOutCard extends StatelessWidget {
       child: Column(
         children: [
           _Avatar(
-            child: Icon(Icons.person_rounded, size: 34, color: c.extra.fg),
+            child: Icon(Icons.person_rounded, size: 34, color: c.text),
           ),
           const SizedBox(height: 14),
           Text(
@@ -256,7 +256,7 @@ class _UserCard extends ConsumerWidget {
           ),
           IconButton(
             key: const Key('profile_edit_name'),
-            icon: Icon(Icons.edit_rounded, color: c.extra.fg),
+            icon: Icon(Icons.edit_rounded, color: c.text),
             tooltip: 'Editar nome',
             onPressed: () => _editName(context, ref, user.displayName),
           ),
@@ -438,7 +438,7 @@ class _CloudTotals extends ConsumerWidget {
               'Atividades sincronizadas',
               '${p.stats.activityCount}',
               const Key('profile_count'),
-              c.ciano,
+              c.dist,
             ),
             const SizedBox(width: 12),
             total(
@@ -480,7 +480,7 @@ class _AccountSecurity extends ConsumerWidget {
         children: [
           ListTile(
             key: const Key('profile_change_password'),
-            leading: Icon(Icons.lock_reset_rounded, color: c.ciano.fg),
+            leading: Icon(Icons.lock_reset_rounded, color: c.text),
             title: const Text('Trocar senha'),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () async {
@@ -492,7 +492,7 @@ class _AccountSecurity extends ConsumerWidget {
           const SectionDivider(),
           ListTile(
             key: const Key('profile_logout_all'),
-            leading: Icon(Icons.devices_rounded, color: c.ciano.fg),
+            leading: Icon(Icons.devices_rounded, color: c.text),
             title: const Text('Sair de todos os aparelhos'),
             subtitle: const Text('Encerra a conta em todos, inclusive neste'),
             trailing: const Icon(Icons.chevron_right_rounded),
@@ -513,7 +513,7 @@ class _SettingsLink extends StatelessWidget {
     return SectionCard(
       child: ListTile(
         key: const Key('profile_settings'),
-        leading: Icon(Icons.tune_rounded, color: c.extra.fg),
+        leading: Icon(Icons.tune_rounded, color: c.text),
         title: const Text('Configurações'),
         subtitle: const Text('Unidades, pausa automática e peso'),
         trailing: const Icon(Icons.chevron_right_rounded),

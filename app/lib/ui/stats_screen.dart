@@ -60,19 +60,19 @@ class StatsScreen extends ConsumerWidget {
                 SegmentOption(
                   value: StatsPeriod.week,
                   label: 'Semana',
-                  role: c.subida,
+                  role: c.ciano,
                   key: const Key('stats_period_week'),
                 ),
                 SegmentOption(
                   value: StatsPeriod.month,
                   label: '4 semanas',
-                  role: c.subida,
+                  role: c.ciano,
                   key: const Key('stats_period_month'),
                 ),
                 SegmentOption(
                   value: StatsPeriod.eightWeeks,
                   label: '8 semanas',
-                  role: c.subida,
+                  role: c.ciano,
                   key: const Key('stats_period_8w'),
                 ),
               ],
@@ -202,7 +202,7 @@ class StatsTotalsGrid extends StatelessWidget {
           children: [
             tile('gain', 'Subida', gain, gainUnit, c.subida),
             const SizedBox(width: 10),
-            tile('count', 'Treinos', '${totals.count}', null, c.extra),
+            tile('count', 'Treinos', '${totals.count}', null, c.dist),
           ],
         ),
       ],
@@ -274,7 +274,7 @@ class WeeklyStackedChart extends StatelessWidget {
                 weeks: weeks,
                 maxTimerMs: max,
                 colors: {
-                  for (final t in ActivityType.values) t: c.sport(t).fill,
+                  for (final t in ActivityType.values) t: c.sportShade(t),
                 },
                 gridColor: c.line,
                 emptyColor: c.surface2,
@@ -304,7 +304,7 @@ class WeeklyStackedChart extends StatelessWidget {
             runSpacing: 6,
             children: [
               for (final t in used)
-                _LegendDot(color: c.sport(t).fill, label: activityTypeLabel(t)),
+                _LegendDot(color: c.sportShade(t), label: activityTypeLabel(t)),
             ],
           ),
         ],
@@ -465,7 +465,7 @@ class _SportDistribution extends StatelessWidget {
                   Expanded(
                     key: Key('stats_sport_bar_${s.type.name}'),
                     flex: (s.fraction * 1000).round().clamp(1, 1000),
-                    child: ColoredBox(color: c.sport(s.type).fill),
+                    child: ColoredBox(color: c.sportShade(s.type)),
                   ),
               ],
             ),
@@ -508,7 +508,7 @@ class _SportRow extends StatelessWidget {
               width: 10,
               height: 10,
               decoration: BoxDecoration(
-                color: role.fill,
+                color: c.sportShade(share.type),
                 shape: BoxShape.circle,
               ),
             ),

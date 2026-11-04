@@ -392,22 +392,13 @@ class _SplashPainter extends CustomPainter {
   }
 
   void _paintSparks(Canvas canvas, double progress) {
-    final palette = [
-      colors.tempo.fill,
-      colors.ciano.fill,
-      colors.subida.fill,
-      colors.primary,
-      colors.extra.fill,
-      colors.pace.fill,
-      colors.primary,
-    ];
     final reach = Curves.easeOutCubic.transform(progress) * _sparkReach;
     final paint = Paint();
     for (var i = 0; i < _sparkCount; i++) {
       // Leque para cima a partir do ponto de aterrissagem.
       final angle = -math.pi * (0.06 + 0.88 * i / (_sparkCount - 1));
       final distance = reach * (i.isEven ? 1.0 : 0.72);
-      paint.color = palette[i].withValues(alpha: 1 - progress * progress);
+      paint.color = colors.primary.withValues(alpha: 1 - progress * progress);
       canvas.drawCircle(
         SplashLogo.dotCenter + Offset.fromDirection(angle, distance),
         _sparkRadius * (1 - progress),

@@ -3,8 +3,10 @@
 ## Resumo
 
 Identidade visual aprovada pelo Gava em 26/10/2026, a partir do prototipo "Prototipo app de treino"
-(canvas em https://claude.ai/artifact/PRmNqi5ntGfctU8vsjXhXL, privado). O tema e escuro, cada coisa tem
-uma cor fixa (cada metrica e cada esporte tem sempre a mesma cor), o botao principal e lima e a
+(canvas em https://claude.ai/artifact/PRmNqi5ntGfctU8vsjXhXL, privado). Em 04/11/2026 o Gava trocou a
+abordagem de cor pela direcao B, "Lima e neutros" (canvas em
+https://claude.ai/artifact/UKbT1eb3PPCT6F5ENxAbKf, privado). O tema e escuro, os numeros ficam em branco,
+lima marca acao e selecao, ambar marca pausa e alerta, vermelho marca erro, e a
 navegacao e uma capsula flutuante com o botao Gravar separado ao lado. Este arquivo e a fonte de verdade
 para `app/lib/ui/theme/` e `app/lib/ui/components/`. Nenhuma tela usa cor, fonte ou tamanho fixo no codigo:
 tudo sai daqui.
@@ -12,7 +14,8 @@ tudo sai daqui.
 ## Principios
 
 1. Escuro por padrao. O modo claro existe, mas e secundario.
-2. Cor carrega significado: a mesma metrica tem a mesma cor em todo o app. Cor de metrica nao e decoracao.
+2. Cor carrega significado, e pouca cor: lima e acao, ambar e pausa ou alerta, vermelho e erro. Numero nao
+   tem cor propria; o rotulo diz qual metrica e.
 3. Icone sempre acompanhado de texto.
 4. Numeros em Barlow Semi Condensed, com algarismos tabulares.
 5. Alvos de toque com pelo menos 44 dp; na gravacao, pelo menos 64 dp.
@@ -51,23 +54,28 @@ coral #FF5A6E (texto #2A0710) e violeta #7C3AED (texto #FFFFFF). O padrao e lima
 
 ### Cores por funcao
 
-Cada funcao tem tres variantes: cheia (graficos, preenchimentos e texto no escuro), texto no claro e
-tingida (fundo de chips, pilulas e blocos de metrica). Texto sobre cor cheia usa #0B0D12.
+Cada funcao tem quatro valores: cheia (graficos e botoes), texto no escuro, texto no claro e tingida
+(fundo de chips, pilulas e blocos). Texto sobre cor cheia usa #0B0D12. Os nomes dos tokens vem da paleta
+anterior e foram mantidos para nao quebrar a branch `features/top10`: dist, tempo, pace e subida dizem
+qual metrica o widget mostra, e `ciano` hoje e a funcao de acao.
 
-| Funcao | Onde aparece | Cheia | Texto no claro | Tingida |
-|---|---|---|---|---|
-| dist | distancia, aba Inicio, caminhada, Retomar, parcial mais rapida | #C6F432 | #4D7C0F | rgba(198,244,50,0.14) |
-| tempo | tempo, corrida, estado Gravando, Pausar, parcial mais lenta | #FF6B7A | #C42840 | rgba(255,107,122,0.14) |
-| pace | pace e velocidade, pedal, aba Historico, demais parciais | #5B9BFF | #2459E0 | rgba(91,155,255,0.14) |
-| subida | elevacao, grafico de elevacao, aba Estatisticas | #B08CFF | #6D28D9 | rgba(176,140,255,0.14) |
-| extra | calorias, trilha, aba Voce, estado Pausado, bloqueio de tela | #FFC53D | #9A6700 | rgba(255,197,61,0.16) |
-| ciano | GPS, ponto de partida da rota, cadencia, links de voltar | #2EE6D6 | #0E7C76 | rgba(46,230,214,0.14) |
+| Token | Onde aparece | Cheia | Texto escuro | Texto claro | Tingida (escuro) |
+|---|---|---|---|---|---|
+| dist, tempo, pace, subida | numeros de metrica, esportes, rota, Pausar, Retomar | #C6F432 | #F4F6FA | #12141A | rgba(255,255,255,0.06) |
+| ciano (acao) | aba ativa, selecao, estado Gravando, GPS pronto, voltar, parcial mais rapida | #C6F432 | #C6F432 | #3F6A0A | rgba(198,244,50,0.14) |
+| extra (alerta) | estado Pausado, pendente de envio, parcial mais lenta | #FFC53D | #FFC53D | #946200 | rgba(255,197,61,0.16) |
+| neutro | demais parciais, envio em andamento | #A3ACBB (claro #566072) | #F4F6FA | #12141A | rgba(255,255,255,0.06) |
+| perigo | sincronizacao que falhou; usa o token danger | #FF6B70 | #FF6B70 | #C8262E | danger a 14% |
 
-Esportes: Corrida = tempo, Pedal = pace, Caminhada = dist, Trilha = extra. A cor do esporte pinta o
-chip, a rota no mapa, o botao "Ver detalhe" do cartao e o botao "Iniciar" na tela Gravar.
+Esportes: Corrida, Pedal e Caminhada usam a mesma cor; o rotulo e o icone os distinguem. A cor pinta o
+chip neutro com ponto lima, a rota no mapa e o botao "Iniciar". So onde dois esportes dividem o mesmo
+grafico (Estatisticas) eles se separam por tom: Corrida #C6F432, Pedal #7F9A2A, Caminhada = cheia de neutro.
 
-Anel multicolorido (botao Gravar e avatar do perfil): gradiente de varredura comecando em 200 graus,
-na ordem #C6F432, #2EE6D6, #5B9BFF, #B08CFF, #FF6B7A, #FFC53D e de volta a #C6F432.
+Ponto de partida da rota: cor de texto. Anel (botao Gravar e avatar do perfil) e faiscas da splash: lima.
+
+Contraste testado em `test/ui/theme/app_colors_palette_test.dart`. O app hoje roda com tema escuro fixo
+(`ThemeMode.dark`); os valores do claro ficam prontos, mas a rota lima sobre o mapa claro tem pouco
+contraste e precisa de revisao antes de ligar o tema claro.
 
 ### Tipografia
 
@@ -104,51 +112,48 @@ enquanto muda.
   altura 64. E uma linha com a capsula das abas e, 10 ao lado, o botao Gravar.
 - Capsula: ocupa o resto da largura, fundo navBg com desfoque (BackdropFilter, sigma em torno de 20),
   borda de 1 navLine, brilho interno fino no topo, raio 32, padding 4, quatro abas de largura igual.
-- Aba: icone 22 com rotulo 10,5 embaixo. O icone fica sempre na cor da funcao da aba. Inativa: rotulo
-  textMuted, sem fundo. Ativa: pilula com raio 28, fundo tingido, contorno de 1 na cor cheia a 35% e
-  rotulo na cor da funcao com peso 700.
-- Abas: Inicio (dist), Historico (pace), Estatisticas (subida), Voce (extra).
-- Botao Gravar: 84 x 64, anel de 2 com o gradiente multicolorido, interior surface com raio 30, circulo
+- Aba: icone 22 com rotulo 10,5 embaixo. Inativa: icone em text, rotulo textMuted, sem fundo. Ativa:
+  pilula com raio 28, fundo tingido de lima, contorno de 1 lima a 35%, icone e rotulo lima, peso 700.
+- Botao Gravar: 84 x 64, anel lima de 2, interior surface com raio 30, circulo
   de 26 na cor primaria com brilho (sombra borrada na propria cor) e ponto central onPrimary de 10,
   rotulo "Gravar" 11 peso 700. Quando a tela atual e Gravar, o rotulo fica em primaryText.
 - Aparece em Inicio, Historico, Estatisticas, Voce e Gravar. Nao aparece em Gravando, Salvar e Detalhe.
 
 ### Demais componentes
 
-- **MetricTile:** rotulo (label), valor (estilo metric na cor da funcao) e unidade (label).
-  Variante em bloco: fundo tingido da funcao, raio 16, padding 12.
-- **SportChip:** altura 26 a 28, pilula, fundo tingido do esporte, ponto de 8 na cor cheia e texto na cor
-  do esporte.
+- **MetricTile:** rotulo (label), valor (estilo metric em text) e unidade (label).
+  Variante em bloco: fundo tingido neutro, raio 16, padding 12.
+- **SportChip:** altura 26 a 28, pilula, fundo tingido neutro, ponto lima de 8 e texto em text.
 - **ActivityCard:** surface, borda line, raio 22, padding 16. Ordem: SportChip com data e local, titulo,
-  linha de tres metricas (distancia, pace ou velocidade, tempo), miniatura do mapa com a rota na cor do
-  esporte (traco de 4,5 sobre um halo de 12 a 25%), ponto de partida ciano, botoes "Ver detalhe"
-  (tingido do esporte) e "Compartilhar" (contorno).
-- **WeekSummaryCard:** titulo "Esta semana" e meta ("3 de 4 treinos") com barra segmentada colorida por
-  esporte, tres metricas (distancia, tempo, subida) e barras por dia coloridas pelo esporte do dia.
+  linha de tres metricas (distancia, pace ou velocidade, tempo), miniatura do mapa com a rota lima
+  (traco de 4,5 sobre um halo de 12 a 25%), ponto de partida em text, botoes "Ver detalhe"
+  (tingido neutro) e "Compartilhar" (contorno).
+- **WeekSummaryCard:** titulo "Esta semana" e meta ("3 de 4 treinos") com barra segmentada lima,
+  tres metricas (distancia, tempo, subida) e barras por dia em lima.
 - **SplitBar:** barra de 14 com raio 7 e largura proporcional a velocidade (55% a 100%). A mais rapida e
-  dist, a mais lenta e tempo, as demais sao pace. Tem legenda.
-- **BigActionButton:** altura 64 a 80, pilula, icone e texto 18 a 22 peso 800. Variantes: primaria
-  (Salvar), cor do esporte (Iniciar), tempo (Pausar), dist (Retomar), neutra surface2 com borda e
+  lima, a mais lenta e ambar, as demais sao neutras. Tem legenda.
+- **BigActionButton:** altura 64 a 80, pilula, icone e texto 18 a 22 peso 800. Variantes: lima
+  (Salvar, Iniciar, Pausar, Retomar), neutra surface2 com borda e
   subtitulo "Segure para confirmar" (Encerrar), contorno danger (Descartar).
-- **SegmentedSelector:** fundo surface com borda, opcoes de 44, a selecionada tingida e com texto na cor
-  (visibilidade: So eu = subida, Seguidores = pace, Todos = ciano).
+- **SegmentedSelector:** fundo surface com borda, opcoes de 44, a selecionada tingida de lima e com texto
+  lima.
 - **FloatingMapButton:** botao sobre o mapa com fundo navBg, desfoque e borda navLine (Voltar,
   Compartilhar, Camadas, GPS pronto).
 
 ## Telas
 
 - **Inicio:** cabecalho com nome do app e titulo, botao Filtrar, WeekSummaryCard e lista de ActivityCard.
-- **Gravar:** mapa em tela cheia, chip de GPS (ciano) e botao Camadas no topo, folha inferior com seletor
-  de esporte (o ultimo usado vem marcado, com a dica), Sensores, Voz e o botao Iniciar na cor do esporte.
-- **Gravando:** sem navegacao. Chip de estado (Gravando em tempo, Pausado em extra), tempo e distancia em
+- **Gravar:** mapa em tela cheia, chip de GPS (lima) e botao Camadas no topo, folha inferior com seletor
+  de esporte (o ultimo usado vem marcado, com a dica), Sensores, Voz e o botao Iniciar lima.
+- **Gravando:** sem navegacao. Chip de estado (Gravando em lima, Pausado em ambar), tempo e distancia em
   metricXL, linha com pace atual, pace medio e subida em blocos tingidos, indicador de deslizar para o
   mapa, bloqueio de tela e Pausar. Pausado: Retomar e Encerrar (segurar), e as metricas ficam a 60%.
 - **Salvar:** voltar a gravacao, miniatura da rota, quatro metricas, titulo sugerido pelo horario,
   descricao, quem pode ver, Salvar (primaria) e Descartar (danger).
 - **Detalhe:** mapa no topo com botoes flutuantes, chip do esporte, titulo, grade 3 x 2 de metricas em
-  blocos tingidos, parciais por km com SplitBar e grafico de elevacao em subida.
-- **Voce:** avatar com anel multicolorido, totais da semana em blocos tingidos, grafico de 8 semanas
-  empilhado (corrida em tempo, pedal em pace), recordes pessoais com ponto na cor do esporte.
+  blocos tingidos, parciais por km com SplitBar e grafico de elevacao em lima.
+- **Voce:** avatar com anel lima, totais da semana em blocos tingidos, grafico de 8 semanas
+  empilhado (tons de esporte de Estatisticas), recordes pessoais com ponto lima.
 
 ## Mapeamento para o Flutter
 

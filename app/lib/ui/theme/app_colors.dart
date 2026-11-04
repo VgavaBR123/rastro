@@ -1,5 +1,10 @@
 // Tokens de cor do design system (relatorio 11). Nenhuma tela escreve cor
 // literal: tudo sai daqui, via `AppColors.of(context)`.
+//
+// Paleta "lima e neutros": numeros em texto, lima para acao e selecao, ambar
+// para pausa e alerta, vermelho para erro. Os nomes dist, tempo, pace e subida
+// dizem qual metrica o widget mostra, nao uma cor: hoje as quatro sao iguais.
+// `ciano` ficou com o papel de acao (o nome e anterior a esta paleta).
 library;
 
 import 'package:flutter/material.dart';
@@ -52,6 +57,9 @@ class AppColors extends ThemeExtension<AppColors> {
   final RoleColors extra;
   final RoleColors ciano;
 
+  /// Sem destaque: parciais comuns, sincronizacao em andamento.
+  final RoleColors neutro;
+
   const AppColors({
     required this.bg,
     required this.surface,
@@ -75,7 +83,13 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.subida,
     required this.extra,
     required this.ciano,
+    required this.neutro,
   });
+
+  static const RoleColors _metricaEscuro = RoleColors(
+      fill: Color(0xFFC6F432), fg: Color(0xFFF4F6FA), tint: Color.fromRGBO(255, 255, 255, 0.06));
+  static const RoleColors _metricaClaro = RoleColors(
+      fill: Color(0xFFC6F432), fg: Color(0xFF12141A), tint: Color.fromRGBO(18, 20, 26, 0.05));
 
   static const AppColors dark = AppColors(
     bg: Color(0xFF0B0D12),
@@ -94,18 +108,16 @@ class AppColors extends ThemeExtension<AppColors> {
     onPrimary: Color(0xFF141A06),
     primaryText: Color(0xFFC6F432),
     onFill: Color(0xFF0B0D12),
-    dist: RoleColors(
-        fill: Color(0xFFC6F432), fg: Color(0xFFC6F432), tint: Color.fromRGBO(198, 244, 50, 0.14)),
-    tempo: RoleColors(
-        fill: Color(0xFFFF6B7A), fg: Color(0xFFFF6B7A), tint: Color.fromRGBO(255, 107, 122, 0.14)),
-    pace: RoleColors(
-        fill: Color(0xFF5B9BFF), fg: Color(0xFF5B9BFF), tint: Color.fromRGBO(91, 155, 255, 0.14)),
-    subida: RoleColors(
-        fill: Color(0xFFB08CFF), fg: Color(0xFFB08CFF), tint: Color.fromRGBO(176, 140, 255, 0.14)),
+    dist: _metricaEscuro,
+    tempo: _metricaEscuro,
+    pace: _metricaEscuro,
+    subida: _metricaEscuro,
     extra: RoleColors(
         fill: Color(0xFFFFC53D), fg: Color(0xFFFFC53D), tint: Color.fromRGBO(255, 197, 61, 0.16)),
     ciano: RoleColors(
-        fill: Color(0xFF2EE6D6), fg: Color(0xFF2EE6D6), tint: Color.fromRGBO(46, 230, 214, 0.14)),
+        fill: Color(0xFFC6F432), fg: Color(0xFFC6F432), tint: Color.fromRGBO(198, 244, 50, 0.14)),
+    neutro: RoleColors(
+        fill: Color(0xFFA3ACBB), fg: Color(0xFFF4F6FA), tint: Color.fromRGBO(255, 255, 255, 0.06)),
   );
 
   static const AppColors light = AppColors(
@@ -125,36 +137,38 @@ class AppColors extends ThemeExtension<AppColors> {
     onPrimary: Color(0xFF141A06),
     primaryText: Color(0xFF3F6A0A),
     onFill: Color(0xFF0B0D12),
-    dist: RoleColors(
-        fill: Color(0xFFC6F432), fg: Color(0xFF4D7C0F), tint: Color.fromRGBO(198, 244, 50, 0.14)),
-    tempo: RoleColors(
-        fill: Color(0xFFFF6B7A), fg: Color(0xFFC42840), tint: Color.fromRGBO(255, 107, 122, 0.14)),
-    pace: RoleColors(
-        fill: Color(0xFF5B9BFF), fg: Color(0xFF2459E0), tint: Color.fromRGBO(91, 155, 255, 0.14)),
-    subida: RoleColors(
-        fill: Color(0xFFB08CFF), fg: Color(0xFF6D28D9), tint: Color.fromRGBO(176, 140, 255, 0.14)),
+    dist: _metricaClaro,
+    tempo: _metricaClaro,
+    pace: _metricaClaro,
+    subida: _metricaClaro,
     extra: RoleColors(
-        fill: Color(0xFFFFC53D), fg: Color(0xFF9A6700), tint: Color.fromRGBO(255, 197, 61, 0.16)),
+        fill: Color(0xFFFFC53D), fg: Color(0xFF946200), tint: Color.fromRGBO(255, 197, 61, 0.16)),
     ciano: RoleColors(
-        fill: Color(0xFF2EE6D6), fg: Color(0xFF0E7C76), tint: Color.fromRGBO(46, 230, 214, 0.14)),
+        fill: Color(0xFFC6F432), fg: Color(0xFF3F6A0A), tint: Color.fromRGBO(198, 244, 50, 0.14)),
+    neutro: RoleColors(
+        fill: Color(0xFF566072), fg: Color(0xFF12141A), tint: Color.fromRGBO(18, 20, 26, 0.05)),
   );
 
-  /// Ordem do anel multicolorido (botao Gravar, avatar), fechando no inicio.
-  List<Color> get ringColors => [
-        dist.fill,
-        ciano.fill,
-        pace.fill,
-        subida.fill,
-        tempo.fill,
-        extra.fill,
-        dist.fill,
-      ];
+  /// Anel do botao Gravar e do avatar, fechando no inicio.
+  List<Color> get ringColors => [primary, primary];
 
-  /// Cor fixa de cada esporte: Corrida = tempo, Pedal = pace, Caminhada = dist.
+  /// Erro: sincronizacao que falhou.
+  RoleColors get perigo =>
+      RoleColors(fill: danger, fg: danger, tint: danger.withValues(alpha: 0.14));
+
+  /// Cor de cada esporte: Corrida = tempo, Pedal = pace, Caminhada = dist.
   RoleColors sport(ActivityType type) => switch (type) {
         ActivityType.run => tempo,
         ActivityType.ride => pace,
         ActivityType.walk => dist,
+      };
+
+  /// Esportes lado a lado no mesmo grafico, onde a cor unica de [sport] nao
+  /// separaria os trechos: diferem em luminosidade, nao so em matiz.
+  Color sportShade(ActivityType type) => switch (type) {
+        ActivityType.run => primary,
+        ActivityType.ride => const Color(0xFF7F9A2A),
+        ActivityType.walk => neutro.fill,
       };
 
   /// Paleta do tema atual. Sem a extensao (testes com MaterialApp cru), cai
@@ -189,6 +203,7 @@ class AppColors extends ThemeExtension<AppColors> {
     RoleColors? subida,
     RoleColors? extra,
     RoleColors? ciano,
+    RoleColors? neutro,
   }) =>
       AppColors(
         bg: bg ?? this.bg,
@@ -213,6 +228,7 @@ class AppColors extends ThemeExtension<AppColors> {
         subida: subida ?? this.subida,
         extra: extra ?? this.extra,
         ciano: ciano ?? this.ciano,
+        neutro: neutro ?? this.neutro,
       );
 
   @override
@@ -242,6 +258,7 @@ class AppColors extends ThemeExtension<AppColors> {
       subida: RoleColors.lerp(subida, other.subida, t),
       extra: RoleColors.lerp(extra, other.extra, t),
       ciano: RoleColors.lerp(ciano, other.ciano, t),
+      neutro: RoleColors.lerp(neutro, other.neutro, t),
     );
   }
 }

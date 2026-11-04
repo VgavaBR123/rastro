@@ -122,7 +122,7 @@ class _BigActionButtonState extends State<BigActionButton> with SingleTickerProv
                   builder: (_, _) => FractionallySizedBox(
                     alignment: Alignment.centerLeft,
                     widthFactor: _hold.value,
-                    child: ColoredBox(color: c.tempo.tint),
+                    child: ColoredBox(color: c.ciano.tint),
                   ),
                 ),
               Padding(

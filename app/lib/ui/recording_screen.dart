@@ -327,7 +327,7 @@ class _StateChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = AppColors.of(context);
     final (String label, RoleColors role) = switch (state) {
-      RecordingState.recording => ('Gravando', c.tempo),
+      RecordingState.recording => ('Gravando', c.ciano),
       RecordingState.manuallyPaused => ('Pausado', c.extra),
       RecordingState.autoPaused => ('Pausa automática', c.extra),
       RecordingState.idle => ('Preparando', c.ciano),

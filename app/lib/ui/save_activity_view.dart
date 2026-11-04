@@ -284,14 +284,14 @@ class _SaveActivityViewState extends State<SaveActivityView> with WidgetsBinding
                     SegmentOption(
                       value: ActivityVisibility.onlyMe,
                       label: visibilityLabel(ActivityVisibility.onlyMe),
-                      role: c.subida,
+                      role: c.ciano,
                       icon: visibilityIcon(ActivityVisibility.onlyMe),
                       key: const Key('visibility_only_me'),
                     ),
                     SegmentOption(
                       value: ActivityVisibility.followers,
                       label: visibilityLabel(ActivityVisibility.followers),
-                      role: c.pace,
+                      role: c.ciano,
                       icon: visibilityIcon(ActivityVisibility.followers),
                       key: const Key('visibility_followers'),
                     ),
